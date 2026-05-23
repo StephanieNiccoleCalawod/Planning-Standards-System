@@ -1,0 +1,13 @@
+{
+  "name": "planning-standards-system",
+  "version": "1.0.0",
+  "description": "PUP Caloocan — Planning & Standards System",
+  "private": true,
+  "scripts": {
+    "start:catalogue": "cd src/modules/service-catalogue && npm run start:dev",
+    "start:kpi-sla": "cd src/modules/kpi-sla && npm run start:dev",
+    "install:all": "cd src/modules/service-catalogue && npm install && cd ../kpi-sla && npm install",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  }
+}
