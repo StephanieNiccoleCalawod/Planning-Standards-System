@@ -20,6 +20,8 @@ import { UpdateServiceDto } from '../dto/update-service.dto';
 import { CreateIntakeFieldDto } from '../dto/create-intake-field.dto';
 import { UpdateIntakeFieldDto } from '../dto/update-intake-field.dto';
 import { CreateNaFlagDto } from '../dto/create-na-flag.dto';
+import { PaginationDto } from '../dto/pagination.dto';
+import { GetServicesQueryDto } from '../dto/get-services-query.dto';
 import { JwtAuthGuard } from '../guards/jwt.guard';
 
 @ApiTags('Service Catalogue')
@@ -32,20 +34,22 @@ export class ServiceCatalogueController {
   // ─── Services ────────────────────────────────────────────────────────────
 
   @Get()
-  @ApiOperation({ summary: 'Get all services for the authenticated office' })
+  @ApiOperation({ summary: 'Get all services for the authenticated office (paginated)' })
   @ApiQuery({ name: 'classification', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'include_archived', required: false, type: Boolean })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'sort_by', required: false })
+  @ApiQuery({ name: 'sort_order', required: false, enum: ['ASC', 'DESC'] })
   findAll(
     @Request() req,
-    @Query('classification') classification?: string,
-    @Query('status') status?: string,
-    @Query('search') search?: string,
-    @Query('include_archived') include_archived?: boolean,
+    @Query() query: GetServicesQueryDto,
   ) {
     const office = req.user?.office ?? 'mock-office';
-    return this.svc.findAll(office, { classification, status, search, include_archived });
+    const { classification, status, search, include_archived, ...pagination } = query;
+    return this.svc.findAll(office, { classification, status, search, include_archived }, pagination);
   }
 
   @Get(':id')
@@ -65,7 +69,7 @@ export class ServiceCatalogueController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update a service' })
+  @ApiOperation({ summary: 'Update a service (with audit logging)' })
   update(@Request() req, @Param('id') id: string, @Body() dto: UpdateServiceDto) {
     const office = req.user?.office ?? 'mock-office';
     const actor = req.user?.sub ?? 'mock-actor';
@@ -78,6 +82,22 @@ export class ServiceCatalogueController {
     const office = req.user?.office ?? 'mock-office';
     const actor = req.user?.sub ?? 'mock-actor';
     return this.svc.archive(id, office, actor);
+  }
+
+  @Patch(':id/activate')
+  @ApiOperation({ summary: 'Activate a service (set status to ACTIVE)' })
+  activate(@Request() req, @Param('id') id: string) {
+    const office = req.user?.office ?? 'mock-office';
+    const actor = req.user?.sub ?? 'mock-actor';
+    return this.svc.activate(id, office, actor);
+  }
+
+  @Patch(':id/deactivate')
+  @ApiOperation({ summary: 'Deactivate a service (set status to INACTIVE)' })
+  deactivate(@Request() req, @Param('id') id: string) {
+    const office = req.user?.office ?? 'mock-office';
+    const actor = req.user?.sub ?? 'mock-actor';
+    return this.svc.deactivate(id, office, actor);
   }
 
   // ─── Intake Fields ───────────────────────────────────────────────────────

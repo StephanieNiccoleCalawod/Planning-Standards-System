@@ -1,5 +1,6 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { HolidayType } from '../enums';
 
 export class CreateHolidayDto {
   @ApiProperty({ example: "New Year's Day" })
@@ -11,9 +12,9 @@ export class CreateHolidayDto {
   @IsDateString()
   holiday_date: string;
 
-  @ApiProperty({ example: 'Regular' })
-  @IsString()
-  type: string;
+  @ApiProperty({ enum: HolidayType, example: HolidayType.REGULAR })
+  @IsEnum(HolidayType)
+  type: HolidayType;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

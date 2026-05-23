@@ -7,22 +7,14 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Service } from './service.entity';
-
-export enum FieldType {
-  TEXT = 'text',
-  NUMBER = 'number',
-  DATE = 'date',
-  DROPDOWN = 'dropdown',
-  CHECKBOX = 'checkbox',
-  TEXTAREA = 'textarea',
-}
+import { FieldType } from '../enums';
 
 @Entity('intake_field')
 export class IntakeField {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Service, (s) => s.intake_fields)
+  @ManyToOne(() => Service, (s) => s.intake_fields, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'service_id' })
   service: Service;
 

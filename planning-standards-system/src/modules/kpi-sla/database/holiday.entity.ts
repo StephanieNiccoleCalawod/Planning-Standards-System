@@ -3,15 +3,15 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Unique,
 } from 'typeorm';
+import { HolidayType } from '../enums';
 
+@Unique('uq_holiday_date_name', ['holiday_date', 'name'])
 @Entity('holiday')
 export class Holiday {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column({ length: 100 })
-  office: string;
 
   @Column({ type: 'date' })
   holiday_date: string;
@@ -19,8 +19,8 @@ export class Holiday {
   @Column({ length: 200 })
   name: string;
 
-  @Column({ length: 50 })
-  type: string;
+  @Column({ type: 'enum', enum: HolidayType })
+  type: HolidayType;
 
   @Column({ default: false })
   is_recurring: boolean;

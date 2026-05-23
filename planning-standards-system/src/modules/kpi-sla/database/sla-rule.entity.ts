@@ -4,9 +4,15 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { SlaRuleVersion } from './sla-rule-version.entity';
+import { WorkScheduleType } from '../enums';
 
+@Index('uq_active_sla_rule_per_office', ['office'], {
+  unique: true,
+  where: '"is_active" = true',
+})
 @Entity('sla_rule')
 export class SlaRule {
   @PrimaryGeneratedColumn('uuid')
@@ -15,8 +21,21 @@ export class SlaRule {
   @Column({ length: 100 })
   office: string;
 
-  @Column({ type: 'jsonb', default: [] })
-  work_schedule: object[];
+  /**
+   * High-level schedule type. For WEEKDAYS and MONDAY_TO_SATURDAY the
+   * engine can derive working days directly. For CUSTOM, the detailed
+   * configuration lives in work_schedule_config.
+   */
+  @Column({ type: 'enum', enum: WorkScheduleType })
+  work_schedule_type: WorkScheduleType;
+
+  /**
+   * Optional structured configuration for CUSTOM schedules.
+   * Expected format: array of { day, is_working, start, end } objects.
+   * Required when work_schedule_type = CUSTOM, null otherwise.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  work_schedule_config: object[] | null;
 
   @Column({ type: 'time' })
   work_start_time: string;

@@ -23,6 +23,9 @@ import { CreateHolidayDto } from '../dto/create-holiday.dto';
 import { UpdateHolidayDto } from '../dto/update-holiday.dto';
 import { CreatePeriodDto } from '../dto/create-period.dto';
 import { UpdatePeriodDto } from '../dto/update-period.dto';
+import { PaginationDto } from '../dto/pagination.dto';
+import { GetKpisQueryDto } from '../dto/get-kpis-query.dto';
+import { GetHolidaysQueryDto } from '../dto/get-holidays-query.dto';
 import { JwtAuthGuard } from '../guards/jwt.guard';
 
 @ApiTags('KPI & SLA Standards')
@@ -31,6 +34,8 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 @Controller('api')
 export class KpiSlaController {
   constructor(private readonly svc: KpiSlaService) {}
+
+  // ─── KPIs ───────────────────────────────────────────────────────────────
 
   @Post('kpis')
   @HttpCode(HttpStatus.CREATED)
@@ -42,16 +47,20 @@ export class KpiSlaController {
   }
 
   @Get('kpis')
-  @ApiOperation({ summary: 'Get all KPIs for the authenticated office' })
+  @ApiOperation({ summary: 'Get all KPIs for the authenticated office (paginated)' })
   @ApiQuery({ name: 'service_id', required: false })
   @ApiQuery({ name: 'category', required: false })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'sort_by', required: false })
+  @ApiQuery({ name: 'sort_order', required: false, enum: ['ASC', 'DESC'] })
   findAllKpis(
     @Request() req,
-    @Query('service_id') service_id?: string,
-    @Query('category') category?: string,
+    @Query() query: GetKpisQueryDto,
   ) {
     const office = req.user?.office ?? 'mock-office';
-    return this.svc.findAllKpis(office, { service_id, category });
+    const { service_id, category, ...pagination } = query;
+    return this.svc.findAllKpis(office, { service_id, category }, pagination);
   }
 
   @Put('kpis/:id')
@@ -68,12 +77,15 @@ export class KpiSlaController {
     return this.svc.removeKpi(id, office);
   }
 
+  // ─── SLA Rules ──────────────────────────────────────────────────────────
+
   @Post('sla-rules')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an SLA rule' })
   createSlaRule(@Request() req, @Body() dto: CreateSlaRuleDto) {
     const office = req.user?.office ?? 'mock-office';
-    return this.svc.createSlaRule(office, dto);
+    const actor = req.user?.sub ?? 'mock-actor';
+    return this.svc.createSlaRule(office, actor, dto);
   }
 
   @Get('sla-rules')
@@ -91,56 +103,65 @@ export class KpiSlaController {
     return this.svc.updateSlaRule(id, office, actor, dto);
   }
 
+  // ─── Holidays ───────────────────────────────────────────────────────────
+
   @Post('holidays')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add a holiday' })
-  createHoliday(@Request() req, @Body() dto: CreateHolidayDto) {
-    const office = req.user?.office ?? 'mock-office';
-    return this.svc.createHoliday(office, dto);
+  createHoliday(@Body() dto: CreateHolidayDto) {
+    return this.svc.createHoliday(dto);
   }
 
   @Get('holidays')
-  @ApiOperation({ summary: 'Get all holidays for the authenticated office' })
+  @ApiOperation({ summary: 'Get all holidays (paginated)' })
   @ApiQuery({ name: 'month', required: false, type: Number })
   @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiQuery({ name: 'type', required: false })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   findAllHolidays(
-    @Request() req,
-    @Query('month') month?: number,
-    @Query('year') year?: number,
-    @Query('type') type?: string,
+    @Query() query: GetHolidaysQueryDto,
   ) {
-    const office = req.user?.office ?? 'mock-office';
-    return this.svc.findAllHolidays(office, { month, year, type });
+    const { month, year, type, ...pagination } = query;
+    return this.svc.findAllHolidays({ month, year, type }, pagination);
   }
 
   @Put('holidays/:id')
   @ApiOperation({ summary: 'Update a holiday' })
-  updateHoliday(@Request() req, @Param('id') id: string, @Body() dto: UpdateHolidayDto) {
-    const office = req.user?.office ?? 'mock-office';
-    return this.svc.updateHoliday(id, office, dto);
+  updateHoliday(@Param('id') id: string, @Body() dto: UpdateHolidayDto) {
+    return this.svc.updateHoliday(id, dto);
   }
 
   @Delete('holidays/:id')
   @ApiOperation({ summary: 'Delete a holiday' })
-  removeHoliday(@Request() req, @Param('id') id: string) {
-    const office = req.user?.office ?? 'mock-office';
-    return this.svc.removeHoliday(id, office);
+  removeHoliday(@Param('id') id: string) {
+    return this.svc.removeHoliday(id);
   }
+
+  // ─── Evaluation Periods ─────────────────────────────────────────────────
 
   @Post('periods')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an evaluation period' })
   createPeriod(@Request() req, @Body() dto: CreatePeriodDto) {
     const office = req.user?.office ?? 'mock-office';
-    return this.svc.createPeriod(office, dto);
+    const actor = req.user?.sub ?? 'mock-actor';
+    return this.svc.createPeriod(office, actor, dto);
   }
 
   @Get('periods')
-  @ApiOperation({ summary: 'Get all evaluation periods for the authenticated office' })
-  findAllPeriods(@Request() req) {
+  @ApiOperation({ summary: 'Get all evaluation periods for the authenticated office (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  findAllPeriods(@Request() req, @Query() pagination?: PaginationDto) {
     const office = req.user?.office ?? 'mock-office';
-    return this.svc.findAllPeriods(office);
+    return this.svc.findAllPeriods(office, pagination);
+  }
+
+  @Get('periods/:id')
+  @ApiOperation({ summary: 'Get a single evaluation period by ID (includes soft-deleted — for ARMS compatibility)' })
+  findOnePeriod(@Param('id') id: string) {
+    return this.svc.findOnePeriod(id);
   }
 
   @Put('periods/:id')

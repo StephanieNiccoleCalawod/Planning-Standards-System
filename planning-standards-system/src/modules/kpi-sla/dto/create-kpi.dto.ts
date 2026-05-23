@@ -1,17 +1,14 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { KpiCategory, KpiUnit } from '../enums';
 
 export class CreateKpiDto {
-  @ApiProperty()
-  @IsUUID()
-  evaluation_period_id: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   sub_office?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'References a service in the service-catalogue microservice' })
   @IsOptional()
   @IsUUID()
   service_id?: string;
@@ -21,15 +18,16 @@ export class CreateKpiDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'timeliness', description: 'timeliness, quality, or volume' })
-  @IsString()
-  category: string;
+  @ApiProperty({ enum: KpiCategory, example: KpiCategory.EFFICIENCY })
+  @IsEnum(KpiCategory)
+  category: KpiCategory;
 
-  @ApiProperty({ example: 95.0 })
+  @ApiProperty({ example: 95.0, description: 'Must be a positive number' })
   @IsNumber()
+  @IsPositive()
   target_value: number;
 
-  @ApiProperty({ example: '%', description: '%, days, count, etc.' })
-  @IsString()
-  unit: string;
+  @ApiProperty({ enum: KpiUnit, example: KpiUnit.PERCENT })
+  @IsEnum(KpiUnit)
+  unit: KpiUnit;
 }

@@ -7,7 +7,13 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { SlaRule } from './sla-rule.entity';
+import { WorkScheduleType } from '../enums';
 
+/**
+ * Snapshot of SLA rule state before each update.
+ * Captures the complete set of mutable fields so the full history
+ * of configuration changes can be reconstructed.
+ */
 @Entity('sla_rule_version')
 export class SlaRuleVersion {
   @PrimaryGeneratedColumn('uuid')
@@ -20,8 +26,11 @@ export class SlaRuleVersion {
   @Column()
   sla_rule_id: string;
 
-  @Column({ type: 'jsonb', default: [] })
-  work_schedule: object[];
+  @Column({ type: 'enum', enum: WorkScheduleType })
+  work_schedule_type: WorkScheduleType;
+
+  @Column({ type: 'jsonb', nullable: true })
+  work_schedule_config: object[] | null;
 
   @Column({ type: 'time' })
   work_start_time: string;
@@ -31,6 +40,10 @@ export class SlaRuleVersion {
 
   @Column({ type: 'int' })
   warn_threshold_pct: number;
+
+  /** Previously missing from version snapshots — now captured */
+  @Column({ type: 'int' })
+  overdue_threshold_pct: number;
 
   @Column({ length: 100 })
   changed_by: string;

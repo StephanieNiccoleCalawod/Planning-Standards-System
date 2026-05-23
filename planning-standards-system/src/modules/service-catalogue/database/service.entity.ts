@@ -4,21 +4,12 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { ServiceVersion } from './service-version.entity';
 import { IntakeField } from './service-intake-field.entity';
 import { NaFlag } from './service-na-flag.entity';
-
-export enum ServiceClassification {
-  SIMPLE = 'Simple',
-  COMPLEX = 'Complex',
-  HIGHLY_TECHNICAL = 'Highly Technical',
-}
-
-export enum ServiceStatus {
-  ACTIVE = 'Active',
-  ARCHIVED = 'Archived',
-}
+import { ServiceClassification, ServiceStatus, SlaUnit } from '../enums';
 
 @Entity('service')
 export class Service {
@@ -31,27 +22,41 @@ export class Service {
   @Column({ length: 100, nullable: true })
   sub_office: string;
 
+  @Index('idx_service_name')
   @Column({ length: 300 })
   name: string;
 
+  @Index('idx_service_classification')
   @Column({ type: 'enum', enum: ServiceClassification })
   classification: ServiceClassification;
 
-  @Column({ type: 'numeric', precision: 6, scale: 2 })
-  sla_target_days: number;
+  /**
+   * SLA target numeric value — interpreted together with sla_target_unit.
+   * Replaces the old sla_target_days NUMERIC(6,2) column.
+   */
+  @Column({ type: 'int' })
+  sla_target_value: number;
+
+  /**
+   * Unit for sla_target_value (Minutes, Hours, Days).
+   * Defaults to 'Days' for backward compatibility with old sla_target_days.
+   */
+  @Column({ type: 'enum', enum: SlaUnit, default: SlaUnit.DAYS })
+  sla_target_unit: SlaUnit;
 
   @Column({ length: 200 })
   responsible_unit: string;
 
-  @Column({ type: 'text', nullable: true })
-  required_documents: string;
+  @Column({ type: 'jsonb', nullable: true, default: '[]' })
+  required_documents: string[];
 
-  @Column({ type: 'text', nullable: true })
-  processing_steps: string;
+  @Column({ type: 'jsonb', nullable: true, default: '[]' })
+  processing_steps: string[];
 
   @Column({ type: 'text', nullable: true })
   expected_output: string;
 
+  @Index('idx_service_status')
   @Column({ type: 'enum', enum: ServiceStatus, default: ServiceStatus.ACTIVE })
   status: ServiceStatus;
 

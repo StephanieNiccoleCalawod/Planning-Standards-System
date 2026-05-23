@@ -5,16 +5,18 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Service, ServiceStatus } from '../database/service.entity';
+import { Repository, IsNull } from 'typeorm';
+import { Service } from '../database/service.entity';
 import { ServiceVersion } from '../database/service-version.entity';
 import { IntakeField } from '../database/service-intake-field.entity';
 import { NaFlag } from '../database/service-na-flag.entity';
+import { ServiceStatus } from '../enums';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { CreateIntakeFieldDto } from '../dto/create-intake-field.dto';
 import { UpdateIntakeFieldDto } from '../dto/update-intake-field.dto';
 import { CreateNaFlagDto } from '../dto/create-na-flag.dto';
+import { PaginationDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class ServiceCatalogueService {
@@ -32,6 +34,8 @@ export class ServiceCatalogueService {
     private readonly naFlagRepo: Repository<NaFlag>,
   ) {}
 
+  // ─── Services ───────────────────────────────────────────────────────────
+
   async findAll(
     office: string,
     filters: {
@@ -40,7 +44,8 @@ export class ServiceCatalogueService {
       search?: string;
       include_archived?: boolean;
     },
-  ): Promise<Service[]> {
+    pagination: PaginationDto = new PaginationDto(),
+  ): Promise<{ data: Service[]; total: number; page: number; limit: number }> {
     const query = this.serviceRepo
       .createQueryBuilder('service')
       .where('service.office = :office', { office });
@@ -67,7 +72,16 @@ export class ServiceCatalogueService {
       });
     }
 
-    return query.orderBy('service.created_at', 'DESC').getMany();
+    const allowedSortFields = ['name', 'classification', 'status', 'created_at', 'sla_target_value'];
+    const sortBy = allowedSortFields.includes(pagination.sort_by) ? pagination.sort_by : 'created_at';
+
+    const [data, total] = await query
+      .orderBy(`service.${sortBy}`, pagination.sort_order)
+      .skip((pagination.page - 1) * pagination.limit)
+      .take(pagination.limit)
+      .getManyAndCount();
+
+    return { data, total, page: pagination.page, limit: pagination.limit };
   }
 
   async findOne(id: string, office: string): Promise<Service> {
@@ -85,6 +99,10 @@ export class ServiceCatalogueService {
     return this.serviceRepo.save(service);
   }
 
+  /**
+   * Update a service and log per-field audit rows.
+   * Each changed field produces one service_version row.
+   */
   async update(
     id: string,
     office: string,
@@ -94,22 +112,33 @@ export class ServiceCatalogueService {
     const service = await this.findOneOrFail(id, office);
 
     const trackedFields = [
-      'classification', 'sla_target_days', 'responsible_unit',
-      'required_documents', 'processing_steps', 'expected_output', 'name',
+      'name', 'classification', 'sla_target_value', 'sla_target_unit',
+      'responsible_unit', 'required_documents', 'processing_steps', 'expected_output',
     ];
 
+    // Build per-field audit rows
+    const versionRows: Partial<ServiceVersion>[] = [];
     for (const field of trackedFields) {
-      if (dto[field] !== undefined && dto[field] !== service[field]) {
-        await this.versionRepo.save(
-          this.versionRepo.create({
+      if (dto[field] !== undefined) {
+        const oldVal = service[field];
+        const newVal = dto[field];
+        const changed = JSON.stringify(oldVal) !== JSON.stringify(newVal);
+        if (changed) {
+          versionRows.push({
             service_id: service.id,
             field_changed: field,
-            old_value: String(service[field] ?? ''),
-            new_value: String(dto[field]),
+            old_value: oldVal != null ? JSON.stringify(oldVal) : null,
+            new_value: newVal != null ? JSON.stringify(newVal) : null,
             changed_by: actor,
-          }),
-        );
+          });
+        }
       }
+    }
+
+    if (versionRows.length > 0) {
+      await this.versionRepo.save(
+        versionRows.map((row) => this.versionRepo.create(row)),
+      );
     }
 
     Object.assign(service, dto);
@@ -128,6 +157,57 @@ export class ServiceCatalogueService {
     service.archived_by = actor;
     return this.serviceRepo.save(service);
   }
+
+  async activate(id: string, office: string, actor: string): Promise<Service> {
+    const service = await this.findOneOrFail(id, office);
+
+    if (service.status === ServiceStatus.ACTIVE) {
+      throw new ConflictException('Service is already active');
+    }
+
+    const oldStatus = service.status;
+    service.status = ServiceStatus.ACTIVE;
+    service.archived_at = null;
+    service.archived_by = null;
+
+    // Log status change
+    await this.versionRepo.save(
+      this.versionRepo.create({
+        service_id: service.id,
+        field_changed: 'status',
+        old_value: oldStatus,
+        new_value: ServiceStatus.ACTIVE,
+        changed_by: actor,
+      }),
+    );
+
+    return this.serviceRepo.save(service);
+  }
+
+  async deactivate(id: string, office: string, actor: string): Promise<Service> {
+    const service = await this.findOneOrFail(id, office);
+
+    if (service.status === ServiceStatus.INACTIVE) {
+      throw new ConflictException('Service is already inactive');
+    }
+
+    const oldStatus = service.status;
+    service.status = ServiceStatus.INACTIVE;
+
+    await this.versionRepo.save(
+      this.versionRepo.create({
+        service_id: service.id,
+        field_changed: 'status',
+        old_value: oldStatus,
+        new_value: ServiceStatus.INACTIVE,
+        changed_by: actor,
+      }),
+    );
+
+    return this.serviceRepo.save(service);
+  }
+
+  // ─── Intake Fields ──────────────────────────────────────────────────────
 
   async getIntakeFields(service_id: string, office: string): Promise<IntakeField[]> {
     await this.findOneOrFail(service_id, office);
@@ -177,6 +257,8 @@ export class ServiceCatalogueService {
     return { message: `Intake field ${field_id} deactivated` };
   }
 
+  // ─── NA Flags ───────────────────────────────────────────────────────────
+
   async createNaFlag(
     service_id: string,
     office: string,
@@ -185,7 +267,7 @@ export class ServiceCatalogueService {
   ): Promise<NaFlag> {
     await this.findOneOrFail(service_id, office);
     const exists = await this.naFlagRepo.findOne({
-      where: { service_id, period_id: dto.period_id, removed_at: null },
+      where: { service_id, period_id: dto.period_id, removed_at: IsNull() },
     });
     if (exists) throw new ConflictException('NA flag already exists for this period');
     const flag = this.naFlagRepo.create({ ...dto, service_id, flagged_by: actor });
@@ -211,6 +293,8 @@ export class ServiceCatalogueService {
     await this.naFlagRepo.save(flag);
     return { message: `NA flag ${flag_id} lifted` };
   }
+
+  // ─── Internal ───────────────────────────────────────────────────────────
 
   private async findOneOrFail(id: string, office: string): Promise<Service> {
     const service = await this.serviceRepo.findOne({ where: { id } });

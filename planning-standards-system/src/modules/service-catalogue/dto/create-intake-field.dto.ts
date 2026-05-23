@@ -1,6 +1,6 @@
 import { IsEnum, IsBoolean, IsInt, IsOptional, IsString, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FieldType } from '../database/service-intake-field.entity';
+import { FieldType } from '../enums';
 
 export class CreateIntakeFieldDto {
   @ApiProperty()

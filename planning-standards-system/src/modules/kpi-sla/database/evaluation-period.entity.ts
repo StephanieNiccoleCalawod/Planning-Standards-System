@@ -3,21 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  OneToMany,
 } from 'typeorm';
-import { Kpi } from './kpi.entity';
-
-export enum PeriodType {
-  ANNUAL = 'Annual',
-  QUARTERLY = 'Quarterly',
-  SEMESTER = 'Semester',
-}
-
-export enum PeriodStatus {
-  DRAFT = 'Draft',
-  ACTIVE = 'Active',
-  CLOSED = 'Closed',
-}
+import { PeriodType, PeriodStatus } from '../enums';
 
 @Entity('evaluation_period')
 export class EvaluationPeriod {
@@ -39,7 +26,7 @@ export class EvaluationPeriod {
   @Column({ type: 'date' })
   end_date: string;
 
-  @Column({ type: 'enum', enum: PeriodStatus, default: PeriodStatus.DRAFT })
+  @Column({ type: 'enum', enum: PeriodStatus, default: PeriodStatus.OPEN })
   status: PeriodStatus;
 
   @Column({ length: 100 })
@@ -48,6 +35,11 @@ export class EvaluationPeriod {
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 
-  @OneToMany(() => Kpi, (k) => k.evaluation_period)
-  kpis: Kpi[];
+  /**
+   * Soft-delete flag.
+   * false = logically deleted; the row is kept so external systems (e.g. ARMS)
+   * can still resolve the period ID via a direct GET /api/periods/:id lookup.
+   */
+  @Column({ default: true })
+  is_active: boolean;
 }

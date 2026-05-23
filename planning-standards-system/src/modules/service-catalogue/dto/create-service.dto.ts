@@ -4,11 +4,12 @@ import {
   IsOptional,
   IsString,
   IsNumber,
+  IsArray,
   Min,
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceClassification } from '../database/service.entity';
+import { ServiceClassification, SlaUnit } from '../enums';
 
 export class CreateServiceDto {
   @ApiProperty({ example: 'Request for Transcript of Records' })
@@ -26,25 +27,32 @@ export class CreateServiceDto {
   @IsEnum(ServiceClassification)
   classification: ServiceClassification;
 
-  @ApiProperty({ example: 3.5, description: 'SLA target in working days' })
+  @ApiProperty({ example: 3, description: 'SLA target numeric value (interpreted with sla_target_unit)' })
   @IsNumber()
-  @Min(0.5)
-  sla_target_days: number;
+  @Min(1)
+  sla_target_value: number;
+
+  @ApiPropertyOptional({ enum: SlaUnit, default: SlaUnit.DAYS, description: 'Unit for SLA target: Minutes, Hours, or Days' })
+  @IsOptional()
+  @IsEnum(SlaUnit)
+  sla_target_unit?: SlaUnit;
 
   @ApiProperty({ example: 'Records Section' })
   @IsNotEmpty()
   @IsString()
   responsible_unit: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: ['Form 137', 'Valid ID'], description: 'List of required documents' })
   @IsOptional()
-  @IsString()
-  required_documents?: string;
+  @IsArray()
+  @IsString({ each: true })
+  required_documents?: string[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: ['Submit form', 'Pay fees', 'Receive document'], description: 'Ordered processing steps' })
   @IsOptional()
-  @IsString()
-  processing_steps?: string;
+  @IsArray()
+  @IsString({ each: true })
+  processing_steps?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

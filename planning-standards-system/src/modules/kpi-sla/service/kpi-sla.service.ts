@@ -2,9 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, IsNull } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -12,7 +13,8 @@ import { Kpi } from '../database/kpi.entity';
 import { SlaRule } from '../database/sla-rule.entity';
 import { SlaRuleVersion } from '../database/sla-rule-version.entity';
 import { Holiday } from '../database/holiday.entity';
-import { EvaluationPeriod, PeriodStatus } from '../database/evaluation-period.entity';
+import { EvaluationPeriod } from '../database/evaluation-period.entity';
+import { PeriodStatus, WorkScheduleType } from '../enums';
 import { CreateKpiDto } from '../dto/create-kpi.dto';
 import { UpdateKpiDto } from '../dto/update-kpi.dto';
 import { CreateSlaRuleDto } from '../dto/create-sla-rule.dto';
@@ -21,6 +23,7 @@ import { CreateHolidayDto } from '../dto/create-holiday.dto';
 import { UpdateHolidayDto } from '../dto/update-holiday.dto';
 import { CreatePeriodDto } from '../dto/create-period.dto';
 import { UpdatePeriodDto } from '../dto/update-period.dto';
+import { PaginationDto } from '../dto/pagination.dto';
 
 @Injectable()
 export class KpiSlaService {
@@ -45,6 +48,12 @@ export class KpiSlaService {
     private readonly config: ConfigService,
   ) {}
 
+  // ─── Cross-service validation ───────────────────────────────────────────
+
+  /**
+   * Validates that a service exists in the service-catalogue microservice.
+   * No database FK — referential integrity via API call.
+   */
   private async validateServiceExists(service_id: string, office: string): Promise<void> {
     const baseUrl = this.config.get<string>('SERVICE_CATALOGUE_URL');
     try {
@@ -58,13 +67,20 @@ export class KpiSlaService {
     }
   }
 
+  // ─── KPI ────────────────────────────────────────────────────────────────
+
   async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
-  //  if (dto.service_id) await this.validateServiceExists(dto.service_id, office); //wag tanggalin kasi wala pa jwt
+    // Validate service exists (cross-service, no DB FK)
+    // if (dto.service_id) await this.validateServiceExists(dto.service_id, office);
     const kpi = this.kpiRepo.create({ ...dto, office, created_by: actor });
     return this.kpiRepo.save(kpi);
   }
 
-  async findAllKpis(office: string, filters: { service_id?: string; category?: string }): Promise<Kpi[]> {
+  async findAllKpis(
+    office: string,
+    filters: { service_id?: string; category?: string },
+    pagination: PaginationDto = new PaginationDto(),
+  ): Promise<{ data: Kpi[]; total: number; page: number; limit: number }> {
     const query = this.kpiRepo
       .createQueryBuilder('kpi')
       .where('kpi.office = :office', { office })
@@ -73,7 +89,16 @@ export class KpiSlaService {
     if (filters.service_id) query.andWhere('kpi.service_id = :service_id', { service_id: filters.service_id });
     if (filters.category) query.andWhere('kpi.category = :category', { category: filters.category });
 
-    return query.getMany();
+    const allowedSortFields = ['name', 'category', 'target_value', 'created_at'];
+    const sortBy = allowedSortFields.includes(pagination.sort_by) ? pagination.sort_by : 'created_at';
+
+    const [data, total] = await query
+      .orderBy(`kpi.${sortBy}`, pagination.sort_order)
+      .skip((pagination.page - 1) * pagination.limit)
+      .take(pagination.limit)
+      .getManyAndCount();
+
+    return { data, total, page: pagination.page, limit: pagination.limit };
   }
 
   async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
@@ -91,26 +116,54 @@ export class KpiSlaService {
     return { message: `KPI ${id} deactivated` };
   }
 
-  async createSlaRule(office: string, dto: CreateSlaRuleDto): Promise<SlaRule> {
-    const rule = this.slaRepo.create({ ...dto, office });
+  // ─── SLA Rules ──────────────────────────────────────────────────────────
+
+  async createSlaRule(office: string, actor: string, dto: CreateSlaRuleDto): Promise<SlaRule> {
+    // Validate: CUSTOM schedule requires config
+    if (dto.work_schedule_type === WorkScheduleType.CUSTOM && !dto.work_schedule_config?.length) {
+      throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
+    }
+
+    // Service-level check: only one active rule per office
+    // (DB partial unique index is the safety net for race conditions)
+    const existingActive = await this.slaRepo.findOne({ where: { office, is_active: true } });
+    if (existingActive) {
+      throw new ConflictException('An active SLA rule already exists for this office. Deactivate it first.');
+    }
+
+    const rule = this.slaRepo.create({ ...dto, office, created_by: actor });
     return this.slaRepo.save(rule);
   }
 
   async findAllSlaRules(office: string): Promise<SlaRule[]> {
-    return this.slaRepo.find({ where: { office, is_active: true } });
+    return this.slaRepo.find({ where: { office }, order: { created_at: 'DESC' } });
   }
 
+  /**
+   * Update an SLA rule. Captures a complete snapshot of the previous state
+   * in sla_rule_version before applying changes.
+   */
   async updateSlaRule(id: string, office: string, actor: string, dto: UpdateSlaRuleDto): Promise<SlaRule> {
     const existing = await this.slaRepo.findOne({ where: { id, office } });
     if (!existing) throw new NotFoundException(`SLA Rule ${id} not found`);
 
+    // Validate CUSTOM schedule config
+    const newType = dto.work_schedule_type ?? existing.work_schedule_type;
+    const newConfig = dto.work_schedule_config ?? existing.work_schedule_config;
+    if (newType === WorkScheduleType.CUSTOM && (!newConfig || !Array.isArray(newConfig) || newConfig.length === 0)) {
+      throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
+    }
+
+    // Snapshot previous state (full version including overdue_threshold_pct)
     await this.slaVersionRepo.save(
       this.slaVersionRepo.create({
         sla_rule_id: existing.id,
-        work_schedule: existing.work_schedule,
+        work_schedule_type: existing.work_schedule_type,
+        work_schedule_config: existing.work_schedule_config,
         work_start_time: existing.work_start_time,
         work_end_time: existing.work_end_time,
         warn_threshold_pct: existing.warn_threshold_pct,
+        overdue_threshold_pct: existing.overdue_threshold_pct,
         changed_by: actor,
       }),
     );
@@ -119,11 +172,14 @@ export class KpiSlaService {
     return this.slaRepo.save(existing);
   }
 
-  async createHoliday(office: string, dto: CreateHolidayDto): Promise<Holiday[]> {
+  // ─── Holidays ───────────────────────────────────────────────────────────
+
+  async createHoliday(dto: CreateHolidayDto): Promise<Holiday[]> {
+    // Unique check: holiday_date + name
     const exists = await this.holidayRepo.findOne({
-      where: { office, holiday_date: dto.holiday_date },
+      where: { holiday_date: dto.holiday_date, name: dto.name },
     });
-    if (exists) throw new ConflictException('Holiday already exists for this date and office');
+    if (exists) throw new ConflictException('Holiday with this date and name already exists');
 
     const holidays: Holiday[] = [];
     const baseDate = new Date(dto.holiday_date);
@@ -134,7 +190,6 @@ export class KpiSlaService {
       date.setFullYear(date.getFullYear() + i);
       const holiday = this.holidayRepo.create({
         ...dto,
-        office,
         holiday_date: date.toISOString().split('T')[0],
       });
       holidays.push(await this.holidayRepo.save(holiday));
@@ -142,42 +197,91 @@ export class KpiSlaService {
     return holidays;
   }
 
-  async findAllHolidays(office: string, filters: { month?: number; year?: number; type?: string }): Promise<Holiday[]> {
-    const query = this.holidayRepo
-      .createQueryBuilder('h')
-      .where('h.office = :office', { office })
-      .orderBy('h.holiday_date', 'ASC');
+  async findAllHolidays(
+    filters: { month?: number; year?: number; type?: string },
+    pagination: PaginationDto = new PaginationDto(),
+  ): Promise<{ data: Holiday[]; total: number; page: number; limit: number }> {
+    const query = this.holidayRepo.createQueryBuilder('h');
 
     if (filters.month) query.andWhere('EXTRACT(MONTH FROM h.holiday_date::date) = :month', { month: filters.month });
     if (filters.year) query.andWhere('EXTRACT(YEAR FROM h.holiday_date::date) = :year', { year: filters.year });
     if (filters.type) query.andWhere('h.type = :type', { type: filters.type });
 
-    return query.getMany();
+    const [data, total] = await query
+      .orderBy('h.holiday_date', pagination.sort_order === 'DESC' ? 'DESC' : 'ASC')
+      .skip((pagination.page - 1) * pagination.limit)
+      .take(pagination.limit)
+      .getManyAndCount();
+
+    return { data, total, page: pagination.page, limit: pagination.limit };
   }
 
-  async updateHoliday(id: string, office: string, dto: UpdateHolidayDto): Promise<Holiday> {
-    const holiday = await this.holidayRepo.findOne({ where: { id, office } });
+  async updateHoliday(id: string, dto: UpdateHolidayDto): Promise<Holiday> {
+    const holiday = await this.holidayRepo.findOne({ where: { id } });
     if (!holiday) throw new NotFoundException(`Holiday ${id} not found`);
     Object.assign(holiday, dto);
     return this.holidayRepo.save(holiday);
   }
 
-  async removeHoliday(id: string, office: string): Promise<{ message: string }> {
-    const holiday = await this.holidayRepo.findOne({ where: { id, office } });
+  async removeHoliday(id: string): Promise<{ message: string }> {
+    const holiday = await this.holidayRepo.findOne({ where: { id } });
     if (!holiday) throw new NotFoundException(`Holiday ${id} not found`);
     await this.holidayRepo.delete(id);
     return { message: `Holiday ${id} removed` };
   }
 
-  async createPeriod(office: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
-    const active = await this.periodRepo.findOne({ where: { office, status: PeriodStatus.ACTIVE } });
-    if (active) throw new ConflictException('An active period already exists for this office');
-    const period = this.periodRepo.create({ ...dto, office });
+  // ─── Evaluation Periods ─────────────────────────────────────────────────
+
+  async createPeriod(office: string, actor: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
+    // Validate: start_date < end_date (also validated in DTO, defense in depth)
+    if (new Date(dto.start_date) >= new Date(dto.end_date)) {
+      throw new BadRequestException('start_date must be before end_date');
+    }
+
+    // Prevent overlapping OPEN periods of the same type for this office
+    const overlapping = await this.periodRepo
+      .createQueryBuilder('p')
+      .where('p.office = :office', { office })
+      .andWhere('p.period_type = :type', { type: dto.period_type })
+      .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
+      .andWhere('p.start_date <= :end', { end: dto.end_date })
+      .andWhere('p.end_date >= :start', { start: dto.start_date })
+      .getOne();
+
+    if (overlapping) {
+      throw new ConflictException(
+        `An overlapping OPEN period of type "${dto.period_type}" already exists (${overlapping.name})`,
+      );
+    }
+
+    const period = this.periodRepo.create({ ...dto, office, created_by: actor });
     return this.periodRepo.save(period);
   }
 
-  async findAllPeriods(office: string): Promise<EvaluationPeriod[]> {
-    return this.periodRepo.find({ where: { office }, order: { start_date: 'DESC' } });
+  async findAllPeriods(
+    office: string,
+    pagination: PaginationDto = new PaginationDto(),
+  ): Promise<{ data: EvaluationPeriod[]; total: number; page: number; limit: number }> {
+    // Only return active (non-deleted) periods in list views
+    const [data, total] = await this.periodRepo.findAndCount({
+      where: { office, is_active: true },
+      order: { start_date: pagination.sort_order === 'ASC' ? 'ASC' : 'DESC' },
+      skip: (pagination.page - 1) * pagination.limit,
+      take: pagination.limit,
+    });
+
+    return { data, total, page: pagination.page, limit: pagination.limit };
+  }
+
+  /**
+   * Direct lookup by ID — intentionally has NO is_active filter.
+   * This allows external systems (e.g. ARMS) to resolve a period ID
+   * even after it has been soft-deleted from the active list.
+   */
+  async findOnePeriod(id: string): Promise<EvaluationPeriod> {
+    const period = await this.periodRepo.findOne({ where: { id } });
+    if (!period) throw new NotFoundException(`Period ${id} not found`);
+    return period;
   }
 
   async updatePeriod(id: string, office: string, dto: UpdatePeriodDto): Promise<EvaluationPeriod> {
@@ -197,8 +301,10 @@ export class KpiSlaService {
   async removePeriod(id: string, office: string): Promise<{ message: string }> {
     const period = await this.periodRepo.findOne({ where: { id, office } });
     if (!period) throw new NotFoundException(`Period ${id} not found`);
-    await this.periodRepo.delete(id);
-    return { message: `Period ${id} deleted` };
+    // Soft-delete: keep the row so external API lookups (e.g. from ARMS) remain valid
+    period.is_active = false;
+    await this.periodRepo.save(period);
+    return { message: `Period ${id} deactivated` };
   }
 
 }
