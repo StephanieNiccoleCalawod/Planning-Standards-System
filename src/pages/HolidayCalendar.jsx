@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { INITIAL_HOLIDAYS } from "../constants/sprint2Mock";
+import { useState, useEffect } from "react";
+import { api } from "../services/api";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -13,9 +13,27 @@ const TYPE_CONFIG = {
   Campus:   { color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", label: "Campus" },
 };
 
+const mapTypeToBackend = (t) => {
+  switch (t) {
+    case "National": return "REGULAR";
+    case "Local": return "SPECIAL_NON_WORKING";
+    case "Campus": return "COMPANY";
+    default: return "REGULAR";
+  }
+};
+
+const mapTypeToFrontend = (t) => {
+  switch (t) {
+    case "REGULAR": return "National";
+    case "SPECIAL_NON_WORKING": return "Local";
+    case "COMPANY": return "Campus";
+    default: return "National";
+  }
+};
+
 export default function HolidayCalendar() {
   const today = new Date();
-  const [holidays, setHolidays] = useState(INITIAL_HOLIDAYS);
+  const [holidays, setHolidays] = useState([]);
   const [currentYear, setCurrentYear]   = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -33,6 +51,29 @@ export default function HolidayCalendar() {
     setToast({ show: true, message, type: kind });
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3500);
   };
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await api.getHolidays();
+      if (res?.data) {
+        const formatted = res.data.map(h => ({
+          id: h.id,
+          name: h.name,
+          date: h.holiday_date,
+          type: mapTypeToFrontend(h.type),
+          is_recurring: h.is_recurring,
+          ...h
+        }));
+        setHolidays(formatted);
+      }
+    } catch (err) {
+      console.error("Failed to fetch holidays:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHolidays();
+  }, []);
 
   /* ── navigation ── */
   const prevMonth = () => {
@@ -71,37 +112,49 @@ export default function HolidayCalendar() {
   };
   const closeModal = () => { setShowModal(false); setEditingHoliday(null); };
 
-  const handleSave = e => {
+  const handleSave = async e => {
     e.preventDefault();
     if (!name.trim() || !date) { triggerToast("Name and date are required.", "error"); return; }
     const dup = holidays.some(h => h.date === date && h.id !== editingHoliday?.id);
     if (dup) { triggerToast(`A holiday already exists on ${date}.`, "error"); return; }
 
-    const payload = { name, date, type, is_recurring: isRecurring };
-    if (editingHoliday) {
-      setHolidays(prev => prev.map(h => h.id === editingHoliday.id ? { ...h, ...payload } : h));
-      triggerToast("Holiday updated.", "success");
-    } else if (isRecurring) {
-      const base = new Date(date);
-      const generated = [];
-      for (let i = 0; i < 5; i++) {
-        const tStr = `${base.getFullYear() + i}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}`;
-        if (!holidays.some(h => h.date === tStr))
-          generated.push({ id: Date.now() + i, name, date: tStr, type, is_recurring: true });
+    const payload = {
+      name,
+      holiday_date: date,
+      type: mapTypeToBackend(type),
+      is_recurring: isRecurring
+    };
+
+    try {
+      if (editingHoliday) {
+        await api.updateHoliday(editingHoliday.id, payload);
+        triggerToast("Holiday updated successfully.", "success");
+      } else {
+        await api.createHoliday(payload);
+        if (isRecurring) {
+          triggerToast("Recurring holiday encoded for 5 years.", "success");
+        } else {
+          triggerToast("Holiday encoded successfully.", "success");
+        }
       }
-      setHolidays(prev => [...prev, ...generated].sort((a, b) => new Date(a.date) - new Date(b.date)));
-      triggerToast("Recurring holiday encoded for 5 years.", "success");
-    } else {
-      setHolidays(prev => [...prev, { id: Date.now(), ...payload }].sort((a, b) => new Date(a.date) - new Date(b.date)));
-      triggerToast("Holiday encoded.", "success");
+      closeModal();
+      await fetchHolidays();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to save holiday.", "error");
     }
-    closeModal();
   };
 
-  const handleDelete = (id, hName) => {
-    setHolidays(prev => prev.filter(h => h.id !== id));
-    triggerToast(`"${hName}" deleted.`, "success");
-    closeModal();
+  const handleDelete = async (id, hName) => {
+    try {
+      await api.deleteHoliday(id);
+      triggerToast(`"${hName}" deleted successfully.`, "success");
+      closeModal();
+      await fetchHolidays();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to delete holiday.", "error");
+    }
   };
 
   /* ── sidebar holidays for selected date ── */

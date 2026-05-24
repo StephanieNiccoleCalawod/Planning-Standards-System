@@ -1,8 +1,35 @@
-import { useState } from "react";
-import { INITIAL_PERIODS } from "../constants/sprint2Mock";
+import { useState, useEffect } from "react";
+import { api } from "../services/api";
+
+const mapTypeToBackend = (t) => {
+  switch (t) {
+    case "Quarterly": return "Quarterly";
+    case "Semestral": return "Semester";
+    case "Annual": return "Yearly";
+    default: return "Semester";
+  }
+};
+
+const mapTypeToFrontend = (t) => {
+  switch (t) {
+    case "Quarterly": return "Quarterly";
+    case "Semester": return "Semestral";
+    case "Yearly":
+    case "Annual": return "Annual";
+    default: return "Semestral";
+  }
+};
+
+const mapStatusToBackend = (s) => {
+  return s === "Active" ? "Open" : "Closed";
+};
+
+const mapStatusToFrontend = (s) => {
+  return s === "Open" ? "Active" : "Closed";
+};
 
 export default function EvaluationPeriods() {
-  const [periods, setPeriods] = useState(INITIAL_PERIODS);
+  const [periods, setPeriods] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [closingPeriod, setClosingPeriod] = useState(null);
 
@@ -22,6 +49,30 @@ export default function EvaluationPeriods() {
     }, 3000);
   };
 
+  const fetchPeriods = async () => {
+    try {
+      const res = await api.getPeriods();
+      if (res?.data) {
+        const formatted = res.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          type: mapTypeToFrontend(p.period_type),
+          start_date: p.start_date,
+          end_date: p.end_date,
+          status: mapStatusToFrontend(p.status)
+        }));
+        const sorted = formatted.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+        setPeriods(sorted);
+      }
+    } catch (err) {
+      console.error("Failed to load evaluation periods:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPeriods();
+  }, []);
+
   const handleOpenAdd = () => {
     setName("");
     setType("Semestral");
@@ -31,7 +82,7 @@ export default function EvaluationPeriods() {
     setShowAdd(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
     if (!name.trim() || !startDate || !endDate) {
@@ -51,36 +102,47 @@ export default function EvaluationPeriods() {
       return;
     }
 
-    const newPeriod = {
-      id: Date.now(),
+    const payload = {
       name,
-      type,
+      period_type: mapTypeToBackend(type),
       start_date: startDate,
       end_date: endDate,
-      status: activeState ? "Active" : "Closed"
     };
 
-    setPeriods(prev => [newPeriod, ...prev].sort((a, b) => new Date(b.start_date) - new Date(a.start_date)));
-    triggerToast("Evaluation period created successfully!", "success");
-    setShowAdd(false);
-  };
-
-  const handleCloseConfirm = () => {
-    if (!closingPeriod) return;
-    setPeriods(prev => prev.map(p => p.id === closingPeriod.id ? { ...p, status: "Closed" } : p));
-    triggerToast(`Evaluation period "${closingPeriod.name}" is now closed.`, "success");
-    setClosingPeriod(null);
-  };
-
-  const handleDelete = (period, e) => {
-    e.stopPropagation();
-    // Simulate DB Conflict (409) if deleting a period with existing commitments
-    if (period.status === "Active" || period.id === 1) {
-      triggerToast("Conflict (409): Cannot delete period with existing linked commitments & KPI records!", "error");
-      return;
+    try {
+      await api.createPeriod(payload);
+      triggerToast("Evaluation period created successfully!", "success");
+      setShowAdd(false);
+      await fetchPeriods();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to create evaluation period", "error");
     }
-    setPeriods(prev => prev.filter(p => p.id !== period.id));
-    triggerToast("Evaluation period deleted successfully.", "success");
+  };
+
+  const handleCloseConfirm = async () => {
+    if (!closingPeriod) return;
+    try {
+      await api.closePeriod(closingPeriod.id);
+      triggerToast(`Evaluation period "${closingPeriod.name}" is now closed.`, "success");
+      setClosingPeriod(null);
+      await fetchPeriods();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to close evaluation period", "error");
+    }
+  };
+
+  const handleDelete = async (period, e) => {
+    e.stopPropagation();
+    try {
+      await api.deletePeriod(period.id);
+      triggerToast("Evaluation period deleted successfully.", "success");
+      await fetchPeriods();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to delete evaluation period", "error");
+    }
   };
 
   // Metrics

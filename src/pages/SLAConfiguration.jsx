@@ -1,16 +1,18 @@
-import { useState } from "react";
-import { INITIAL_SLA_RULE, INITIAL_SLA_HISTORY } from "../constants/sprint2Mock";
+import { useState, useEffect } from "react";
+import { api } from "../services/api";
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function SLAConfiguration() {
-  const [workingDays, setWorkingDays] = useState(INITIAL_SLA_RULE.working_days);
-  const [startTime, setStartTime] = useState(INITIAL_SLA_RULE.work_start_time);
-  const [endTime, setEndTime] = useState(INITIAL_SLA_RULE.work_end_time);
-  const [warnThreshold, setWarnThreshold] = useState(INITIAL_SLA_RULE.warn_threshold_pct);
-  const [overdueThreshold, setOverdueThreshold] = useState(INITIAL_SLA_RULE.overdue_threshold_pct);
+  const [workingDays, setWorkingDays] = useState(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("17:00");
+  const [warnThreshold, setWarnThreshold] = useState(80);
+  const [overdueThreshold, setOverdueThreshold] = useState(100);
 
-  const [history, setHistory] = useState(INITIAL_SLA_HISTORY);
+  const [activeRuleId, setActiveRuleId] = useState(null);
+  const [activePeriodName, setActivePeriodName] = useState("Loading...");
+  const [history, setHistory] = useState([]);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -25,6 +27,139 @@ export default function SLAConfiguration() {
     setWorkingDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
+  };
+
+  // Helper to format days list
+  const formatDaysList = (scheduleType, config) => {
+    if (scheduleType === "WEEKDAYS") return "Mon-Fri";
+    if (scheduleType === "MONDAY_TO_SATURDAY") return "Mon-Sat";
+    if (scheduleType === "CUSTOM" && Array.isArray(config)) {
+      const activeDays = config.filter(c => c.is_working).map(c => c.day);
+      if (activeDays.length === 7) return "Mon-Sun";
+      if (activeDays.length === 5 && !activeDays.includes("Saturday") && !activeDays.includes("Sunday")) return "Mon-Fri";
+      return activeDays.map(d => d.slice(0, 3)).join(", ");
+    }
+    return "Mon-Fri"; // Default fallback
+  };
+
+  // Helper to format time from HH:MM to 12-hour
+  const format12Hour = (timeStr) => {
+    if (!timeStr) return "";
+    const parts = timeStr.split(":");
+    if (parts.length < 2) return timeStr;
+    const h = parts[0];
+    const m = parts[1];
+    const hrs = parseInt(h);
+    const ampm = hrs >= 12 ? "PM" : "AM";
+    const displayHrs = hrs % 12 || 12;
+    return `${displayHrs.toString().padStart(2, "0")}:${m} ${ampm}`;
+  };
+
+  const loadData = async () => {
+    try {
+      // 1. Fetch periods for header
+      const periodRes = await api.getPeriods();
+      if (periodRes?.data) {
+        const active = periodRes.data.find(p => p.status === "Open" || p.status === "Active");
+        if (active) {
+          setActivePeriodName(active.name);
+        } else {
+          setActivePeriodName("No Active Period");
+        }
+      }
+
+      // 2. Fetch SLA rules
+      const rules = await api.getSlaRules();
+      if (Array.isArray(rules) && rules.length > 0) {
+        const activeRule = rules.find(r => r.is_active);
+        if (activeRule) {
+          setActiveRuleId(activeRule.id);
+          setWarnThreshold(activeRule.warn_threshold_pct);
+          setOverdueThreshold(activeRule.overdue_threshold_pct);
+          setStartTime(activeRule.work_start_time.slice(0, 5));
+          setEndTime(activeRule.work_end_time.slice(0, 5));
+
+          let days = [];
+          if (activeRule.work_schedule_type === "WEEKDAYS") {
+            days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+          } else if (activeRule.work_schedule_type === "MONDAY_TO_SATURDAY") {
+            days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+          } else if (activeRule.work_schedule_type === "CUSTOM" && Array.isArray(activeRule.work_schedule_config)) {
+            days = activeRule.work_schedule_config
+              .filter(c => c.is_working)
+              .map(c => c.day);
+          }
+          setWorkingDays(days);
+
+          const list = [];
+          // Add active rule as first/latest item
+          list.push({
+            id: activeRule.id,
+            timestamp: new Date(activeRule.created_at).toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true
+            }),
+            actor: activeRule.created_by || "System Admin",
+            working_days: formatDaysList(activeRule.work_schedule_type, activeRule.work_schedule_config),
+            working_hours: `${format12Hour(activeRule.work_start_time)} - ${format12Hour(activeRule.work_end_time)}`,
+            warn_threshold: `${activeRule.warn_threshold_pct}%`,
+            overdue_threshold: `${activeRule.overdue_threshold_pct}%`,
+            is_active_rule: true
+          });
+
+          // Add past versions
+          if (Array.isArray(activeRule.versions)) {
+            const sortedVersions = [...activeRule.versions].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
+            sortedVersions.forEach(v => {
+              list.push({
+                id: v.id,
+                timestamp: new Date(v.changed_at).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true
+                }),
+                actor: v.changed_by || "Subsystem Admin",
+                working_days: formatDaysList(v.work_schedule_type, v.work_schedule_config),
+                working_hours: `${format12Hour(v.work_start_time)} - ${format12Hour(v.work_end_time)}`,
+                warn_threshold: `${v.warn_threshold_pct}%`,
+                overdue_threshold: `${v.overdue_threshold_pct}%`,
+                is_active_rule: false
+              });
+            });
+          }
+          setHistory(list);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load SLA configuration details:", err);
+      triggerToast("Error connecting to backend database.", "error");
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleWarnChange = (val) => {
+    if (val >= overdueThreshold) {
+      setWarnThreshold(overdueThreshold - 5);
+    } else {
+      setWarnThreshold(val);
+    }
+  };
+
+  const handleOverdueChange = (val) => {
+    setOverdueThreshold(val);
+    if (warnThreshold >= val) {
+      setWarnThreshold(val - 5);
+    }
   };
 
   // Called when form submits — validate first then open confirm modal
@@ -46,51 +181,61 @@ export default function SLAConfiguration() {
   };
 
   // Called when user confirms inside the modal
-  const handleConfirmSave = () => {
+  const handleConfirmSave = async () => {
     setShowConfirm(false);
 
-    // Format audit history values
-    const today = new Date();
-    const formattedTime = today.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    });
+    const isWeekdays = workingDays.length === 5 &&
+      workingDays.includes("Monday") &&
+      workingDays.includes("Tuesday") &&
+      workingDays.includes("Wednesday") &&
+      workingDays.includes("Thursday") &&
+      workingDays.includes("Friday");
 
-    // Helper to format days list
-    let daysString = "";
-    if (workingDays.length === 7) {
-      daysString = "Mon-Sun";
-    } else if (workingDays.length === 5 && !workingDays.includes("Saturday") && !workingDays.includes("Sunday")) {
-      daysString = "Mon-Fri";
+    const isMonToSat = workingDays.length === 6 &&
+      workingDays.includes("Monday") &&
+      workingDays.includes("Tuesday") &&
+      workingDays.includes("Wednesday") &&
+      workingDays.includes("Thursday") &&
+      workingDays.includes("Friday") &&
+      workingDays.includes("Saturday");
+
+    let scheduleType = "CUSTOM";
+    let scheduleConfig = null;
+    if (isWeekdays) {
+      scheduleType = "WEEKDAYS";
+    } else if (isMonToSat) {
+      scheduleType = "MONDAY_TO_SATURDAY";
     } else {
-      daysString = workingDays.map(d => d.slice(0, 3)).join(", ");
+      scheduleType = "CUSTOM";
+      scheduleConfig = DAYS_OF_WEEK.map(day => ({
+        day,
+        is_working: workingDays.includes(day),
+        start: startTime.slice(0, 5),
+        end: endTime.slice(0, 5)
+      }));
     }
 
-    // Helper to format time from HH:MM to 12-hour
-    const format12Hour = (timeStr) => {
-      const [h, m] = timeStr.split(":");
-      const hrs = parseInt(h);
-      const ampm = hrs >= 12 ? "PM" : "AM";
-      const displayHrs = hrs % 12 || 12;
-      return `${displayHrs.toString().padStart(2, "0")}:${m} ${ampm}`;
+    const payload = {
+      work_schedule_type: scheduleType,
+      work_schedule_config: scheduleConfig,
+      work_start_time: startTime.slice(0, 5),
+      work_end_time: endTime.slice(0, 5),
+      warn_threshold_pct: parseInt(warnThreshold),
+      overdue_threshold_pct: parseInt(overdueThreshold)
     };
 
-    const newHistoryEntry = {
-      id: Date.now(),
-      timestamp: formattedTime,
-      actor: "Subsystem Admin",
-      working_days: daysString,
-      working_hours: `${format12Hour(startTime)} - ${format12Hour(endTime)}`,
-      warn_threshold: `${warnThreshold}%`,
-      overdue_threshold: `${overdueThreshold}%`
-    };
-
-    setHistory(prev => [newHistoryEntry, ...prev]);
-    triggerToast("SLA Compliance Rules updated and new version saved successfully!", "success");
+    try {
+      if (activeRuleId) {
+        await api.updateSlaRule(activeRuleId, payload);
+      } else {
+        await api.createSlaRule(payload);
+      }
+      triggerToast("SLA Compliance Rules updated and new version saved successfully!", "success");
+      await loadData();
+    } catch (err) {
+      console.error("Failed to save SLA configuration:", err);
+      triggerToast(err.message || "Failed to update SLA Rules.", "error");
+    }
   };
 
   return (
@@ -521,7 +666,7 @@ export default function SLAConfiguration() {
           Home / <span>SLA Rules</span>
         </div>
         <div className="period-pill">
-          Jan — Jun 2026 Period
+          {activePeriodName}
         </div>
       </div>
       <h1 className="page-title">Service Level Agreement </h1>
@@ -586,7 +731,7 @@ export default function SLAConfiguration() {
                 step="5"
                 value={warnThreshold}
                 className="slider-bar-input"
-                onChange={(e) => setWarnThreshold(parseInt(e.target.value))}
+                onChange={(e) => handleWarnChange(parseInt(e.target.value))}
               />
               <div className="slider-value-badge">{warnThreshold}%</div>
             </div>
@@ -598,12 +743,12 @@ export default function SLAConfiguration() {
             <div className="slider-wrapper">
               <input
                 type="range"
-                min="100"
-                max="150"
-                step="10"
+                min="95"
+                max="100"
+                step="1"
                 value={overdueThreshold}
                 className="slider-bar-input"
-                onChange={(e) => setOverdueThreshold(parseInt(e.target.value))}
+                onChange={(e) => handleOverdueChange(parseInt(e.target.value))}
               />
               <div className="slider-value-badge">{overdueThreshold}%</div>
             </div>

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KpiCategory, KpiUnit } from '../enums';
 
@@ -30,4 +30,9 @@ export class CreateKpiDto {
   @ApiProperty({ enum: KpiUnit, example: KpiUnit.PERCENT })
   @IsEnum(KpiUnit)
   unit: KpiUnit;
-}
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}

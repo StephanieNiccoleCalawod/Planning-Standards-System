@@ -1,9 +1,45 @@
-import { useState } from "react";
-import { MOCK_SERVICES } from "../constants/mockData";
+import { useState, useEffect } from "react";
+import { api } from "../services/api";
 import { INITIAL_KPIS } from "../constants/sprint2Mock";
+import Toggle from "../components/Toggle";
+
+const mapCategoryToBackend = (cat) => {
+  switch (cat) {
+    case "Timeliness": return "COMPLIANCE";
+    case "Quality": return "CUSTOMER";
+    case "Efficiency": return "EFFICIENCY";
+    default: return "COMPLIANCE";
+  }
+};
+
+const mapCategoryToFrontend = (cat) => {
+  switch (cat) {
+    case "COMPLIANCE": return "Timeliness";
+    case "CUSTOMER": return "Quality";
+    case "EFFICIENCY": return "Efficiency";
+    default: return "Timeliness";
+  }
+};
+
+const mapUnitToBackend = (u) => {
+  const norm = (u || "").toLowerCase().trim();
+  if (norm.includes("%") || norm.includes("percent")) return "PERCENT";
+  if (norm.includes("day")) return "DAYS";
+  return "COUNT";
+};
+
+const mapUnitToFrontend = (u) => {
+  switch (u) {
+    case "PERCENT": return "%";
+    case "DAYS": return "Days";
+    case "COUNT": return "Units";
+    default: return u || "%";
+  }
+};
 
 export default function KPIStandards() {
   const [kpis, setKpis] = useState(INITIAL_KPIS);
+  const [services, setServices] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingKpi, setEditingKpi] = useState(null);
   const [deactivatingKpi, setDeactivatingKpi] = useState(null);
@@ -32,14 +68,46 @@ export default function KPIStandards() {
     }, 3000);
   };
 
+  const fetchKpisAndServices = async () => {
+    try {
+      const [servicesRes, kpisRes] = await Promise.all([
+        api.getServices({ include_archived: false }),
+        api.getKpis({ include_inactive: true }),
+      ]);
+
+      if (servicesRes?.data) {
+        setServices(servicesRes.data);
+      }
+
+      if (kpisRes?.data) {
+        const formattedKpis = kpisRes.data.map(k => ({
+          id: k.id,
+          name: k.name,
+          category: mapCategoryToFrontend(k.category),
+          target_value: k.target_value,
+          unit: mapUnitToFrontend(k.unit),
+          service_id: k.service_id,
+          active: k.is_active,
+          ...k
+        }));
+        setKpis(formattedKpis);
+      }
+    } catch (err) {
+      console.error("Failed to fetch live KPIs and services:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchKpisAndServices();
+  }, []);
+
   const handleOpenAdd = () => {
     setName("");
     setCategory("Timeliness");
     setTargetValue("");
     setUnit("%");
-    // Default to first active service
-    const activeSvcs = MOCK_SERVICES.filter(s => !s.archived);
-    setServiceId(activeSvcs.length > 0 ? activeSvcs[0].id.toString() : "");
+    const activeSvcs = services.filter(s => s.status === 'Active');
+    setServiceId(activeSvcs.length > 0 ? activeSvcs[0].id : "");
     setActive(true);
     setErrors({});
     setShowAdd(true);
@@ -51,12 +119,12 @@ export default function KPIStandards() {
     setCategory(kpi.category);
     setTargetValue(kpi.target_value.toString());
     setUnit(kpi.unit);
-    setServiceId(kpi.service_id.toString());
+    setServiceId(kpi.service_id ? kpi.service_id.toString() : "");
     setActive(kpi.active);
     setErrors({});
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const err = {};
     if (!name.trim()) err.name = true;
@@ -72,48 +140,65 @@ export default function KPIStandards() {
 
     const payload = {
       name,
-      category,
+      category: mapCategoryToBackend(category),
       target_value: parseFloat(targetValue),
-      unit,
-      service_id: parseInt(serviceId),
-      active,
+      unit: mapUnitToBackend(unit),
+      service_id: serviceId,
+      is_active: active,
     };
 
-    if (editingKpi) {
-      // Edit
-      setKpis(prev => prev.map(k => k.id === editingKpi.id ? { ...k, ...payload } : k));
-      triggerToast("KPI standard updated successfully!", "success");
-      setEditingKpi(null);
-    } else {
-      // Add
-      const newKpi = {
-        id: Date.now(),
-        ...payload
-      };
-      setKpis(prev => [newKpi, ...prev]);
-      triggerToast("KPI standard defined successfully!", "success");
-      setShowAdd(false);
+    try {
+      if (editingKpi) {
+        await api.updateKpi(editingKpi.id, payload);
+        triggerToast("KPI standard updated successfully!", "success");
+        setEditingKpi(null);
+      } else {
+        await api.createKpi(payload);
+        triggerToast("KPI standard defined successfully!", "success");
+        setShowAdd(false);
+      }
+      await fetchKpisAndServices();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to save KPI standard", "error");
     }
   };
 
-  const handleToggleActive = (id, kpiName, nextState) => {
-    setKpis(prev => prev.map(k => k.id === id ? { ...k, active: nextState } : k));
-    triggerToast(`"${kpiName}" ${nextState ? "activated" : "deactivated"} successfully!`, "success");
+  const handleDeactivate = async (id, kpiName) => {
+    try {
+      await api.deleteKpi(id);
+      triggerToast(`"${kpiName}" deactivated successfully!`, "success");
+      await fetchKpisAndServices();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to deactivate KPI standard", "error");
+    }
+  };
+
+  const handleActivate = async (id, kpiName) => {
+    try {
+      await api.updateKpi(id, { is_active: true });
+      triggerToast(`"${kpiName}" activated successfully!`, "success");
+      await fetchKpisAndServices();
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to activate KPI standard", "error");
+    }
   };
 
   const filteredKpis = kpis.filter(k => {
-    const service = MOCK_SERVICES.find(s => s.id === k.service_id);
+    const service = services.find(s => s.id === k.service_id);
     const matchesSearch = k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (service && service.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCategory = !categoryFilter || k.category === categoryFilter;
-    const matchesService = !serviceFilter || k.service_id.toString() === serviceFilter;
+    const matchesService = !serviceFilter || k.service_id === serviceFilter;
 
     return matchesSearch && matchesCategory && matchesService;
   });
 
   const getServiceLabel = (id) => {
-    const svc = MOCK_SERVICES.find(s => s.id === id);
+    const svc = services.find(s => s.id === id);
     return svc ? svc.name : "N/A";
   };
 
@@ -608,7 +693,7 @@ export default function KPIStandards() {
             onChange={(e) => setServiceFilter(e.target.value)}
           >
             <option value="">All Linked Services</option>
-            {MOCK_SERVICES.filter(s => !s.archived).map(s => (
+             {services.map(s => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
@@ -761,7 +846,7 @@ export default function KPIStandards() {
                 }}
               >
                 <option value="">Select Service...</option>
-                {MOCK_SERVICES.filter(s => !s.archived).map(s => (
+                 {services.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
@@ -810,11 +895,11 @@ export default function KPIStandards() {
               >
                 Cancel
               </button>
-              <button 
+               <button 
                 className="btn-save-maroon" 
                 style={{ background: "#DC2626" }} 
                 onClick={() => {
-                  handleToggleActive(deactivatingKpi.id, deactivatingKpi.name, false);
+                  handleDeactivate(deactivatingKpi.id, deactivatingKpi.name);
                   setDeactivatingKpi(null);
                 }}
               >
@@ -845,7 +930,7 @@ export default function KPIStandards() {
                 className="btn-save-maroon" 
                 style={{ background: "#10B981" }} 
                 onClick={() => {
-                  handleToggleActive(activatingKpi.id, activatingKpi.name, true);
+                  handleActivate(activatingKpi.id, activatingKpi.name);
                   setActivatingKpi(null);
                 }}
               >

@@ -59,8 +59,9 @@ export class KpiSlaController {
     @Query() query: GetKpisQueryDto,
   ) {
     const office = req.user?.office ?? 'mock-office';
-    const { service_id, category, ...pagination } = query;
-    return this.svc.findAllKpis(office, { service_id, category }, pagination);
+    const { service_id, category, include_inactive, ...pagination } = query;
+    const includeInactiveBool = include_inactive === 'true';
+    return this.svc.findAllKpis(office, { service_id, category, include_inactive: includeInactiveBool }, pagination);
   }
 
   @Put('kpis/:id')

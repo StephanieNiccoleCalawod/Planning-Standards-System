@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../components/PageHeader";
 import { MOCK_SERVICES } from "../constants/mockData";
 import { INITIAL_KPIS, INITIAL_PERIODS } from "../constants/sprint2Mock";
+import { api } from "../services/api";
 
 // Mock EMS utilization batch data linked to active services
 const EMS_UTILIZATION_DATA = [
@@ -102,13 +103,57 @@ const EMS_UTILIZATION_DATA = [
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("planning"); // "planning" (PS016) vs "utilization" (PS017)
   
+  // States loaded from backend
+  const [services, setServices] = useState(MOCK_SERVICES);
+  const [kpis, setKpis] = useState(INITIAL_KPIS);
+  const [periods, setPeriods] = useState(INITIAL_PERIODS);
+
   // Utilization Filter States
   const [selectedPeriod, setSelectedPeriod] = useState(2); // Default to 2nd Semester (Active)
   const [selectedService, setSelectedService] = useState("all");
 
-  const activeServices = MOCK_SERVICES.filter(s => s.active && !s.archived);
-  const activeKPIs = INITIAL_KPIS;
-  const currentActivePeriod = INITIAL_PERIODS.find(p => p.status === "Active") || { name: "N/A" };
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [servicesRes, kpisRes, periodsRes] = await Promise.all([
+          api.getServices({ include_archived: true }),
+          api.getKpis(),
+          api.getPeriods(),
+        ]);
+        
+        if (servicesRes?.data) {
+          const formattedServices = servicesRes.data.map(s => ({
+            id: s.id,
+            name: s.name,
+            classification: s.classification,
+            sla: `${s.sla_target_value} ${s.sla_target_unit}`,
+            slaTarget: `${s.sla_target_value} ${s.sla_target_unit}`,
+            responsibleUnit: s.responsible_unit,
+            active: s.status === 'Active',
+            archived: s.status === 'Archived',
+            lastUpdated: s.updated_at ? new Date(s.updated_at).toLocaleString() : 'N/A',
+            ...s
+          }));
+          setServices(formattedServices);
+        }
+        
+        if (kpisRes?.data) {
+          setKpis(kpisRes.data);
+        }
+        
+        if (periodsRes?.data) {
+          setPeriods(periodsRes.data);
+        }
+      } catch (err) {
+        console.error("Failed to load live dashboard data:", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  const activeServices = services.filter(s => s.active && !s.archived);
+  const activeKPIs = kpis;
+  const currentActivePeriod = periods.find(p => p.status === "Active" || p.status === "Open") || { name: "N/A" };
 
   // Calculate filtered EMS utilization statistics
   const filteredEMS = EMS_UTILIZATION_DATA.filter(d => {
@@ -559,10 +604,14 @@ export default function Dashboard() {
 
         <div className="metric-card">
           <div className="metric-card-label">Current Period</div>
-          <div className="metric-card-value" style={{ fontFamily: "var(--font-ui)", fontWeight: "500" }}>
-            {currentActivePeriod.name.replace("AY 2025-2026", "").trim()}
+          <div className="metric-card-value" style={{ fontFamily: "var(--font-ui)", fontWeight: "500", fontSize: "16px" }}>
+            {currentActivePeriod.name}
           </div>
-          <div className="metric-card-subtext">Jan 1 – Mar 31, 2026 · Semestral</div>
+          <div className="metric-card-subtext">
+            {currentActivePeriod.start_date && currentActivePeriod.end_date
+              ? `${new Date(currentActivePeriod.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(currentActivePeriod.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${currentActivePeriod.period_type || currentActivePeriod.type || "Semestral"}`
+              : "Jan 1 – Mar 31, 2026 · Semestral"}
+          </div>
         </div>
 
         <div className="metric-card">
@@ -594,7 +643,7 @@ export default function Dashboard() {
         <div className="commitments-grid">
           {activeServices.map(service => {
             // Find linked KPIs and targets
-            const serviceKPIs = INITIAL_KPIS.filter(k => k.service_id === service.id);
+            const serviceKPIs = kpis.filter(k => k.service_id === service.id);
             
             return (
               <div key={service.id} className="commitment-card">
@@ -642,8 +691,8 @@ export default function Dashboard() {
                 value={selectedPeriod} 
                 onChange={e => setSelectedPeriod(e.target.value)}
               >
-                {INITIAL_PERIODS.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} {p.status === "Active" ? "(Active)" : "(Closed)"}</option>
+                {periods.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} {(p.status === "Active" || p.status === "Open") ? "(Active)" : "(Closed)"}</option>
                 ))}
               </select>
             </div>
@@ -695,7 +744,7 @@ export default function Dashboard() {
                   const service = activeServices.find(s => s.id === item.serviceId) || { name: "Unknown Service" };
                   
                   // Find committed target for the service. Default is 95% if not defined.
-                  const kpi = INITIAL_KPIS.find(k => k.service_id === item.serviceId && k.name.includes("SLA"));
+                  const kpi = kpis.find(k => k.service_id === item.serviceId && k.name.includes("SLA"));
                   const targetVal = kpi ? kpi.target_value : 95;
 
                   return (
@@ -750,7 +799,7 @@ export default function Dashboard() {
                 {filteredEMS.length > 0 ? (
                   filteredEMS.map(item => {
                     const service = activeServices.find(s => s.id === item.serviceId) || { name: "Unknown" };
-                    const kpi = INITIAL_KPIS.find(k => k.service_id === item.serviceId && k.name.includes("SLA"));
+                    const kpi = kpis.find(k => k.service_id === item.serviceId && k.name.includes("SLA"));
                     const targetVal = kpi ? kpi.target_value : 95;
                     
                     // Determine compliance status

@@ -13,4 +13,9 @@ export class GetKpisQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(KpiCategory)
   category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  include_inactive?: string;
 }

@@ -78,13 +78,16 @@ export class KpiSlaService {
 
   async findAllKpis(
     office: string,
-    filters: { service_id?: string; category?: string },
+    filters: { service_id?: string; category?: string; include_inactive?: boolean },
     pagination: PaginationDto = new PaginationDto(),
   ): Promise<{ data: Kpi[]; total: number; page: number; limit: number }> {
     const query = this.kpiRepo
       .createQueryBuilder('kpi')
-      .where('kpi.office = :office', { office })
-      .andWhere('kpi.is_active = true');
+      .where('kpi.office = :office', { office });
+
+    if (!filters.include_inactive) {
+      query.andWhere('kpi.is_active = true');
+    }
 
     if (filters.service_id) query.andWhere('kpi.service_id = :service_id', { service_id: filters.service_id });
     if (filters.category) query.andWhere('kpi.category = :category', { category: filters.category });
@@ -102,17 +105,18 @@ export class KpiSlaService {
   }
 
   async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
-    const kpi = await this.kpiRepo.findOne({ where: { id, office, is_active: true } });
+    const kpi = await this.kpiRepo.findOne({ where: { id, office } });
     if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
     Object.assign(kpi, dto);
     return this.kpiRepo.save(kpi);
   }
 
   async removeKpi(id: string, office: string): Promise<{ message: string }> {
-    const kpi = await this.kpiRepo.findOne({ where: { id, office, is_active: true } });
+    const kpi = await this.kpiRepo.findOne({ where: { id, office } });
     if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
     kpi.is_active = false;
     await this.kpiRepo.save(kpi);
+
     return { message: `KPI ${id} deactivated` };
   }
 
@@ -136,7 +140,13 @@ export class KpiSlaService {
   }
 
   async findAllSlaRules(office: string): Promise<SlaRule[]> {
-    return this.slaRepo.find({ where: { office }, order: { created_at: 'DESC' } });
+    return this.slaRepo.find({
+      where: { office },
+      relations: {
+        versions: true,
+      },
+      order: { created_at: 'DESC' },
+    });
   }
 
   /**

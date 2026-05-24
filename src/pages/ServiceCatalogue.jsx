@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Toggle from "../components/Toggle";
 import Btn from "../components/Btn";
 import AddServiceModal from "../modals/AddServiceModal";
@@ -7,6 +7,7 @@ import ArchiveModal from "../modals/ArchiveModal";
 import IntakeFieldBuilderModal from "../modals/IntakeFieldBuilderModal";
 import { MOCK_SERVICES } from "../constants/mockData";
 import { COLORS } from "../constants/colors";
+import { api } from "../services/api";
 
 export default function ServiceCatalogue() {
   const [services, setServices] = useState(MOCK_SERVICES);
@@ -17,6 +18,7 @@ export default function ServiceCatalogue() {
   const [unarchiveService, setUnarchiveService] = useState(null);
   const [fieldsService, setFieldsService] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,20 +33,66 @@ export default function ServiceCatalogue() {
     }, 3000);
   };
 
-  const handleToggle = (id) => {
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      const res = await api.getServices({ include_archived: true });
+      if (res?.data) {
+        const formattedServices = res.data.map(s => ({
+          id: s.id,
+          name: s.name,
+          classification: s.classification,
+          sla: `${s.sla_target_value} ${s.sla_target_unit}`,
+          slaTarget: `${s.sla_target_value} ${s.sla_target_unit}`,
+          responsibleUnit: s.responsible_unit,
+          active: s.status === 'Active',
+          archived: s.status === 'Archived',
+          lastUpdated: s.updated_at ? new Date(s.updated_at).toLocaleString() : 'N/A',
+          intakeDocuments: Array.isArray(s.required_documents) ? s.required_documents.join("\n") : "",
+          stepsTimeline: Array.isArray(s.processing_steps) ? s.processing_steps.join("\n") : "",
+          expectedOutput: s.expected_output || "",
+          ...s
+        }));
+        setServices(formattedServices);
+      }
+    } catch (err) {
+      console.error("Failed to fetch services:", err);
+      // Keep MOCK_SERVICES fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const handleToggle = async (id) => {
     const svc = services.find(s => s.id === id);
     if (svc.active) {
       setDeactivating(svc);
       return;
     }
-    setServices(prev => prev.map(s => s.id === id ? { ...s, active: true } : s));
-    triggerToast("Service activated successfully!", "success");
+    try {
+      await api.activateService(id);
+      await fetchServices();
+      triggerToast("Service activated successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to activate service", "error");
+    }
   };
 
-  const confirmDeactivate = () => {
-    setServices(prev => prev.map(s => s.id === deactivating.id ? { ...s, active: false } : s));
-    setDeactivating(null);
-    triggerToast("Service deactivated successfully!", "success");
+  const confirmDeactivate = async () => {
+    try {
+      await api.deactivateService(deactivating.id);
+      await fetchServices();
+      setDeactivating(null);
+      triggerToast("Service deactivated successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast(err.message || "Failed to deactivate service", "error");
+    }
   };
 
   // handleUnarchive is now managed via unarchiveService state and confirmation modal
@@ -671,22 +719,29 @@ export default function ServiceCatalogue() {
       {showAdd && (
         <AddServiceModal
           onClose={() => setShowAdd(false)}
-          onAdd={(newSvc) => {
-            setServices(prev => [
-              {
-                id: prev.length + 1,
+          onAdd={async (newSvc) => {
+            try {
+              const slaValue = parseInt(newSvc.slaTarget.match(/\d+/)?.[0] || 0);
+              const slaUnit = newSvc.slaTarget.includes("Day") ? "Days" : "Minutes";
+              
+              const payload = {
                 name: newSvc.serviceName,
                 classification: newSvc.classification,
-                slaTarget: newSvc.slaTarget,
-                sla: newSvc.slaTarget,
-                responsibleUnit: newSvc.responsibleUnit,
-                active: newSvc.active,
-                naFlag: false,
-                lastUpdated: newSvc.lastUpdated,
-              },
-              ...prev
-            ]);
-            triggerToast("Service created successfully!", "success");
+                sla_target_value: slaValue,
+                sla_target_unit: slaUnit,
+                responsible_unit: newSvc.responsibleUnit,
+                required_documents: newSvc.intakeDocuments ? newSvc.intakeDocuments.split("\n").filter(Boolean) : [],
+                processing_steps: newSvc.stepsTimeline ? newSvc.stepsTimeline.split("\n").filter(Boolean) : [],
+                expected_output: newSvc.expectedOutput,
+              };
+
+              await api.createService(payload);
+              await fetchServices();
+              triggerToast("Service created successfully!", "success");
+            } catch (err) {
+              console.error(err);
+              triggerToast(err.message || "Failed to create service", "error");
+            }
           }}
         />
       )}
@@ -694,9 +749,29 @@ export default function ServiceCatalogue() {
         <AddServiceModal
           service={editingService}
           onClose={() => setEditingService(null)}
-          onEdit={(updatedSvc) => {
-            setServices(prev => prev.map(s => s.id === updatedSvc.id ? updatedSvc : s));
-            triggerToast("Service updated successfully!", "success");
+          onEdit={async (updatedSvc) => {
+            try {
+              const slaValue = parseInt(updatedSvc.slaTarget.match(/\d+/)?.[0] || 0);
+              const slaUnit = updatedSvc.slaTarget.includes("Day") ? "Days" : "Minutes";
+
+              const payload = {
+                name: updatedSvc.name,
+                classification: updatedSvc.classification,
+                sla_target_value: slaValue,
+                sla_target_unit: slaUnit,
+                responsible_unit: updatedSvc.responsibleUnit,
+                required_documents: updatedSvc.intakeDocuments ? updatedSvc.intakeDocuments.split("\n").filter(Boolean) : [],
+                processing_steps: updatedSvc.stepsTimeline ? updatedSvc.stepsTimeline.split("\n").filter(Boolean) : [],
+                expected_output: updatedSvc.expectedOutput,
+              };
+
+              await api.updateService(updatedSvc.id, payload);
+              await fetchServices();
+              triggerToast("Service updated successfully!", "success");
+            } catch (err) {
+              console.error(err);
+              triggerToast(err.message || "Failed to update service", "error");
+            }
           }}
         />
       )}
@@ -712,10 +787,16 @@ export default function ServiceCatalogue() {
           mode="archive"
           service={archiveService}
           onCancel={() => setArchiveService(null)}
-          onConfirm={() => {
-            setServices(prev => prev.map(s => s.id === archiveService.id ? { ...s, active: false, archived: true } : s));
-            setArchiveService(null);
-            triggerToast("Service archived successfully!", "success");
+          onConfirm={async () => {
+            try {
+              await api.archiveService(archiveService.id);
+              await fetchServices();
+              setArchiveService(null);
+              triggerToast("Service archived successfully!", "success");
+            } catch (err) {
+              console.error(err);
+              triggerToast(err.message || "Failed to archive service", "error");
+            }
           }}
         />
       )}
@@ -724,10 +805,16 @@ export default function ServiceCatalogue() {
           mode="unarchive"
           service={unarchiveService}
           onCancel={() => setUnarchiveService(null)}
-          onConfirm={() => {
-            setServices(prev => prev.map(s => s.id === unarchiveService.id ? { ...s, archived: false, active: true } : s));
-            setUnarchiveService(null);
-            triggerToast("Service unarchived successfully!", "success");
+          onConfirm={async () => {
+            try {
+              await api.activateService(unarchiveService.id);
+              await fetchServices();
+              setUnarchiveService(null);
+              triggerToast("Service unarchived successfully!", "success");
+            } catch (err) {
+              console.error(err);
+              triggerToast(err.message || "Failed to unarchive service", "error");
+            }
           }}
         />
       )}
