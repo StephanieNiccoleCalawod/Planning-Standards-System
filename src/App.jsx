@@ -34,7 +34,7 @@ export default function App() {
   return (
     <div className="lib-page" style={{ height: "100vh", overflow: "hidden" }}>
       <Sidebar active={active} setActive={setActive} />
-      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
+      <div style={{ flex: 1, marginLeft: "260px", overflowY: "auto", background: "var(--bg)" }}>
         {PAGES[active] || PAGES.dashboard}
       </div>
     </div>

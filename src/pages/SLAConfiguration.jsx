@@ -721,17 +721,91 @@ export default function SLAConfiguration() {
       {/* Save Confirmation Modal Popup */}
       {showConfirm && (
         <div className="confirm-modal-overlay">
-          <div className="confirm-modal-card">
-            <h3 className="confirm-modal-title">Publish New SLA Version?</h3>
-            <p className="confirm-modal-desc">
-              You are about to save and publish a new version of the SLA Compliance Rules. 
-              <br /><br />
-              All active transactions processed by the EMS pipeline from this moment forward will be audited and escalations computed against this new standard. Previous analytics reports will be preserved.
-            </p>
-            <div className="confirm-modal-footer">
-              <button className="btn-cancel-ghost" onClick={() => setShowConfirm(false)}>Cancel</button>
-              <button className="btn-save-maroon" onClick={handleConfirmSave}>Publish Version</button>
+          <div className="confirm-modal-card" style={{ maxWidth: "520px", padding: "24px" }}>
+            
+            {/* Header Flex */}
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "20px" }}>
+              {/* Warning Icon Box */}
+              <div style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "10px",
+                background: "#FFF7ED",
+                border: "1px solid #FFEDD5",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#EA580C",
+                flexShrink: 0
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+
+              {/* Title & Subtitle */}
+              <div style={{ flex: 1 }}>
+                <h3 className="confirm-modal-title" style={{ fontSize: "19px", fontWeight: "700", color: "#1E293B", margin: "0 0 4px 0" }}>
+                  Confirm SLA Rule Update
+                </h3>
+                <div style={{ fontSize: "12.5px", color: "#94A3B8", fontWeight: "500" }}>
+                  This action will publish a new configuration version
+                </div>
+              </div>
             </div>
+
+            {/* Separator */}
+            <div style={{ height: "1px", background: "#F1F5F9", width: "100%", margin: "0 0 20px 0" }} />
+
+            {/* Body Description */}
+            <p className="confirm-modal-desc" style={{ fontSize: "14.5px", lineHeight: "1.6", color: "#475569", margin: "0 0 20px 0" }}>
+              You are about to <span style={{ color: "#0F172A", fontWeight: "700" }}>save and publish a new version</span> of the SLA compliance rules. The updated settings will apply to <span style={{ color: "#0F172A", fontWeight: "700" }}>all future SLA computations</span> only.
+            </p>
+
+            {/* Alert Box (Green check) */}
+            <div style={{
+              background: "#F0FDF4",
+              border: "1.5px solid #BBF7D0",
+              borderRadius: "10px",
+              padding: "16px",
+              display: "flex",
+              gap: "12px",
+              alignItems: "flex-start",
+              marginBottom: "24px"
+            }}>
+              {/* Green check icon */}
+              <div style={{ color: "#15803D", marginTop: "2px", flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div style={{ fontSize: "13px", lineHeight: "1.5", color: "#166534" }}>
+                Existing transactions and previously computed SLA records <span style={{ color: "#14532D", fontWeight: "700" }}>will not be affected</span>. This is a non-destructive versioned update.
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="confirm-modal-footer" style={{ borderTop: "1px solid #F1F5F9", paddingTop: "20px" }}>
+              <button 
+                type="button"
+                className="btn-cancel-ghost" 
+                style={{ padding: "10px 24px", fontSize: "13px", fontWeight: "600", color: "#475569", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#ffffff", cursor: "pointer" }}
+                onClick={() => setShowConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                className="btn-save-maroon" 
+                style={{ padding: "10px 24px", fontSize: "13px", fontWeight: "600", color: "#ffffff", borderRadius: "8px", background: "#800000", border: "none", cursor: "pointer", boxShadow: "0 2px 4px rgba(128, 0, 0, 0.15)" }}
+                onClick={handleConfirmSave}
+              >
+                Yes, Publish New Version
+              </button>
+            </div>
+
           </div>
         </div>
       )}

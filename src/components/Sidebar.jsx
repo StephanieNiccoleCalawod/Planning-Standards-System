@@ -120,15 +120,19 @@ export default function Sidebar({ active, setActive }) {
           color: #ffffff;
           display: flex;
           flex-direction: column;
-          min-height: 100vh;
           height: 100vh;
-          flex-shrink: 0;
+          position: fixed;
+          top: 0;
+          left: 0;
+          bottom: 0;
           box-sizing: border-box;
           border-right: 1px solid rgba(255, 255, 255, 0.05);
           font-family: "DM Sans", sans-serif;
+          z-index: 100;
+          overflow: hidden;
         }
         .sidebar-logo {
-          padding: 24px 20px 18px;
+          padding: 16px 20px 12px;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -151,24 +155,29 @@ export default function Sidebar({ active, setActive }) {
           letter-spacing: 0.5px;
         }
         .sidebar-nav {
-          padding: 16px 0;
+          padding: 12px 0;
           flex: 1;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 10px;
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .sidebar-nav::-webkit-scrollbar {
+          display: none;          /* Chrome, Safari and Opera */
         }
         .nav-section {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 3px;
         }
         .nav-section-title {
           font-size: 10.5px !important;
           letter-spacing: 0.08em !important;
           text-transform: uppercase !important;
           color: rgba(255, 255, 255, 0.38) !important;
-          padding: 8px 20px 4px 20px !important;
+          padding: 6px 20px 2px 20px !important;
           font-weight: 700 !important;
           margin: 0 !important;
         }
@@ -184,8 +193,8 @@ export default function Sidebar({ active, setActive }) {
           position: relative;
           display: flex;
           align-items: center;
-          gap: 14px;
-          padding: 10px 20px;
+          gap: 10px;
+          padding: 7px 20px;
           margin: 0;
           font-size: 13.5px;
           color: rgba(255, 255, 255, 0.65) !important;
@@ -227,7 +236,7 @@ export default function Sidebar({ active, setActive }) {
           line-height: 1.2;
         }
         .sidebar-footer {
-          padding: 16px 20px;
+          padding: 12px 20px;
           border-top: 1px solid rgba(255, 255, 255, 0.06);
           background: rgba(0, 0, 0, 0.1);
         }
