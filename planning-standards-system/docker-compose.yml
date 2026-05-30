@@ -24,7 +24,7 @@ services:
     container_name: pss-postgres-catalogue
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: steph123gd
       POSTGRES_DB: service-catalogue-db
     ports:
       - '5432:5432'
@@ -65,7 +65,7 @@ services:
     container_name: pss-postgres-kpi-sla
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: steph123gd
       POSTGRES_DB: kpi-sla-db
     ports:
       - '5433:5432'
@@ -79,10 +79,52 @@ services:
     networks:
       - pss-network
 
+  # ── frontend ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: pss-frontend
+    ports:
+      - '5173:5173'
+    environment:
+      PROXY_CATALOGUE_URL: http://service-catalogue:3000
+      PROXY_KPI_SLA_URL: http://kpi-sla:3001
+    depends_on:
+      - service-catalogue
+      - kpi-sla
+    networks:
+      - pss-network
+    restart: unless-stopped
+
+  # ── pgAdmin (database viewer) ───────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pss-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pss.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - '5050:5050'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json
+    depends_on:
+      postgres-catalogue:
+        condition: service_healthy
+      postgres-kpi-sla:
+        condition: service_healthy
+    networks:
+      - pss-network
+    restart: unless-stopped
+
 volumes:
   postgres_catalogue_data:
   postgres_kpi_sla_data:
+  pgadmin_data:
 
 networks:
   pss-network:
     driver: bridge
+
