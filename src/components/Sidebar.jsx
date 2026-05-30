@@ -109,207 +109,234 @@ const ICONS = {
   ),
 };
 
-export default function Sidebar({ active, setActive }) {
+export default function Sidebar({ active, setActive, isOpen, onClose }) {
   return (
-    <div className="sidebar">
-      {/* Dynamic override style tag to fully bypass default layout lines */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .sidebar {
-          width: 260px;
-          background: #500000 !important;
-          color: #ffffff;
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          position: fixed;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          box-sizing: border-box;
-          border-right: 1px solid rgba(255, 255, 255, 0.05);
-          font-family: "DM Sans", sans-serif;
-          z-index: 100;
-          overflow: hidden;
-        }
-        .sidebar-logo {
-          padding: 16px 20px 12px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .sidebar-logo-mark {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-        .sidebar-logo-text {
-          font-size: 14px;
-          font-weight: 700;
-          color: #ffffff;
-          letter-spacing: 0.5px;
-        }
-        .sidebar-nav {
-          padding: 12px 0;
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          -ms-overflow-style: none;  /* IE and Edge */
-          scrollbar-width: none;  /* Firefox */
-        }
-        .sidebar-nav::-webkit-scrollbar {
-          display: none;          /* Chrome, Safari and Opera */
-        }
-        .nav-section {
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-        }
-        .nav-section-title {
-          font-size: 10.5px !important;
-          letter-spacing: 0.08em !important;
-          text-transform: uppercase !important;
-          color: rgba(255, 255, 255, 0.38) !important;
-          padding: 6px 20px 2px 20px !important;
-          font-weight: 700 !important;
-          margin: 0 !important;
-        }
-        .nav-branch {
-          position: relative !important;
-          margin-left: 0 !important;
-          padding-left: 0 !important;
-        }
-        .nav-branch::before {
-          display: none !important;
-        }
-        .nav-leaf {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 7px 20px;
-          margin: 0;
-          font-size: 13.5px;
-          color: rgba(255, 255, 255, 0.65) !important;
-          cursor: pointer;
-          border-radius: 0 !important;
-          transition: background 0.15s ease, color 0.15s ease;
-          border-left: none !important;
-          box-shadow: none !important;
-        }
-        .nav-leaf::before {
-          display: none !important;
-        }
-        .nav-leaf:hover {
-          color: #ffffff !important;
-          background: rgba(255, 255, 255, 0.04) !important;
-        }
-        .nav-leaf.active {
-          color: #ffffff !important;
-          background: rgba(255, 255, 255, 0.08) !important;
-          font-weight: 600;
-        }
-        .nav-leaf.active .nav-leaf-icon {
-          color: #ffffff !important;
-        }
-        .nav-leaf-icon {
-          width: 18px;
-          height: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: rgba(255, 255, 255, 0.65);
-          flex-shrink: 0;
-          transition: color 0.15s ease;
-        }
-        .nav-leaf:hover .nav-leaf-icon {
-          color: #ffffff !important;
-        }
-        .nav-leaf-label {
-          line-height: 1.2;
-        }
-        .sidebar-footer {
-          padding: 12px 20px;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
-          background: rgba(0, 0, 0, 0.1);
-        }
-        .sidebar-user {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .sidebar-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: var(--gold, #C8960C) !important;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 13px;
-          font-weight: 700;
-          color: #ffffff;
-          flex-shrink: 0;
-        }
-        .sidebar-user-name {
-          font-size: 13px;
-          font-weight: 600;
-          color: #ffffff;
-          line-height: 1.2;
-        }
-        .sidebar-user-role {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.45);
-          margin-top: 2px;
-        }
-      `}} />
-
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-mark">
-          <img src={logo} alt="PUP Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+    <>
+      {isOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={onClose} 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 998,
+            cursor: 'pointer'
+          }}
+        />
+      )}
+      <div className={`sidebar ${isOpen ? "open" : ""}`}>
+        {/* Dynamic override style tag to fully bypass default layout lines */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .sidebar {
+            width: 260px;
+            background: #500000 !important;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            box-sizing: border-box;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: "DM Sans", sans-serif;
+            z-index: 1000;
+            overflow: hidden;
+            transition: transform 0.3s ease-in-out;
+          }
+          @media (max-width: 960px) {
+            .sidebar {
+              transform: translateX(-100%);
+            }
+            .sidebar.open {
+              transform: translateX(0);
+            }
+          }
+          .sidebar-logo {
+            padding: 16px 20px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          }
+          .sidebar-logo-mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+          }
+          .sidebar-logo-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+          }
+          .sidebar-nav {
+            padding: 12px 0;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+          }
+          .sidebar-nav::-webkit-scrollbar {
+            display: none;          /* Chrome, Safari and Opera */
+          }
+          .nav-section {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          .nav-section-title {
+            font-size: 10.5px !important;
+            letter-spacing: 0.08em !important;
+            text-transform: uppercase !important;
+            color: rgba(255, 255, 255, 0.38) !important;
+            padding: 6px 20px 2px 20px !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+          }
+          .nav-branch {
+            position: relative !important;
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+          }
+          .nav-branch::before {
+            display: none !important;
+          }
+          .nav-leaf {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 20px;
+            margin: 0;
+            font-size: 13.5px;
+            color: rgba(255, 255, 255, 0.65) !important;
+            cursor: pointer;
+            border-radius: 0 !important;
+            transition: background 0.15s ease, color 0.15s ease;
+            border-left: none !important;
+            box-shadow: none !important;
+          }
+          .nav-leaf::before {
+            display: none !important;
+          }
+          .nav-leaf:hover {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+          }
+          .nav-leaf.active {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+            font-weight: 600;
+          }
+          .nav-leaf.active .nav-leaf-icon {
+            color: #ffffff !important;
+          }
+          .nav-leaf-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.65);
+            flex-shrink: 0;
+            transition: color 0.15s ease;
+          }
+          .nav-leaf:hover .nav-leaf-icon {
+            color: #ffffff !important;
+          }
+          .nav-leaf-label {
+            line-height: 1.2;
+          }
+          .sidebar-footer {
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(0, 0, 0, 0.1);
+          }
+          .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          .sidebar-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gold, #C8960C) !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+            flex-shrink: 0;
+          }
+          .sidebar-user-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.2;
+          }
+          .sidebar-user-role {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 2px;
+          }
+        `}} />
+  
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-mark">
+            <img src={logo} alt="PUP Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </div>
+          <span className="sidebar-logo-text">PUP Caloocan</span>
         </div>
-        <span className="sidebar-logo-text">PUP Caloocan</span>
-      </div>
-
-      {/* Nav */}
-      <div className="sidebar-nav">
-        {NAV_TREE.map((section) => (
-          <div key={section.section} className="nav-section">
-            <div className="nav-section-title">{section.section.toUpperCase()}</div>
-            <div className="nav-branch">
-              {section.items.map((item) => (
-                <div
-                  key={item.key}
-                  onClick={() => setActive(item.routeKey)}
-                  className={`nav-leaf ${active === item.routeKey ? "active" : ""}`}
-                >
-                  <span className="nav-leaf-icon">{ICONS[item.icon]}</span>
-                  <span className="nav-leaf-label">{item.label}</span>
-                </div>
-              ))}
+  
+        {/* Nav */}
+        <div className="sidebar-nav">
+          {NAV_TREE.map((section) => (
+            <div key={section.section} className="nav-section">
+              <div className="nav-section-title">{section.section.toUpperCase()}</div>
+              <div className="nav-branch">
+                {section.items.map((item) => (
+                  <div
+                    key={item.key}
+                    onClick={() => setActive(item.routeKey)}
+                    className={`nav-leaf ${active === item.routeKey ? "active" : ""}`}
+                  >
+                    <span className="nav-leaf-icon">{ICONS[item.icon]}</span>
+                    <span className="nav-leaf-label">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+  
+        {/* User Footer */}
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">A</div>
+            <div>
+              <div className="sidebar-user-name">Admin</div>
+              <div className="sidebar-user-role">Administrative System</div>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* User Footer */}
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="sidebar-avatar">A</div>
-          <div>
-            <div className="sidebar-user-name">Admin</div>
-            <div className="sidebar-user-role">Administrative System</div>
-          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

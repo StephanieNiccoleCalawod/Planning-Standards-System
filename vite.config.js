@@ -8,12 +8,12 @@ export default defineConfig({
     proxy: {
       // Service Catalogue service runs on port 3000
       '/api/services': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
       // All other API endpoints go to KPI/SLA standards service on port 3001
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
       }
     }

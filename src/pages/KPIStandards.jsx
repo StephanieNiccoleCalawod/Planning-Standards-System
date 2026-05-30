@@ -1,7 +1,38 @@
 import { useState, useEffect } from "react";
-import { api } from "../services/api";
+import {
+  Box,
+  Typography,
+  Card,
+  Tabs,
+  Tab,
+  TextField,
+  MenuItem,
+  Button,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  Chip,
+  Snackbar,
+  Alert,
+  Pagination,
+  Tooltip,
+  IconButton
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import BlockIcon from '@mui/icons-material/Block';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+import { useAppStore } from "../store/useAppStore";
 import PageHeader from "../components/PageHeader";
 import ResultModal from "../modals/ResultModal";
+import KPIModal from "../modals/KPIModal";
+import ToggleStatusModal from "../modals/ToggleStatusModal";
 
 const CATEGORY_INDICATORS = {
   Timeliness: { color: "#2563EB", bg: "#EFF6FF", label: "Timeliness" },
@@ -9,20 +40,43 @@ const CATEGORY_INDICATORS = {
   Efficiency: { color: "#10B981", bg: "#ECFDF5", label: "Efficiency" },
 };
 
+const formatDuration = (totalMinutes) => {
+  if (!totalMinutes || isNaN(totalMinutes)) return "0m";
+  const d = Math.floor(totalMinutes / 1440);
+  const h = Math.floor((totalMinutes % 1440) / 60);
+  const m = Math.round(totalMinutes % 60);
+
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+  return parts.join(" ");
+};
+
 export default function KPIStandards() {
-  const [services, setServices] = useState([]);
-  const [kpis, setKpis] = useState([]);
-  
+  const {
+    services,
+    fetchServices,
+    kpis,
+    fetchKpis,
+    createKpi,
+    updateKpi,
+    deleteKpi
+  } = useAppStore();
+
   // UI states
-  const [activeTab, setActiveTab] = useState("active"); // "active" vs "deactivated"
+  const [activeTab, setActiveTab] = useState(0); // 0: active, 1: deactivated
   const [showAdd, setShowAdd] = useState(false);
   const [editingKpi, setEditingKpi] = useState(null);
-  
+
   // Form states
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Timeliness");
   const [target, setTarget] = useState("");
-  const [unit, setUnit] = useState("%");
+  const [targetDays, setTargetDays] = useState("");
+  const [targetHours, setTargetHours] = useState("");
+  const [targetMins, setTargetMins] = useState("");
+  const [unit, setUnit] = useState(" Days");
   const [serviceId, setServiceId] = useState("");
   const [errors, setErrors] = useState({});
 
@@ -33,55 +87,30 @@ export default function KPIStandards() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [serviceFilter, setServiceFilter] = useState("");
 
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
 
-  const triggerToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 3000);
+  const triggerSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const fetchKpisAndServices = async () => {
-    try {
-      const [svcRes, kpiRes] = await Promise.all([
-        api.getServices({ include_archived: false }),
-        api.getKpis({ include_inactive: true }),
-      ]);
-      
-      if (svcRes?.data) {
-        setServices(svcRes.data);
-      }
-      
-      if (kpiRes?.data) {
-        // Map backend KPI schema to frontend properties
-        const formatted = kpiRes.data.map(k => ({
-          id: k.id,
-          name: k.name,
-          category: k.category === "TIMELINESS" ? "Timeliness" : k.category === "QUALITY" ? "Quality" : "Efficiency",
-          target_value: k.target_value,
-          unit: k.unit,
-          service_id: k.service_id,
-          active: k.is_active,
-          ...k
-        }));
-        setKpis(formatted);
-      }
-    } catch (err) {
-      console.error("Failed to load KPIs & services:", err);
-    }
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   useEffect(() => {
-    fetchKpisAndServices();
+    fetchServices();
+    fetchKpis();
   }, []);
 
   const handleOpenAdd = () => {
     setName("");
     setCategory("Timeliness");
     setTarget("");
-    setUnit("%");
+    setTargetDays("");
+    setTargetHours("");
+    setTargetMins("");
+    setUnit(" Days");
     setServiceId("");
     setErrors({});
     setEditingKpi(null);
@@ -91,7 +120,22 @@ export default function KPIStandards() {
   const handleOpenEdit = (kpi) => {
     setName(kpi.name);
     setCategory(kpi.category);
-    setTarget(kpi.target_value);
+    setTarget(Number(kpi.target_value));
+
+    if (kpi.category === "Timeliness" || kpi.category === "Efficiency") {
+      const totalMins = Number(kpi.target_value) || 0;
+      const d = Math.floor(totalMins / 1440);
+      const h = Math.floor((totalMins % 1440) / 60);
+      const m = Math.round(totalMins % 60);
+      setTargetDays(d || "");
+      setTargetHours(h || "");
+      setTargetMins(m || "");
+    } else {
+      setTargetDays("");
+      setTargetHours("");
+      setTargetMins("");
+    }
+
     setUnit(kpi.unit);
     setServiceId(kpi.service_id || "");
     setErrors({});
@@ -109,27 +153,49 @@ export default function KPIStandards() {
 
     const err = {};
     if (!name.trim()) err.name = true;
-    if (!target.toString().trim()) err.target = true;
     if (!serviceId) err.serviceId = true;
+
+    const isTimeCategory = category === "Timeliness" || category === "Efficiency";
+    const hasTimeValue = targetDays.toString().trim() || targetHours.toString().trim() || targetMins.toString().trim();
+    if (isTimeCategory && !hasTimeValue) err.target = true;
+    if (!isTimeCategory && !target.toString().trim()) err.target = true;
 
     if (Object.keys(err).length > 0) {
       setErrors(err);
-      triggerToast("Please fill in all required fields.", "error");
+      triggerSnackbar("Please fill in all required fields.", "error");
       return;
+    }
+
+    let backendCategory = "EFFICIENCY";
+    if (category === "Timeliness") backendCategory = "COMPLIANCE";
+    else if (category === "Quality") backendCategory = "CUSTOMER";
+
+    let backendUnit = "COUNT";
+    let finalTargetValue = 0;
+
+    if (category === "Quality") {
+      backendUnit = "PERCENT";
+      finalTargetValue = Number(target);
+    } else {
+      backendUnit = "COUNT";
+      const d = Number(targetDays) || 0;
+      const h = Number(targetHours) || 0;
+      const m = Number(targetMins) || 0;
+      finalTargetValue = d * 1440 + h * 60 + m;
     }
 
     const payload = {
       name,
-      category: category.toUpperCase(), // TIMELINESS, QUALITY, EFFICIENCY
-      target_value: Number(target),
-      unit,
-      service_id: Number(serviceId),
+      category: backendCategory,
+      target_value: finalTargetValue,
+      unit: backendUnit,
+      service_id: serviceId || null,
       is_active: editingKpi ? editingKpi.active : true,
     };
 
     try {
       if (editingKpi) {
-        await api.updateKpi(editingKpi.id, payload);
+        await updateKpi(editingKpi.id, payload);
         setResultModal({
           show: true,
           type: "success",
@@ -137,7 +203,7 @@ export default function KPIStandards() {
           message: `The KPI Target for "${name}" has been successfully updated.`,
         });
       } else {
-        await api.createKpi(payload);
+        await createKpi(payload);
         setResultModal({
           show: true,
           type: "success",
@@ -146,7 +212,6 @@ export default function KPIStandards() {
         });
       }
       closeModal();
-      await fetchKpisAndServices();
     } catch (err) {
       console.error(err);
       setResultModal({
@@ -158,989 +223,329 @@ export default function KPIStandards() {
     }
   };
 
-  const handleDelete = async (id, kName) => {
-    try {
-      await api.deleteKpi(id);
-      triggerToast(`"${kName}" deleted successfully.`, "success");
-      await fetchKpisAndServices();
-    } catch (err) {
-      console.error(err);
-      triggerToast(err.message || "Failed to delete KPI Target.", "error");
-    }
-  };
-
   const handleToggleActive = async (id, kName, newStatus) => {
     try {
-      await api.updateKpi(id, { is_active: newStatus });
-      triggerToast(`"${kName}" has been ${newStatus ? 'activated' : 'deactivated'}.`, "success");
-      await fetchKpisAndServices();
+      await updateKpi(id, { is_active: newStatus });
+      triggerSnackbar(`"${kName}" has been ${newStatus ? 'activated' : 'deactivated'}.`, "success");
     } catch (err) {
       console.error(err);
-      triggerToast(err.message || `Failed to update status`, "error");
+      triggerSnackbar(err.message || `Failed to update status`, "error");
     }
   };
 
-  // Dynamic Client-side Filters
+  // Client-side Filters
   const filteredKpis = kpis.filter(k => {
-    const isTabMatch = activeTab === "active" ? k.active : !k.active;
+    const isTabMatch = activeTab === 0 ? k.active : !k.active;
     if (!isTabMatch) return false;
 
     const matchesSearch = k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (services.find(s => s.id === k.service_id)?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !categoryFilter || k.category === categoryFilter;
-    const matchesService = !serviceFilter || k.service_id === Number(serviceFilter);
+    const matchesService = !serviceFilter || k.service_id === serviceFilter;
 
     return matchesSearch && matchesCategory && matchesService;
   });
 
-  // Pagination Math
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 6;
   const showPagination = filteredKpis.length >= 10 || currentPage > 1;
   const totalPages = Math.ceil(filteredKpis.length / rowsPerPage) || 1;
   const paginatedKpis = filteredKpis.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
+  const handlePageChange = (event, page) => {
+    setCurrentPage(page);
   };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    for (let i = 1; i <= totalPages; i++) {
-      pages.push(i);
-    }
-    return pages;
-  };
-
-  // Metrics
-  const statTotal = kpis.length;
-  const statTimeliness = kpis.filter(k => k.category === "Timeliness" && k.active).length;
-  const statQuality = kpis.filter(k => k.category === "Quality" && k.active).length;
-  const statEfficiency = kpis.filter(k => k.category === "Efficiency" && k.active).length;
 
   return (
-    <div className="kpi-standards-container">
-      {/* Styles Injection */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .kpi-standards-container {
-          padding: 32px;
-          display: flex;
-          flex-direction: column;
-          box-sizing: border-box;
-          font-family: var(--font-ui), sans-serif;
-          background: #F8FAFC;
-          min-height: 100vh;
-        }
-
-        /* Top Header Row with Breadcrumb */
-        .page-header-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #E2E8F0;
-        }
-        .breadcrumb-text {
-          font-size: 12px;
-          color: #64748B;
-          font-weight: 500;
-        }
-        .breadcrumb-text span {
-          color: #800000;
-          font-weight: 600;
-        }
-        .page-title {
-          font-family: var(--font-display, 'DM Serif Display', Georgia, serif);
-          font-size: 34px;
-          font-weight: 500;
-          color: #0F172A;
-          margin: 0 0 24px 0;
-        }
-        .period-pill {
-          background: #FEF2F2;
-          color: #800000;
-          border: 1px solid rgba(128, 0, 0, 0.1);
-          border-radius: 9999px;
-          padding: 6px 16px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-        }
-
-        /* Metrics */
-        .metrics-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 20px;
-          margin-bottom: 30px;
-        }
-        .metric-card {
-          background: #ffffff;
-          border-radius: 10px;
-          border: 1px solid #E2E8F0;
-          padding: 20px;
-          position: relative;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          min-height: 110px;
-        }
-        .metric-label {
-          font-size: 10px;
-          font-weight: 700;
-          color: #94A3B8;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin-bottom: 4px;
-        }
-        .metric-value {
-          font-size: 26px;
-          font-weight: 700;
-          color: #1E293B;
-          line-height: 1.1;
-        }
-        .metric-subtext {
-          font-size: 12px;
-          color: #64748B;
-        }
-        .metric-indicator-bar {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-        }
-
-        /* Tabs Navigation */
-        .catalogue-tabs {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 20px;
-          border-bottom: 1.5px solid #E2E8F0;
-          padding-bottom: 2px;
-        }
-        .catalogue-tab-btn {
-          border: none;
-          background: transparent;
-          font-size: 14px;
-          font-weight: 600;
-          color: #64748B;
-          cursor: pointer;
-          padding: 8px 12px;
-          position: relative;
-          transition: color 0.15s ease;
-        }
-        .catalogue-tab-btn:hover {
-          color: #0F172A;
-        }
-        .catalogue-tab-btn.active {
-          color: #800000;
-        }
-        .catalogue-tab-btn.active::after {
-          content: "";
-          position: absolute;
-          bottom: -3.5px;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: #800000;
-          border-radius: 999px;
-        }
-
-        /* Filter Controls */
-        .filter-controls-card {
-          background: #ffffff;
-          border-radius: 12px;
-          border: 1px solid #E2E8F0;
-          padding: 16px 20px;
-          margin-bottom: 20px;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
-        }
-        .filter-flex-container {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .filter-search-box {
-          position: relative;
-          width: 240px;
-        }
-        .filter-divider {
-          width: 1px;
-          height: 24px;
-          background: #E2E8F0;
-          margin: 0 4px;
-        }
-        .search-icon-svg {
-          position: absolute;
-          left: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #94A3B8;
-          pointer-events: none;
-        }
-        .search-input-field {
-          width: 100%;
-          padding: 10px 14px 10px 38px;
-          border: 1px solid #E2E8F0;
-          border-radius: 8px;
-          font-size: 13px;
-          outline: none;
-          color: #334155;
-          box-sizing: border-box;
-          transition: all 0.15s ease;
-          background: #F8FAFC;
-        }
-        .search-input-field:focus {
-          border-color: #800000;
-          background: #ffffff;
-          box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
-        }
-        .custom-filter-dropdown {
-          padding: 10px 36px 10px 14px;
-          border: 1px solid #E2E8F0;
-          border-radius: 8px;
-          font-size: 13px;
-          color: #475569;
-          background: #ffffff;
-          font-family: inherit;
-          font-weight: 500;
-          outline: none;
-          cursor: pointer;
-          appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%2364748B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 14px center;
-          transition: all 0.15s ease;
-          min-width: 180px;
-        }
-        .custom-filter-dropdown:hover {
-          border-color: #CBD5E1;
-        }
-        .custom-filter-dropdown:focus {
-          border-color: #800000;
-          box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
-        }
-
-        /* Action Buttons */
-        .action-reset-btn {
-          padding: 10px 18px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #64748B;
-          background: #F1F5F9;
-          border: 1px solid #E2E8F0;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .action-reset-btn:hover {
-          background: #E2E8F0;
-          color: #334155;
-        }
-        .action-add-btn {
-          padding: 10px 20px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #ffffff;
-          background: #800000; /* Deep Maroon */
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          margin-left: auto;
-          transition: all 0.15s ease;
-          box-shadow: 0 2px 4px rgba(128, 0, 0, 0.15);
-        }
-        .action-add-btn:hover {
-          background: #990000;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(128, 0, 0, 0.2);
-        }
-
-        /* Table */
-        .table-scroller {
-          background: #ffffff;
-          border-radius: 12px;
-          border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
-          overflow-x: auto;
-          margin-bottom: 20px;
-        }
-        .premium-data-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: left;
-        }
-        .premium-data-table th {
-          padding: 14px 20px;
-          font-size: 11px;
-          font-weight: 700;
-          color: #64748B;
-          letter-spacing: 0.05em;
-          border-bottom: 1px solid #E2E8F0;
-          background: #F8FAFC;
-        }
-        .premium-data-table td {
-          padding: 16px 20px;
-          border-bottom: 1px solid #F1F5F9;
-          font-size: 13px;
-          color: #334155;
-        }
-        .premium-data-table tr:hover {
-          background: #F8FAFC;
-        }
-
-        /* Badges & Tags */
-        .cat-tag {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 9999px;
-          font-size: 11.5px;
-          font-weight: 600;
-          border: 1.5px solid transparent;
-        }
-        .cat-tag.timeliness {
-          background: #EFF6FF;
-          color: #2563EB;
-          border-color: rgba(37, 99, 235, 0.12);
-        }
-        .cat-tag.quality {
-          background: #FFFBEB;
-          color: #D97706;
-          border-color: rgba(217, 119, 6, 0.12);
-        }
-        .cat-tag.efficiency {
-          background: #ECFDF5;
-          color: #10B981;
-          border-color: rgba(16, 185, 129, 0.12);
-        }
-
-        .target-pill {
-          background: #F8FAFC;
-          border: 1.5px solid #CBD5E1;
-          color: #1E293B;
-          font-size: 12px;
-          font-weight: 700;
-          padding: 3px 10px;
-          border-radius: 6px;
-        }
-
-        .action-button-group {
-          display: flex;
-          gap: 6px;
-          justify-content: center;
-        }
-        .action-table-btn {
-          background: #ffffff;
-          border: 1px solid #CBD5E1;
-          color: #475569;
-          font-weight: 600;
-          font-size: 11.5px;
-          padding: 5px 10px;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .action-table-btn:hover {
-          background: #F8FAFC;
-        }
-        .action-table-btn.edit-btn:hover {
-          border-color: #800000;
-          color: #800000;
-          background: #FFF5F5;
-        }
-        .action-table-btn.deactivate-btn:hover {
-          border-color: #EF4444;
-          color: #EF4444;
-          background: #FEF2F2;
-        }
-        .action-table-btn.activate-btn:hover {
-          border-color: #10B981;
-          color: #10B981;
-          background: #ECFDF5;
-        }
-
-        /* Modals & Overlays */
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.55);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 16px;
-          backdrop-filter: blur(2px);
-        }
-        .form-modal-card {
-          background: #ffffff;
-          border-radius: 12px;
-          width: 100%;
-          max-width: 440px;
-          padding: 30px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          box-sizing: border-box;
-          animation: slideUpModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .modal-title-text {
-          font-family: var(--font-display), 'DM Serif Display', Georgia, serif;
-          font-size: 24px;
-          font-weight: 500;
-          color: #0F172A;
-          margin-bottom: 24px;
-        }
-        .field-group {
-          margin-bottom: 16px;
-        }
-        .modal-label {
-          font-size: 11.5px;
-          font-weight: 700;
-          color: #475569;
-          margin-bottom: 6px;
-          display: block;
-        }
-        .label-star {
-          color: #EF4444;
-          margin-left: 2px;
-        }
-        .modal-input {
-          width: 100%;
-          padding: 10px 14px;
-          border: 1px solid #CBD5E1;
-          border-radius: 8px;
-          font-size: 13px;
-          outline: none;
-          color: #1E293B;
-          box-sizing: border-box;
-        }
-        .modal-input:focus {
-          border-color: #800000;
-          box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
-        }
-        .modal-input.input-error {
-          border-color: #EF4444;
-        }
-
-        .btn-cancel-ghost {
-          padding: 9px 18px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #475569;
-          background: #ffffff;
-          border: 1px solid #CBD5E1;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-        .btn-cancel-ghost:hover {
-          background: #F8FAFC;
-        }
-        .btn-save-maroon {
-          padding: 9px 18px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #ffffff;
-          background: #800000;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-        .btn-save-maroon:hover {
-          background: #990000;
-        }
-
-        /* Toast Alert */
-        .toast-banner {
-          position: fixed;
-          bottom: 24px;
-          right: 24px;
-          background: #ffffff;
-          border-left: 4px solid #10B981;
-          border-radius: 6px;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          padding: 14px 20px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          z-index: 2000;
-          font-size: 13px;
-          font-weight: 600;
-          color: #1E293B;
-          animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          max-width: 380px;
-          border-top: 1px solid #E2E8F0;
-          border-right: 1px solid #E2E8F0;
-          border-bottom: 1px solid #E2E8F0;
-        }
-        .toast-banner.success {
-          border-left-color: #10B981;
-        }
-        .toast-banner.error {
-          border-left-color: #EF4444;
-        }
-        .toast-icon {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          color: #ffffff;
-          flex-shrink: 0;
-        }
-        .toast-icon.success {
-          background: #10B981;
-        }
-        .toast-icon.error {
-          background: #EF4444;
-        }
-        @keyframes slideInRight {
-          from { transform: translateX(120%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-
-        /* Pagination Bar */
-        .pagination-container {
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-          gap: 6px;
-        }
-        .pagination-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 6px;
-          border: 1px solid #E2E8F0;
-          background: #ffffff;
-          color: #334155;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s ease;
-        }
-        .pagination-btn:hover:not(:disabled) {
-          border-color: #CBD5E1;
-          background: #F8FAFC;
-        }
-        .pagination-btn:disabled {
-          opacity: 0.45;
-          cursor: default;
-        }
-        .pagination-btn.active {
-          background: #800000;
-          color: #ffffff;
-          border-color: #800000;
-          font-weight: 700;
-        }
-      ` }} />
-
-      {/* Top Header Row with Breadcrumb */}
+    <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
+      {/* Top Header */}
       <PageHeader breadcrumb="KPI Standards" title="Key Performance Indicators (KPIs) Target" />
 
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onChange={(e, val) => {
+          setActiveTab(val);
+          setCurrentPage(1);
+        }}
+        textColor="primary"
+        indicatorColor="primary"
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+      >
+        <Tab label="KPI Standards" sx={{ fontWeight: 700 }} />
+        <Tab label="Inactive KPI Standards" sx={{ fontWeight: 700 }} />
+      </Tabs>
 
+      {/* Filters Card */}
+      <Card sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <TextField
+            placeholder="Search KPI name or service..."
+            size="small"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            InputProps={{
+              startAdornment: <SearchIcon color="disabled" sx={{ mr: 1 }} />,
+            }}
+            sx={{ width: 240 }}
+          />
 
-      {/* Tab Navigation */}
-      <div className="catalogue-tabs">
-        <button
-          className={`catalogue-tab-btn ${activeTab === "active" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("active");
-            setCurrentPage(1);
-          }}
-        >
-          KPI Standards
-        </button>
-        <button
-          className={`catalogue-tab-btn ${activeTab === "deactivated" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("deactivated");
-            setCurrentPage(1);
-          }}
-        >
-          Deactivated
-        </button>
-      </div>
-
-      {/* Filters Controls */}
-      <div className="filter-controls-card">
-        <div className="filter-flex-container">
-          <div className="filter-search-box">
-            <svg
-              className="search-icon-svg"
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input
-              placeholder="Search KPI name or service.."
-              value={searchQuery}
-              className="search-input-field"
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-          <div className="filter-divider" />
-          <select
-            className="custom-filter-dropdown"
+          <TextField
+            select
+            label="All Categories"
+            size="small"
             value={categoryFilter}
             onChange={(e) => {
               setCategoryFilter(e.target.value);
               setCurrentPage(1);
             }}
+            sx={{ width: 180 }}
           >
-            <option value="">All Categories</option>
-            <option value="Timeliness">Timeliness</option>
-            <option value="Quality">Quality</option>
-            <option value="Efficiency">Efficiency</option>
-          </select>
-          <select
-            className="custom-filter-dropdown"
+            <MenuItem value="">All Categories</MenuItem>
+            <MenuItem value="Timeliness">Timeliness</MenuItem>
+            <MenuItem value="Quality">Quality</MenuItem>
+            <MenuItem value="Efficiency">Efficiency</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            label="All Linked Services"
+            size="small"
             value={serviceFilter}
             onChange={(e) => {
               setServiceFilter(e.target.value);
               setCurrentPage(1);
             }}
+            sx={{ width: 220 }}
           >
-            <option value="">All Linked Services</option>
+            <MenuItem value="">All Linked Services</MenuItem>
             {services.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
             ))}
-          </select>
-          <button
-            className="action-reset-btn"
-            onClick={() => {
-              setSearchQuery("");
-              setCategoryFilter("");
-              setServiceFilter("");
-              setCurrentPage(1);
-            }}
-          >
-            Reset
-          </button>
-          <button className="action-add-btn" onClick={handleOpenAdd}>
-            Add KPI Target
-          </button>
-        </div>
-      </div>
+          </TextField>
 
-      {/* KPI Standards Table */}
-      <div className="table-scroller">
-        <table className="premium-data-table">
-          <thead>
-            <tr>
-              <th style={{ width: "300px" }}>KEY PERFORMANCE INDICATOR (KPI) ↓</th>
-              <th>CATEGORY</th>
-              <th>TARGET STANDARD</th>
-              <th>LINKED SERVICE CHARTER</th>
-              <th style={{ textAlign: "center", width: "240px" }}>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAdd}
+            sx={{ ml: 'auto' }}
+          >
+            Add KPI Target
+          </Button>
+        </Box>
+      </Card>
+
+      {/* Table Container */}
+      <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #E2E8F0', mb: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#F8FAFC', '& .MuiTableCell-root': { py: 1.5, whiteSpace: 'nowrap' } }}>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: '250px' }}>KPI NAME</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>CATEGORY</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>TARGET VALUE</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>LINKED SERVICE</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: 140 }}>ACTIONS</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {paginatedKpis.length > 0 ? (
               paginatedKpis.map((kpi) => (
-                <tr key={kpi.id} style={{ opacity: kpi.active ? 1 : 0.6 }}>
-                  <td style={{ fontWeight: 600, color: "#0F172A" }}>{kpi.name}</td>
-                  <td>
-                    <span className={`cat-tag ${kpi.category.toLowerCase()}`}>
-                      {kpi.category}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="target-pill">
-                      {kpi.target_value}{kpi.unit}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: "12.5px", color: "#64748B", fontWeight: 500 }}>
+                <TableRow
+                  key={kpi.id}
+                  hover
+                  sx={{
+                    opacity: kpi.active ? 1 : 0.6,
+                    '& .MuiTableCell-root': {
+                      py: 1.5,
+                      borderBottom: '1px solid #CBD5E1',
+                      boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 500, fontSize: '0.875rem', lineHeight: 1.2, color: 'text.primary', mb: 0 }}>
+                      {kpi.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={kpi.category}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.7rem',
+                        ...(kpi.category === "Timeliness" && { bgcolor: '#EFF6FF', color: '#2563EB', border: '1px solid rgba(37, 99, 235, 0.15)' }),
+                        ...(kpi.category === "Quality" && { bgcolor: '#FFFBEB', color: '#D97706', border: '1px solid rgba(217, 119, 6, 0.15)' }),
+                        ...(kpi.category === "Efficiency" && { bgcolor: '#ECFDF5', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.15)' })
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "text.primary", fontSize: '0.875rem' }}>
+                    {kpi.category === "Quality" ? `${Number(kpi.target_value)}%` : formatDuration(kpi.target_value)}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontWeight: 500 }}>
                     {services.find(s => s.id === kpi.service_id)?.name || "Unlinked Service"}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <div className="action-button-group">
-                      <button
-                        className="action-table-btn edit-btn"
-                        onClick={() => handleOpenEdit(kpi)}
-                      >
-                        Edit
-                      </button>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                      <Tooltip title="Edit KPI Target" arrow>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleOpenEdit(kpi)}
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'rgba(25, 118, 210, 0.2)',
+                              bgcolor: 'rgba(25, 118, 210, 0.04)',
+                              '&:hover': {
+                                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                              },
+                              width: 30,
+                              height: 30
+                            }}
+                          >
+                            <EditIcon sx={{ width: 15, height: 15 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                       {kpi.active ? (
-                        <button
-                          className="action-table-btn deactivate-btn"
-                          onClick={() => setDeactivatingKpi(kpi)}
-                        >
-                          Deactivate
-                        </button>
+                        <Tooltip title="Deactivate KPI Target" arrow>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeactivatingKpi(kpi)}
+                              sx={{
+                                border: '1px solid',
+                                borderColor: 'rgba(211, 47, 47, 0.2)',
+                                bgcolor: 'rgba(211, 47, 47, 0.04)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(211, 47, 47, 0.08)',
+                                },
+                                width: 30,
+                                height: 30
+                              }}
+                            >
+                              <BlockIcon sx={{ width: 15, height: 15 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       ) : (
-                        <button
-                          className="action-table-btn activate-btn"
-                          onClick={() => setActivatingKpi(kpi)}
-                        >
-                          Activate
-                        </button>
+                        <Tooltip title="Activate KPI Target" arrow>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => setActivatingKpi(kpi)}
+                              sx={{
+                                border: '1px solid',
+                                borderColor: 'rgba(46, 125, 50, 0.2)',
+                                bgcolor: 'rgba(46, 125, 50, 0.04)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(46, 125, 50, 0.08)',
+                                },
+                                width: 30,
+                                height: 30
+                              }}
+                            >
+                              <CheckCircleIcon sx={{ width: 15, height: 15 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       )}
-                      <button
-                        className="action-table-btn deactivate-btn"
-                        style={{ border: "1px solid #CBD5E1", color: "#64748B" }}
-                        onClick={() => handleDelete(kpi.id, kpi.name)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                    </Box>
+                  </TableCell>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td colSpan="5" style={{ padding: 40, textAlign: "center", color: "#64748B", fontSize: "14px", fontWeight: 500 }}>
-                  No KPI targets found matching your active filter criteria.
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    No KPI targets found matching your active filter criteria.
+                  </Typography>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      {/* Pagination Controls Section */}
+      {/* Pagination Section */}
       {showPagination && totalPages > 1 && (
-        <div className="pagination-container" style={{ marginTop: 20 }}>
-          <button
-            className="pagination-btn"
-            disabled={currentPage === 1}
-            onClick={() => handlePageChange(currentPage - 1)}
-          >
-            ‹
-          </button>
-          {getPageNumbers().map((p, i) => (
-            <button
-              key={i}
-              disabled={p === ".."}
-              onClick={() => typeof p === "number" && handlePageChange(p)}
-              className={`pagination-btn ${p === currentPage ? "active" : ""}`}
-            >
-              {p}
-            </button>
-          ))}
-          <button
-            className="pagination-btn"
-            disabled={currentPage === totalPages}
-            onClick={() => handlePageChange(currentPage + 1)}
-          >
-            ›
-          </button>
-        </div>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={handlePageChange}
+            color="primary"
+            shape="rounded"
+          />
+        </Box>
       )}
 
-      {/* Add / Edit Modal Dialog */}
-      {(showAdd || editingKpi) && (
-        <div className="modal-overlay">
-          <form className="form-modal-card" onSubmit={handleSave}>
-            <h3 className="modal-title-text">
-              {editingKpi ? "Edit KPI Standard Target" : "Define KPI Standard Target"}
-            </h3>
+      {/* ── Add / Edit KPI Modal ── */}
+      <KPIModal
+        open={!!(showAdd || editingKpi)}
+        editingKpi={editingKpi}
+        services={services}
+        name={name} setName={setName}
+        category={category} setCategory={setCategory}
+        target={target} setTarget={setTarget}
+        targetDays={targetDays} setTargetDays={setTargetDays}
+        targetHours={targetHours} setTargetHours={setTargetHours}
+        targetMins={targetMins} setTargetMins={setTargetMins}
+        unit={unit} setUnit={setUnit}
+        serviceId={serviceId} setServiceId={setServiceId}
+        errors={errors} setErrors={setErrors}
+        onSave={handleSave}
+        onClose={closeModal}
+      />
 
-            {/* KPI Target Name */}
-            <div className="field-group">
-              <label className="modal-label">
-                KPI Target Name <span className="label-star">*</span>
-              </label>
-              <input
-                placeholder="e.g. Processing time for Graduation Clearance"
-                required
-                value={name}
-                className={`modal-input ${errors.name ? "input-error" : ""}`}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setErrors(prev => ({ ...prev, name: false }));
-                }}
-              />
-              {errors.name && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  KPI Name is required.
-                </div>
-              )}
-            </div>
+      {/* ── Deactivate KPI Confirmation ── */}
+      <ToggleStatusModal
+        open={!!deactivatingKpi}
+        isActivate={false}
+        entityLabel="KPI Target"
+        itemName={deactivatingKpi?.name || ''}
+        bodyExtra="Deactivating this target excludes it from current performance audits, scores, and active charts in the Dashboard."
+        onConfirm={() => {
+          handleToggleActive(deactivatingKpi.id, deactivatingKpi.name, false);
+          setDeactivatingKpi(null);
+        }}
+        onCancel={() => setDeactivatingKpi(null)}
+      />
 
-            {/* Category Select */}
-            <div className="field-group">
-              <label className="modal-label">Measurement Category *</label>
-              <select
-                className="custom-filter-dropdown"
-                style={{ width: "100%" }}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="Timeliness">Timeliness (SLA / Processing Duration)</option>
-                <option value="Quality">Quality Graded standard (Satisfaction)</option>
-                <option value="Efficiency">Efficiency (Completion Volume Rate)</option>
-              </select>
-            </div>
+      {/* ── Activate KPI Confirmation ── */}
+      <ToggleStatusModal
+        open={!!activatingKpi}
+        isActivate={true}
+        entityLabel="KPI Target"
+        itemName={activatingKpi?.name || ''}
+        bodyExtra="Activating this KPI will include it in active audits, evaluations, and metrics computation for this period."
+        onConfirm={() => {
+          handleToggleActive(activatingKpi.id, activatingKpi.name, true);
+          setActivatingKpi(null);
+        }}
+        onCancel={() => setActivatingKpi(null)}
+      />
 
-            {/* Target & Unit */}
-            <div className="field-group" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
-              <div>
-                <label className="modal-label">
-                  Target Value <span className="label-star">*</span>
-                </label>
-                <input
-                  placeholder="e.g. 95 or 10"
-                  type="number"
-                  step="any"
-                  min="0"
-                  required
-                  value={target}
-                  className={`modal-input ${errors.target ? "input-error" : ""}`}
-                  onChange={(e) => {
-                    setTarget(e.target.value);
-                    setErrors(prev => ({ ...prev, target: false }));
-                  }}
-                />
-              </div>
-              <div>
-                <label className="modal-label">Standard Unit *</label>
-                <select
-                  className="custom-filter-dropdown"
-                  style={{ width: "100%" }}
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                >
-                  <option value="%">Percentage (%)</option>
-                  <option value=" Days">Working Days</option>
-                  <option value=" Mins">Minutes</option>
-                  <option value=" Hours">Hours</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Linked Service */}
-            <div className="field-group">
-              <label className="modal-label">
-                Link to Service Charter <span className="label-star">*</span>
-              </label>
-              <select
-                className={`custom-filter-dropdown ${errors.serviceId ? "input-error" : ""}`}
-                style={{ width: "100%" }}
-                value={serviceId}
-                onChange={(e) => {
-                  setServiceId(e.target.value);
-                  setErrors(prev => ({ ...prev, serviceId: false }));
-                }}
-              >
-                <option value="">Select Service...</option>
-                {services.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              {errors.serviceId && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  Please link a Service Charter.
-                </div>
-              )}
-            </div>
-
-            {/* Modal Controls */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-              <button
-                type="button"
-                className="btn-cancel-ghost"
-                onClick={closeModal}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="btn-save-maroon">
-                {editingKpi ? "Save Changes" : "Define KPI"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Deactivate Warning Confirmation Modal */}
-      {deactivatingKpi && (
-        <div className="modal-overlay">
-          <div className="form-modal-card" style={{ maxWidth: 420 }}>
-            <h3 className="modal-title-text" style={{ fontSize: "20px", marginBottom: 14 }}>
-              Deactivate KPI Target?
-            </h3>
-            <p style={{ fontSize: "13.5px", lineHeight: "1.6", color: "#475569", margin: "0 0 24px 0" }}>
-              Are you sure you want to deactivate <strong style={{ color: "#800000" }}>"{deactivatingKpi.name}"</strong>?
-              <br /><br />
-              Deactivating this target excludes it from current performance audits, scores, and active charts in the Dashboard.
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button
-                className="btn-cancel-ghost"
-                onClick={() => setDeactivatingKpi(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn-save-maroon"
-                style={{ background: "#DC2626" }}
-                onClick={() => {
-                  handleToggleActive(deactivatingKpi.id, deactivatingKpi.name, false);
-                  setDeactivatingKpi(null);
-                }}
-              >
-                Yes, Deactivate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Activate Confirmation Modal */}
-      {activatingKpi && (
-        <div className="modal-overlay">
-          <div className="form-modal-card" style={{ maxWidth: 420 }}>
-            <h3 className="modal-title-text" style={{ fontSize: "20px", marginBottom: 14 }}>
-              Activate KPI Target?
-            </h3>
-            <p style={{ fontSize: "13.5px", lineHeight: "1.6", color: "#475569", margin: "0 0 24px 0" }}>
-              Are you sure you want to activate <strong style={{ color: "#10B981" }}>"{activatingKpi.name}"</strong>?
-              <br /><br />
-              Activating this KPI will include it in active audits, evaluations, and metrics computation for this period.
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button
-                className="btn-cancel-ghost"
-                onClick={() => setActivatingKpi(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn-save-maroon"
-                style={{ background: "#10B981" }}
-                onClick={() => {
-                  handleToggleActive(activatingKpi.id, activatingKpi.name, true);
-                  setActivatingKpi(null);
-                }}
-              >
-                Yes, Activate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sliding Toast Alert */}
-      {toast.show && (
-        <div className={`toast-banner ${toast.type}`}>
-          <div className={`toast-icon ${toast.type}`}>
-            {toast.type === "success" ? "✔" : "✖"}
-          </div>
-          <div>{toast.message}</div>
-        </div>
-      )}
+      {/* Snackbar alerts */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Result Modal Feedback */}
       {resultModal.show && (
@@ -1151,6 +556,6 @@ export default function KPIStandards() {
           onClose={() => setResultModal(prev => ({ ...prev, show: false }))}
         />
       )}
-    </div>
+    </Box>
   );
 }

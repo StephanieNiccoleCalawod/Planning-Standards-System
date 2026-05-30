@@ -1,17 +1,33 @@
 import { useState } from "react";
-import Toggle from "../components/Toggle";
-import { COLORS } from "../constants/colors";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  FormControlLabel,
+  Switch,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel,
+  Typography,
+  Box,
+  Alert
+} from '@mui/material';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
-export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
+export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, service }) {
   const isEditing = !!service;
 
   // Helper to parse SLA Target to extract both days and minutes
   const parseSla = (field) => {
     if (!service || !service[field]) return { days: "", hours: "", minutes: "" };
     const val = service[field];
-    const matchDays = val.match(/(\d+)\s*Day/i);
-    const matchHours = val.match(/(\d+)\s*Hour/i);
-    const matchMins = val.match(/(\d+)\s*Min/i) || val.match(/(\d+)\s*Minute/i);
+    const matchDays = val.match(/(\d+)\s*d/i) || val.match(/(\d+)\s*Day/i);
+    const matchHours = val.match(/(\d+)\s*h/i) || val.match(/(\d+)\s*Hour/i);
+    const matchMins = val.match(/(\d+)\s*m/i) || val.match(/(\d+)\s*Min/i) || val.match(/(\d+)\s*Minute/i);
     return {
       days: matchDays ? matchDays[1] : "",
       hours: matchHours ? matchHours[1] : "",
@@ -54,12 +70,46 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
       e.serviceName = "Must contain at least 3 alphanumeric characters.";
     }
 
-    if (!slaDays.trim() && !slaHours.trim() && !slaMinutes.trim()) {
+    const daysStr = slaDays ? String(slaDays).trim() : "";
+    const hoursStr = slaHours ? String(slaHours).trim() : "";
+    const minsStr = slaMinutes ? String(slaMinutes).trim() : "";
+
+    if (!daysStr && !hoursStr && !minsStr) {
       e.slaDays = true;
+      e.slaHours = true;
       e.slaMinutes = true;
+    } else {
+      if (daysStr) {
+        const daysVal = Number(daysStr);
+        if (!/^\d+$/.test(daysStr) || isNaN(daysVal) || daysVal < 0) {
+          e.slaDays = "Days must be a non-negative whole number.";
+        }
+      }
+
+      if (hoursStr) {
+        const hoursVal = Number(hoursStr);
+        if (!/^\d+$/.test(hoursStr) || isNaN(hoursVal) || hoursVal < 0 || hoursVal > 23) {
+          e.slaHours = "Hours must be a whole number between 0 and 23.";
+        }
+      }
+
+      if (minsStr) {
+        const minsVal = Number(minsStr);
+        if (!/^\d+$/.test(minsStr) || isNaN(minsVal) || minsVal < 0 || minsVal > 59) {
+          e.slaMinutes = "Minutes must be a whole number between 0 and 59.";
+        }
+      }
+
+      if (!daysStr) {
+        if (!hoursStr && !minsStr) {
+          e.slaMinutes = "If Working Day is empty, at least Hours or Minutes must be provided.";
+        }
+      }
     }
 
-    if (responsibleUnit && responsibleUnit.trim() !== "" && countAlphanumeric(responsibleUnit) < 3) {
+    if (!responsibleUnit || !responsibleUnit.trim()) {
+      e.responsibleUnit = "Responsible Office/Unit is required.";
+    } else if (countAlphanumeric(responsibleUnit) < 3) {
       e.responsibleUnit = "Must contain at least 3 alphanumeric characters.";
     }
 
@@ -78,34 +128,34 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
 
     // Determine target SLA string
     let slaTarget = "";
-    const daysPart = slaDays.trim() ? `${slaDays} Day${parseInt(slaDays) > 1 ? "s" : ""}` : "";
-    const hoursPart = slaHours.trim() ? `${slaHours} Hour${parseInt(slaHours) > 1 ? "s" : ""}` : "";
-    const minsPart = slaMinutes.trim() ? `${slaMinutes} Minute${parseInt(slaMinutes) > 1 ? "s" : ""}` : "";
+    const daysPart = slaDays.trim() ? `${slaDays}d` : "";
+    const hoursPart = slaHours.trim() ? `${slaHours}h` : "";
+    const minsPart = slaMinutes.trim() ? `${slaMinutes}m` : "";
     
     const timeParts = [daysPart, hoursPart, minsPart].filter(Boolean);
     slaTarget = timeParts.length > 0 ? timeParts.join(" ") : "—";
 
-    // Smart automatic classification based on SLA target
+    // Smart automatic classification based on SLA target (ARTA guidelines)
     let classification = "Simple";
     if (slaDays.trim()) {
       const days = parseInt(slaDays);
-      if (days >= 30) {
+      if (days > 7) {
         classification = "Highly Technical";
-      } else {
+      } else if (days > 3) {
         classification = "Complex";
+      } else {
+        classification = "Simple";
       }
     }
 
     // Format last updated date and time
     const today = new Date();
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let hours = today.getHours();
-    const minutes = today.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
-    const formattedDate = `${months[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()} ${formattedTime}`;
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(-2);
+    const h = String(today.getHours()).padStart(2, '0');
+    const m = String(today.getMinutes()).padStart(2, '0');
+    const formattedDate = `${mm}/${dd}/${yy} ${h}:${m}`;
 
     const targetData = {
       ...service,
@@ -121,7 +171,7 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
       lastUpdated: formattedDate,
     };
 
-    // Intercept SLA target changes for warning confirmation (PBI PS003)
+    // Intercept SLA target changes for warning confirmation
     if (isEditing && service.slaTarget !== slaTarget && !showSlaWarning) {
       setPendingServiceData(targetData);
       setShowSlaWarning(true);
@@ -132,23 +182,27 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
       if (onEdit) {
         onEdit(pendingServiceData || targetData);
       }
+      onClose();
     } else {
-      if (onAdd) {
-        onAdd({
-          serviceName,
-          classification,
-          slaTarget,
-          responsibleUnit: responsibleUnit.trim() || "Registrar Office - Caloocan",
-          active,
-          withReferral,
-          stepsTimeline,
-          expectedOutput,
-          lastUpdated: formattedDate,
-        });
+      const newSvcData = {
+        serviceName,
+        classification,
+        slaTarget,
+        responsibleUnit: responsibleUnit.trim() || "Registrar Office - Caloocan",
+        active,
+        withReferral,
+        stepsTimeline,
+        expectedOutput,
+        lastUpdated: formattedDate,
+      };
+      // If onNext is provided, hand off to the next step (Intake Field Builder)
+      if (onNext) {
+        onNext(newSvcData);
+      } else if (onAdd) {
+        onAdd(newSvcData);
+        onClose();
       }
     }
-
-    onClose();
   };
 
   const clearError = (key) => {
@@ -156,479 +210,290 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, service }) {
   };
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.55)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1000,
-      padding: 16,
-      backdropFilter: "blur(2px)",
-    }}>
-      {/* Styles Injection for Custom Radio and Switches */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .form-modal-card {
-          background: #ffffff;
-          border-radius: 12px;
-          width: 100%;
-          max-width: 500px;
-          max-height: 92vh;
-          overflow-y: auto;
-          padding: 30px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          font-family: var(--font-ui), sans-serif;
-          box-sizing: border-box;
-          animation: slideUpModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes slideUpModal {
-          from { transform: translateY(12px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-title-text {
-          font-family: var(--font-display), 'DM Serif Display', Georgia, serif;
-          font-size: 26px;
-          font-weight: 500;
-          color: #0F172A;
-          margin-bottom: 24px;
-        }
-
-        .field-group {
-          margin-bottom: 16px;
-        }
-
-        .modal-label {
-          font-size: 11.5px;
-          font-weight: 700;
-          color: #475569;
-          margin-bottom: 6px;
-          display: block;
-        }
-        .label-star {
-          color: #EF4444;
-          margin-left: 2px;
-        }
-
-        .input-row-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        .modal-input {
-          width: 100%;
-          padding: 10px 14px;
-          border: 1px solid #CBD5E1;
-          border-radius: 8px;
-          font-size: 13px;
-          outline: none;
-          color: #1E293B;
-          box-sizing: border-box;
-          transition: all 0.15s ease;
-          background: #ffffff;
-        }
-        .modal-input::placeholder {
-          color: #94A3B8;
-        }
-        .modal-input:focus {
-          border-color: #800000;
-          box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
-        }
-        .modal-input.input-error,
-        .modal-textarea.input-error {
-          border-color: #EF4444;
-        }
-
-        .modal-textarea {
-          width: 100%;
-          padding: 10px 14px;
-          border: 1px solid #CBD5E1;
-          border-radius: 8px;
-          font-size: 13px;
-          outline: none;
-          color: #1E293B;
-          box-sizing: border-box;
-          transition: all 0.15s ease;
-          background: #ffffff;
-          min-height: 64px;
-          font-family: inherit;
-          resize: vertical;
-        }
-        .modal-textarea::placeholder {
-          color: #94A3B8;
-        }
-        .modal-textarea:focus {
-          border-color: #800000;
-          box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
-        }
-
-        /* Radio Options */
-        .radio-option {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          cursor: pointer;
-          margin-bottom: 12px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #334155;
-          user-select: none;
-        }
-        .custom-radio {
-          width: 22px;
-          height: 22px;
-          border: 2px solid #CBD5E1;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s ease;
-          background: #ffffff;
-        }
-        .radio-option:hover .custom-radio {
-          border-color: #800000;
-        }
-        .radio-option.selected .custom-radio {
-          border-color: #800000;
-          border-width: 2px;
-        }
-        .radio-dot {
-          width: 12px;
-          height: 12px;
-          background: #800000;
-          border-radius: 50%;
-          transform: scale(0);
-          transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .radio-option.selected .radio-dot {
-          transform: scale(1);
-        }
-
-        /* Toggle Active Switch Container */
-        .toggle-active-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 11px;
-          font-weight: 700;
-          color: #475569;
-          letter-spacing: 0.05em;
-        }
-
-        /* Form Footer Section */
-        .form-footer-flex {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-top: 26px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-        .footer-action-buttons {
-          display: flex;
-          gap: 10px;
-          margin-left: auto;
-        }
-
-        .btn-cancel-ghost {
-          padding: 10px 24px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #475569;
-          background: #ffffff;
-          border: 1px solid #CBD5E1;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .btn-cancel-ghost:hover {
-          background: #F8FAFC;
-          border-color: #94A3B8;
-        }
-
-        .btn-save-maroon {
-          padding: 10px 24px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #ffffff;
-          background: #800000;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          box-shadow: 0 2px 4px rgba(128, 0, 0, 0.15);
-        }
-        .btn-save-maroon:hover {
-          background: #990000;
-          box-shadow: 0 4px 8px rgba(128, 0, 0, 0.2);
-        }
-      ` }} />
-
-      <div className="form-modal-card">
-        {showSlaWarning ? (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                background: "#FFFBEB",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#D97706",
-                flexShrink: 0,
-                border: "1px solid rgba(217, 119, 6, 0.15)"
-              }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                  <line x1="12" y1="9" x2="12" y2="13"></line>
-                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-              </div>
-              <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#0F172A", margin: 0 }}>SLA Change Warning</h3>
-            </div>
-
-            <div style={{ fontSize: "13.5px", lineHeight: "1.65", color: "#475569", marginBottom: 24 }}>
-              You are updating the SLA Target for <span style={{ fontWeight: 700, color: "#800000" }}>"{serviceName}"</span>.
-              <br /><br />
-              Changing the SLA Target will officially create a historical version record in the **service_versions** database table to maintain an audit trail under Citizens' Charter guidelines.
-            </div>
-
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              background: "#F8FAFC",
-              border: "1px solid #E2E8F0",
-              borderRadius: "8px",
-              padding: "16px",
-              marginBottom: 28
+    <Dialog open onClose={onClose} sx={{ '& .MuiDialog-paper': { maxWidth: '500px', width: '100%', borderRadius: 2.5 } }}>
+      {showSlaWarning ? (
+        <Box sx={{ p: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+            <Box sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              background: "#FFFBEB",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#D97706",
+              flexShrink: 0,
+              border: "1px solid rgba(217, 119, 6, 0.15)"
             }}>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 4 }}>Old SLA Target</div>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "#475569" }}>{service?.slaTarget || service?.sla || "—"}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", marginBottom: 4 }}>New SLA Target</div>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "#800000" }}>{pendingServiceData?.slaTarget}</div>
-              </div>
-            </div>
+              <WarningAmberRoundedIcon fontSize="medium" />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
+              SLA Change Warning
+            </Typography>
+          </Box>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button 
-                className="btn-cancel-ghost" 
-                onClick={() => {
-                  setShowSlaWarning(false);
-                  setPendingServiceData(null);
-                }}
-              >
-                Go Back &amp; Edit
-              </button>
-              <button 
-                className="btn-save-maroon" 
-                onClick={() => {
-                  if (onEdit && pendingServiceData) {
-                    onEdit(pendingServiceData);
-                  }
-                  onClose();
-                }}
-              >
-                Confirm &amp; Save SLA
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <h2 className="modal-title-text">{isEditing ? "Edit Service Catalogue" : "Create New Service Catalogue"}</h2>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.65 }}>
+            You are updating the SLA Target for <strong style={{ color: "#800000" }}>"{serviceName}"</strong>.
+            <br /><br />
+            Changing the SLA Target will officially create a historical version record in the <strong>service_versions</strong> database table to maintain an audit trail under Citizens' Charter guidelines.
+          </Typography>
 
-            {/* Service Name Input */}
-            <div className="field-group">
-              <label className="modal-label">
-                Official Service Name <span className="label-star">*</span>
-              </label>
-              <input
-                placeholder="e.g. Processing of Application for Graduation"
-                value={serviceName}
-                className={`modal-input ${errors.serviceName ? "input-error" : ""}`}
-                onChange={(e) => {
-                  setServiceName(e.target.value);
-                  clearError("serviceName");
-                }}
-              />
-              {errors.serviceName && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  {errors.serviceName}
-                </div>
-              )}
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 2,
+            background: "#F8FAFC",
+            border: "1px solid #E2E8F0",
+            borderRadius: 2,
+            p: 2,
+            mb: 4
+          }}>
+            <div>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.disabled", textTransform: "uppercase", display: 'block', mb: 0.5 }}>
+                Old SLA Target
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>
+                {service?.slaTarget || service?.sla || "—"}
+              </Typography>
             </div>
+            <div>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: "text.disabled", textTransform: "uppercase", display: 'block', mb: 0.5 }}>
+                New SLA Target
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>
+                {pendingServiceData?.slaTarget}
+              </Typography>
+            </div>
+          </Box>
 
-            {/* SLA Dual Row */}
-            <div className="field-group input-row-grid">
-              <div>
-                <label className="modal-label">
-                  SLA TARGET (WORKING DAY) <span className="label-star">*</span>
-                </label>
-                 <input
+          <DialogActions sx={{ p: 0, gap: 1 }}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => {
+                setShowSlaWarning(false);
+                setPendingServiceData(null);
+              }}
+            >
+              Go Back &amp; Edit
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                if (onEdit && pendingServiceData) {
+                  onEdit(pendingServiceData);
+                }
+                onClose();
+              }}
+            >
+              Confirm &amp; Save SLA
+            </Button>
+          </DialogActions>
+        </Box>
+      ) : (
+        <>
+          <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
+            {isEditing ? "Edit Service Catalogue" : "Create New Service Catalogue"}
+          </DialogTitle>
+
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            {/* Service Name */}
+            <TextField
+              label="Official Service Name"
+              placeholder="e.g. Processing of Application for Graduation"
+              required
+              fullWidth
+              value={serviceName}
+              error={!!errors.serviceName}
+              helperText={errors.serviceName}
+              onChange={(e) => {
+                setServiceName(e.target.value);
+                clearError("serviceName");
+              }}
+              variant="outlined"
+              size="small"
+              sx={{ mt: 1 }}
+            />
+
+            {/* SLA Inputs */}
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1 }}>
+                SLA TARGETS *
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5 }}>
+                <TextField
+                  label="Working Day (Days)"
                   placeholder="Days"
-                  type="number"
-                  min="0"
                   value={slaDays}
-                  className={`modal-input ${errors.slaDays ? "input-error" : ""}`}
+                  error={!!errors.slaDays}
+                  helperText={typeof errors.slaDays === "string" ? errors.slaDays : ""}
                   onChange={(e) => {
-                    setSlaDays(e.target.value);
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSlaDays(val);
                     clearError("slaDays");
                     clearError("slaMinutes");
+                    clearError("slaHours");
                   }}
+                  variant="outlined"
+                  size="small"
                 />
-              </div>
-              <div>
-                <label className="modal-label">
-                  SLA TARGET (HOURS &amp; MINUTES) <span className="label-star">*</span>
-                </label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    placeholder="Hours"
-                    type="number"
-                    min="0"
-                    value={slaHours}
-                    className={`modal-input ${errors.slaMinutes ? "input-error" : ""}`}
-                    style={{ flex: 1 }}
-                    onChange={(e) => {
-                      setSlaHours(e.target.value);
-                      clearError("slaDays");
-                      clearError("slaMinutes");
-                    }}
-                  />
-                  <input
-                    placeholder="Mins"
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={slaMinutes}
-                    className={`modal-input ${errors.slaMinutes ? "input-error" : ""}`}
-                    style={{ flex: 1 }}
-                    onChange={(e) => {
-                      setSlaMinutes(e.target.value);
-                      clearError("slaDays");
-                      clearError("slaMinutes");
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+                <TextField
+                  label="Hours"
+                  placeholder="Hours"
+                  value={slaHours}
+                  error={!!errors.slaHours}
+                  helperText={errors.slaHours}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSlaHours(val);
+                    clearError("slaDays");
+                    clearError("slaMinutes");
+                    clearError("slaHours");
+                  }}
+                  variant="outlined"
+                  size="small"
+                />
+                <TextField
+                  label="Mins"
+                  placeholder="Mins"
+                  value={slaMinutes}
+                  error={!!errors.slaMinutes}
+                  helperText={typeof errors.slaMinutes === "string" ? errors.slaMinutes : ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setSlaMinutes(val);
+                    clearError("slaDays");
+                    clearError("slaMinutes");
+                    clearError("slaHours");
+                  }}
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+              {(errors.slaDays || errors.slaHours || errors.slaMinutes) && typeof errors.slaDays !== "string" && typeof errors.slaHours !== "string" && typeof errors.slaMinutes !== "string" && (
+                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 500 }}>
+                  At least one SLA target (Days, Hours, or Minutes) must be provided.
+                </Typography>
+              )}
+            </Box>
 
             {/* Responsible Office */}
-            <div className="field-group">
-              <label className="modal-label">Responsible Office/Unit</label>
-              <input
-                placeholder="Registrar Office - Caloocan"
-                value={responsibleUnit}
-                className={`modal-input ${errors.responsibleUnit ? "input-error" : ""}`}
-                onChange={(e) => {
-                  setResponsibleUnit(e.target.value);
-                  clearError("responsibleUnit");
-                }}
-              />
-              {errors.responsibleUnit && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  {errors.responsibleUnit}
-                </div>
-              )}
-            </div>
+            <TextField
+              label="Responsible Office/Unit"
+              placeholder="Registrar Office - Caloocan"
+              required
+              fullWidth
+              value={responsibleUnit}
+              error={!!errors.responsibleUnit}
+              helperText={errors.responsibleUnit}
+              onChange={(e) => {
+                setResponsibleUnit(e.target.value);
+                clearError("responsibleUnit");
+              }}
+              variant="outlined"
+              size="small"
+            />
 
             {/* Steps Timeline */}
-            <div className="field-group">
-              <label className="modal-label">Processing Steps Timeline (One per line)</label>
-              <textarea
-                placeholder="Receive document, Verify details, Release document"
-                value={stepsTimeline}
-                className={`modal-textarea ${errors.stepsTimeline ? "input-error" : ""}`}
-                onChange={(e) => {
-                  setStepsTimeline(e.target.value);
-                  clearError("stepsTimeline");
-                }}
-              />
-              {errors.stepsTimeline && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  {errors.stepsTimeline}
-                </div>
-              )}
-            </div>
+            <TextField
+              label="Processing Steps Timeline (One per line)"
+              placeholder="Receive document, Verify details, Release document"
+              multiline
+              rows={3}
+              fullWidth
+              value={stepsTimeline}
+              error={!!errors.stepsTimeline}
+              helperText={errors.stepsTimeline}
+              onChange={(e) => {
+                setStepsTimeline(e.target.value);
+                clearError("stepsTimeline");
+              }}
+              variant="outlined"
+              size="small"
+            />
 
             {/* Expected Output */}
-            <div className="field-group">
-              <label className="modal-label">Expected Output</label>
-              <input
-                placeholder="Official Document"
-                value={expectedOutput}
-                className={`modal-input ${errors.expectedOutput ? "input-error" : ""}`}
-                onChange={(e) => {
-                  setExpectedOutput(e.target.value);
-                  clearError("expectedOutput");
+            <TextField
+              label="Expected Output"
+              placeholder="Official Document"
+              fullWidth
+              value={expectedOutput}
+              error={!!errors.expectedOutput}
+              helperText={errors.expectedOutput}
+              onChange={(e) => {
+                setExpectedOutput(e.target.value);
+                clearError("expectedOutput");
+              }}
+              variant="outlined"
+              size="small"
+            />
+
+            {/* Bottom Form flex row */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+              {/* Referral Radio Group */}
+              <FormControl component="fieldset">
+                <FormLabel component="legend" sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Referral status
+                </FormLabel>
+                <RadioGroup
+                  row
+                  value={withReferral}
+                  onChange={(e) => setWithReferral(e.target.value)}
+                >
+                  <FormControlLabel 
+                    value="with" 
+                    control={<Radio size="medium" />} 
+                    label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.05em', textTransform: 'uppercase' }}>with referral</Typography>} 
+                  />
+                  <FormControlLabel 
+                    value="without" 
+                    control={<Radio size="medium" />} 
+                    label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.05em', textTransform: 'uppercase' }}>without referral</Typography>} 
+                  />
+                  <FormControlLabel 
+                    value="n/a" 
+                    control={<Radio size="medium" />} 
+                    label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.secondary', letterSpacing: '0.05em', textTransform: 'uppercase' }}>not applicable</Typography>} 
+                  />
+                </RadioGroup>
+              </FormControl>
+
+              {/* Toggle Switch */}
+              <FormControlLabel
+                control={<Switch checked={active} onChange={(e) => setActive(e.target.checked)} color="primary" />}
+                label="ACTIVE"
+                sx={{
+                  '& .MuiFormControlLabel-label': {
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'text.secondary',
+                    letterSpacing: '0.05em'
+                  }
                 }}
               />
-              {errors.expectedOutput && (
-                <div style={{ color: "#EF4444", fontSize: "11px", marginTop: "4px", fontWeight: "500" }}>
-                  {errors.expectedOutput}
-                </div>
-              )}
-            </div>
+            </Box>
+          </DialogContent>
 
-            {/* Bottom Flex controls */}
-            <div className="form-footer-flex">
-              {/* Left: Custom Radio Buttons */}
-              <div>
-                <div
-                  className={`radio-option ${withReferral === "with" ? "selected" : ""}`}
-                  onClick={() => setWithReferral("with")}
-                >
-                  <div className="custom-radio">
-                     <div className="radio-dot" />
-                  </div>
-                  with referral
-                </div>
-                <div
-                  className={`radio-option ${withReferral === "without" ? "selected" : ""}`}
-                  onClick={() => setWithReferral("without")}
-                >
-                  <div className="custom-radio">
-                    <div className="radio-dot" />
-                  </div>
-                  without referral
-                </div>
-                <div
-                  className={`radio-option ${withReferral === "n/a" ? "selected" : ""}`}
-                  onClick={() => setWithReferral("n/a")}
-                >
-                  <div className="custom-radio">
-                    <div className="radio-dot" />
-                  </div>
-                  not applicable
-                </div>
-              </div>
-
-              {/* Middle: Active Toggle */}
-              <div className="toggle-active-row">
-                <Toggle checked={active} onChange={() => setActive(p => !p)} />
-                ACTIVE
-              </div>
-
-              {/* Right: Actions Buttons */}
-              <div className="footer-action-buttons">
-                <button className="btn-cancel-ghost" onClick={onClose}>
-                  Cancel
-                </button>
-                <button className="btn-save-maroon" onClick={handleSave}>
-                  {isEditing ? "Save Changes" : "Add Service"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+          <DialogActions sx={{ px: 3, pb: 3, pt: 1, gap: 1 }}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSave}
+            >
+              {isEditing ? "Save Changes" : "Next"}
+            </Button>
+          </DialogActions>
+        </>
+      )}
+    </Dialog>
   );
 }

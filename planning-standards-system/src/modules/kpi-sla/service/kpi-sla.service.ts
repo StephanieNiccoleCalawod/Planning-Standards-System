@@ -46,7 +46,7 @@ export class KpiSlaService {
 
     private readonly http: HttpService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
 
   // ─── Cross-service validation ───────────────────────────────────────────
 
