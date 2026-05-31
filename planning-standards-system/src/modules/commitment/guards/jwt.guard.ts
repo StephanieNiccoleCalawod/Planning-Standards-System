@@ -2,6 +2,13 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Forbi
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
+/**
+ * Verifies the JWT issued by auth-service (ARMS).
+ * Extracts `office` and `sub` claims and attaches to req.user.
+ *
+ * Mock mode: if JWT_SECRET is not set, falls back to mock values
+ * so you can test without auth-service running.
+ */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
@@ -34,7 +41,7 @@ export class JwtAuthGuard implements CanActivate {
         req.user = {
           sub:    payload.sub,
           office: payload.office,
-          role:   payload.role || 'Admin',
+          role:   payload.role || 'Admin', // default to Admin if not in payload
         };
       } catch {
         throw new UnauthorizedException('Invalid or expired token');

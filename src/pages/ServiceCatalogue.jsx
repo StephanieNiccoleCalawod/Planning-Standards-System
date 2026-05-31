@@ -28,13 +28,17 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import SettingsIcon from '@mui/icons-material/Settings';
+import FlagIcon from '@mui/icons-material/Flag';
+import FlagOffIcon from '@mui/icons-material/FlagOutlined';
 
 import PageHeader from "../components/PageHeader";
 import AddServiceModal from "../modals/AddServiceModal";
 import DeactivateModal from "../modals/DeactivateModal";
 import IntakeFieldBuilderModal from "../modals/IntakeFieldBuilderModal";
 import ResultModal from "../modals/ResultModal";
+import NaFlagModal from "../modals/NaFlagModal";
 import { useAppStore } from "../store/useAppStore";
+import { api } from "../services/api";
 
 const parseSlaTarget = (targetStr) => {
   if (!targetStr) return { days: 0, hours: 0, minutes: 0 };
@@ -63,6 +67,7 @@ export default function ServiceCatalogue() {
   const [editingService, setEditingService] = useState(null);
   const [deactivating, setDeactivating] = useState(null);
   const [fieldsService, setFieldsService] = useState(null);
+  const [flaggingService, setFlaggingService] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [resultModal, setResultModal] = useState(null); // { type, title, message }
@@ -83,7 +88,11 @@ export default function ServiceCatalogue() {
 
   useEffect(() => {
     fetchServices();
+    useAppStore.getState().fetchPeriods();
   }, []);
+
+  const activePeriod = useAppStore.getState().periods.find(p => p.status === "Active" || p.status === "Open");
+  const isStaff = useAppStore.getState().userRole === 'Staff';
 
   const handleToggle = async (id) => {
     const svc = services.find(s => s.id === id);
@@ -216,15 +225,17 @@ export default function ServiceCatalogue() {
             </TextField>
           )}
 
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => setShowAdd(true)}
-            sx={{ ml: 'auto' }}
-          >
-            Add Service
-          </Button>
+          {!isStaff && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => setShowAdd(true)}
+              sx={{ ml: 'auto' }}
+            >
+              Add Service
+            </Button>
+          )}
         </Box>
       </Card>
 
@@ -240,7 +251,7 @@ export default function ServiceCatalogue() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>REFERRAL STATUS</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>N/A FLAG</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>LAST UPDATED</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: 140 }}>ACTIONS</TableCell>
+              {!isStaff && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: 140 }}>ACTIONS</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -326,108 +337,130 @@ export default function ServiceCatalogue() {
                       {svc.lastUpdated || "—"}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                      <Tooltip title="Edit Service" arrow>
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            disabled={svc.archived}
-                            onClick={() => setEditingService(svc)}
-                            sx={{
-                              border: '1px solid',
-                              borderColor: 'rgba(25, 118, 210, 0.2)',
-                              bgcolor: 'rgba(25, 118, 210, 0.04)',
-                              '&:hover': {
-                                bgcolor: 'rgba(25, 118, 210, 0.08)',
-                              },
-                              width: 30,
-                              height: 30
-                            }}
-                          >
-                            <EditIcon sx={{ width: 15, height: 15 }} />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Manage Fields" arrow>
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="info"
-                            disabled={svc.archived}
-                            onClick={() => setFieldsService(svc)}
-                            sx={{
-                              border: '1px solid',
-                              borderColor: 'rgba(2, 132, 199, 0.2)',
-                              bgcolor: 'rgba(2, 132, 199, 0.04)',
-                              '&:hover': {
-                                bgcolor: 'rgba(2, 132, 199, 0.08)',
-                              },
-                              width: 30,
-                              height: 30
-                            }}
-                          >
-                            <SettingsIcon sx={{ width: 15, height: 15 }} />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      {svc.active ? (
-                        <Tooltip title="Deactivate Service" arrow>
+                  {!isStaff && (
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                        <Tooltip title="Edit Service" arrow>
                           <span>
                             <IconButton
                               size="small"
-                              color="error"
-                              onClick={() => setDeactivating(svc)}
+                              color="primary"
+                              disabled={svc.archived}
+                              onClick={() => setEditingService(svc)}
                               sx={{
                                 border: '1px solid',
-                                borderColor: 'rgba(211, 47, 47, 0.2)',
-                                bgcolor: 'rgba(211, 47, 47, 0.04)',
+                                borderColor: 'rgba(25, 118, 210, 0.2)',
+                                bgcolor: 'rgba(25, 118, 210, 0.04)',
                                 '&:hover': {
-                                  bgcolor: 'rgba(211, 47, 47, 0.08)',
+                                  bgcolor: 'rgba(25, 118, 210, 0.08)',
                                 },
                                 width: 30,
                                 height: 30
                               }}
                             >
-                              <BlockIcon sx={{ width: 15, height: 15 }} />
+                              <EditIcon sx={{ width: 15, height: 15 }} />
                             </IconButton>
                           </span>
                         </Tooltip>
-                      ) : (
-                        <Tooltip title="Activate Service" arrow>
+                        <Tooltip title="Manage Fields" arrow>
                           <span>
                             <IconButton
                               size="small"
-                              color="success"
-                              onClick={async () => {
-                                try {
-                                  await api.activateService(svc.id);
-                                  triggerSnackbar("Service activated successfully!", "success");
-                                  await fetchServices();
-                                } catch (err) {
-                                  console.error(err);
-                                  triggerSnackbar(err.message || "Failed to activate service", "error");
-                                }
-                              }}
+                              color="info"
+                              disabled={svc.archived}
+                              onClick={() => setFieldsService(svc)}
                               sx={{
                                 border: '1px solid',
-                                borderColor: 'rgba(46, 125, 50, 0.2)',
-                                bgcolor: 'rgba(46, 125, 50, 0.04)',
+                                borderColor: 'rgba(2, 132, 199, 0.2)',
+                                bgcolor: 'rgba(2, 132, 199, 0.04)',
                                 '&:hover': {
-                                  bgcolor: 'rgba(46, 125, 50, 0.08)',
+                                  bgcolor: 'rgba(2, 132, 199, 0.08)',
                                 },
                                 width: 30,
                                 height: 30
                               }}
                             >
-                              <CheckCircleIcon sx={{ width: 15, height: 15 }} />
+                              <SettingsIcon sx={{ width: 15, height: 15 }} />
                             </IconButton>
                           </span>
                         </Tooltip>
-                      )}
-                    </Box>
-                  </TableCell>
+                        {svc.active && activePeriod && (
+                          <Tooltip title="Flag as N/A" arrow>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="warning"
+                                onClick={() => setFlaggingService(svc)}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'rgba(237, 108, 2, 0.2)',
+                                  bgcolor: 'rgba(237, 108, 2, 0.04)',
+                                  '&:hover': { bgcolor: 'rgba(237, 108, 2, 0.08)' },
+                                  width: 30, height: 30
+                                }}
+                              >
+                                <FlagOffIcon sx={{ width: 15, height: 15 }} />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                        {svc.active ? (
+                          <Tooltip title="Deactivate Service" arrow>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => setDeactivating(svc)}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'rgba(211, 47, 47, 0.2)',
+                                  bgcolor: 'rgba(211, 47, 47, 0.04)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(211, 47, 47, 0.08)',
+                                  },
+                                  width: 30,
+                                  height: 30
+                                }}
+                              >
+                                <BlockIcon sx={{ width: 15, height: 15 }} />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="Activate Service" arrow>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={async () => {
+                                  try {
+                                    await api.activateService(svc.id);
+                                    triggerSnackbar("Service activated successfully!", "success");
+                                    await fetchServices();
+                                  } catch (err) {
+                                    console.error(err);
+                                    triggerSnackbar(err.message || "Failed to activate service", "error");
+                                  }
+                                }}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'rgba(46, 125, 50, 0.2)',
+                                  bgcolor: 'rgba(46, 125, 50, 0.04)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(46, 125, 50, 0.08)',
+                                  },
+                                  width: 30,
+                                  height: 30
+                                }}
+                              >
+                                <CheckCircleIcon sx={{ width: 15, height: 15 }} />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (
@@ -577,6 +610,25 @@ export default function ServiceCatalogue() {
           onSave={(updatedSvc) => {
             updateServiceIntakeFieldsLocal(updatedSvc);
             triggerSnackbar("Intake fields updated successfully!", "success");
+          }}
+        />
+      )}
+
+      {flaggingService && (
+        <NaFlagModal
+          service={flaggingService}
+          activePeriod={activePeriod}
+          onClose={() => setFlaggingService(null)}
+          onConfirm={async (serviceId, periodId, reason) => {
+            try {
+              await api.createNaFlag(serviceId, { period_id: periodId, reason });
+              triggerSnackbar("Service successfully flagged as N/A", "success");
+              setFlaggingService(null);
+              // Locally update state to show the flag if needed, or re-fetch
+              fetchServices();
+            } catch (err) {
+              triggerSnackbar(err.message || "Failed to flag service", "error");
+            }
           }}
         />
       )}

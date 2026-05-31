@@ -1,3 +1,4 @@
+import { useAppStore } from "../store/useAppStore";
 import logo from "../logo/image 2.svg";
 
 const NAV_TREE = [
@@ -297,7 +298,6 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           }
         `}} />
   
-        {/* Logo */}
         <div className="sidebar-logo">
           <div className="sidebar-logo-mark">
             <img src={logo} alt="PUP Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
@@ -305,7 +305,6 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           <span className="sidebar-logo-text">PUP Caloocan</span>
         </div>
   
-        {/* Nav */}
         <div className="sidebar-nav">
           {NAV_TREE.map((section) => (
             <div key={section.section} className="nav-section">
@@ -326,7 +325,30 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           ))}
         </div>
   
-        {/* User Footer */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)', marginBottom: 6, letterSpacing: '0.05em' }}>
+            CHANGE ROLE
+          </div>
+          <select
+            value={useAppStore.getState().userRole}
+            onChange={(e) => useAppStore.getState().setUserRole(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#fff',
+              fontSize: 13,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="Admin" style={{ background: '#1a1a2e', color: '#fff' }}>Admin</option>
+            <option value="Staff" style={{ background: '#1a1a2e', color: '#fff' }}>Staff</option>
+          </select>
+        </div>
+
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <div className="sidebar-avatar">A</div>

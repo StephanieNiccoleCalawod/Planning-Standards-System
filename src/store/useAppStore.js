@@ -83,6 +83,9 @@ export const useAppStore = create((set, get) => ({
   periods: [],
   holidays: [],
   slaRules: [],
+  commitments: [],
+  activeCommitment: null,
+  userRole: localStorage.getItem('PSS_MOCK_ROLE') || 'Admin',
 
   // Loading States
   loadingServices: false,
@@ -90,6 +93,7 @@ export const useAppStore = create((set, get) => ({
   loadingPeriods: false,
   loadingHolidays: false,
   loadingSlaRules: false,
+  loadingCommitments: false,
 
   // Services CRUD Actions
   fetchServices: async () => {
@@ -112,7 +116,8 @@ export const useAppStore = create((set, get) => ({
           sla: formattedSla,
           responsibleUnit: s.responsible_unit,
           active: s.status === 'ACTIVE' || s.is_active === true || s.active === true || s.status === 'Active',
-          naFlag: s.na_flag || false,
+          naFlags: Array.isArray(s.na_flags) ? s.na_flags : [],
+          naFlag: Array.isArray(s.na_flags) && s.na_flags.length > 0,
           archived: s.archived || s.status === 'ARCHIVED' || s.status === 'Archived',
           withReferral: referral,
           lastUpdated: s.updated_at ? (() => {
@@ -408,5 +413,77 @@ export const useAppStore = create((set, get) => ({
       console.error("useAppStore.deletePeriod failed:", err);
       throw err;
     }
-  }
+  },
+
+  // Commitments Actions
+  fetchCommitments: async (params = {}) => {
+    set({ loadingCommitments: true });
+    try {
+      const res = await api.getCommitments(params);
+      const data = res?.data || [];
+      set({ commitments: data, loadingCommitments: false });
+    } catch (err) {
+      set({ loadingCommitments: false });
+      console.error("useAppStore.fetchCommitments failed:", err);
+      throw err;
+    }
+  },
+
+  fetchCommitmentById: async (id) => {
+    set({ loadingCommitments: true });
+    try {
+      const res = await api.getCommitmentById(id);
+      set({ activeCommitment: res, loadingCommitments: false });
+      return res;
+    } catch (err) {
+      set({ loadingCommitments: false });
+      console.error("useAppStore.fetchCommitmentById failed:", err);
+      throw err;
+    }
+  },
+
+  createCommitmentDraft: async (payload) => {
+    try {
+      const res = await api.createCommitment(payload);
+      set({ activeCommitment: res });
+      await get().fetchCommitments();
+      return res;
+    } catch (err) {
+      console.error("useAppStore.createCommitmentDraft failed:", err);
+      throw err;
+    }
+  },
+
+  updateCommitmentDraft: async (id, payload) => {
+    try {
+      const res = await api.updateCommitment(id, payload);
+      set({ activeCommitment: res });
+      await get().fetchCommitments();
+      return res;
+    } catch (err) {
+      console.error("useAppStore.updateCommitmentDraft failed:", err);
+      throw err;
+    }
+  },
+
+  lockCommitment: async (id) => {
+    try {
+      const res = await api.lockCommitment(id);
+      set({ activeCommitment: res });
+      await get().fetchCommitments();
+      return res;
+    } catch (err) {
+      console.error("useAppStore.lockCommitment failed:", err);
+      throw err;
+    }
+  },
+  
+  clearActiveCommitment: () => set({ activeCommitment: null }),
+
+  setUserRole: (role) => {
+    localStorage.setItem('PSS_MOCK_ROLE', role);
+    set({ userRole: role });
+    // Reload to apply new auth headers
+    window.location.reload();
+  },
 }));

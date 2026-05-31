@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import PageHeader from "../components/PageHeader";
 import Badge from "../components/Badge";
 import { useAppStore } from "../store/useAppStore";
+import { api } from "../services/api";
 
 // ── Design tokens (matching theme.js + colors.js) ──────────────────────────
 const T = {
@@ -192,24 +193,24 @@ const EMS_UTILIZATION_DATA = [];
 
 export default function Dashboard() {
   const { services, fetchServices, kpis, fetchKpis, periods, fetchPeriods, holidays, fetchHolidays } = useAppStore();
+  const [summaryData, setSummaryData] = useState(null);
 
   useEffect(() => {
-    Promise.all([fetchServices(), fetchKpis(), fetchPeriods(), fetchHolidays()])
+    Promise.all([fetchServices(), fetchKpis(), fetchPeriods(), fetchHolidays(), api.getDashboardSummary().then(setSummaryData)])
       .catch(err => console.error("Failed to load dashboard data:", err));
   }, []);
 
   // ── Computed metrics ──────────────────────────────────────────────────────
-  const activeServices   = services.filter(s =>  s.active && !s.archived).length;
   const totalServices    = services.filter(s => !s.archived).length;
-  const inactiveServices = services.filter(s => !s.active && !s.archived).length;
+  const activeServices   = summaryData ? summaryData.active_services_count : 0;
+  const inactiveServices = totalServices - activeServices;
 
   const simpleCount          = services.filter(s => s.classification === "Simple"           && !s.archived).length;
   const complexCount         = services.filter(s => s.classification === "Complex"          && !s.archived).length;
   const highlyTechnicalCount = services.filter(s => s.classification === "Highly Technical" && !s.archived).length;
 
-  const currentPeriod = periods.find(p => p.status === "Active" || p.status === "Open")
-    || periods[periods.length - 1]
-    || { name: "N/A", id: 2 };
+  const currentPeriod = summaryData?.active_period || { name: "N/A", id: null };
+  const commitmentStatus = summaryData?.commitment_status || "Not Started";
 
   const activeServiceIds = services.filter(s => s.active && !s.archived).map(s => s.id);
   const activeEMS = EMS_UTILIZATION_DATA.filter(d =>
@@ -278,12 +279,10 @@ export default function Dashboard() {
 
         {/* Service Classification */}
         <StatCard accentColor={T.blue}>
-          <StatLabel>Classification</StatLabel>
-          <StatValue>{totalServices}</StatValue>
+          <StatLabel>Commitment Status</StatLabel>
+          <StatValue>{commitmentStatus}</StatValue>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
-            <ClassifChip label="Simple"           count={simpleCount} />
-            <ClassifChip label="Complex"          count={complexCount} />
-            <ClassifChip label="Highly Technical" count={highlyTechnicalCount} />
+            <ClassifChip label="OPCR" count={1} />
           </Box>
         </StatCard>
 

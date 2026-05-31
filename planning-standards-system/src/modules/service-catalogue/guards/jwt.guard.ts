@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
@@ -18,31 +18,41 @@ export class JwtAuthGuard implements CanActivate {
     const authHeader = req.headers['authorization'];
 
     const secret = this.config.get<string>('JWT_SECRET');
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const mockEnabled = this.config.get<string>('MOCK_JWT_ENABLED') === 'true';
 
-    // ── MOCK MODE (no JWT_SECRET set) ─────────────────────────────────────
-    if (!secret) {
+    // ── MOCK MODE (if explicitly enabled or no secret in dev) ─────────────
+    if (!isProd && (mockEnabled || !secret)) {
+      const role = this.config.get<string>('MOCK_JWT_ROLE') || req.headers['x-mock-role'] || 'Admin';
       req.user = {
         sub:    'mock-actor',
         office: req.headers['x-mock-office'] ?? 'mock-office',
+        role,
       };
-      return true;
+    } else {
+      // ── PRODUCTION MODE ───────────────────────────────────────────────────
+      if (!authHeader?.startsWith('Bearer ')) {
+        throw new UnauthorizedException('Missing or invalid Authorization header');
+      }
+
+      try {
+        const token = authHeader.split(' ')[1];
+        const payload = jwt.verify(token, secret) as any;
+        req.user = {
+          sub:    payload.sub,
+          office: payload.office,
+          role:   payload.role || 'Admin',
+        };
+      } catch {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
     }
 
-    // ── PRODUCTION MODE ───────────────────────────────────────────────────
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing or invalid Authorization header');
+    // Role-based read-only enforcement
+    if (req.user.role === 'Staff' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      throw new ForbiddenException('Staff members have read-only access');
     }
 
-    try {
-      const token = authHeader.split(' ')[1];
-      const payload = jwt.verify(token, secret) as any;
-      req.user = {
-        sub:    payload.sub,
-        office: payload.office,   // ARMS sets this claim
-      };
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    return true;
   }
 }

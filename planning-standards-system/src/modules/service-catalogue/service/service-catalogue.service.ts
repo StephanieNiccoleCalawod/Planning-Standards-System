@@ -48,6 +48,11 @@ export class ServiceCatalogueService {
   ): Promise<{ data: Service[]; total: number; page: number; limit: number }> {
     const query = this.serviceRepo
       .createQueryBuilder('service')
+      .leftJoinAndSelect(
+        'service.na_flags',
+        'na_flag',
+        'na_flag.removed_at IS NULL',
+      )
       .where('service.office = :office', { office });
 
     if (!filters.include_archived) {

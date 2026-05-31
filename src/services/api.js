@@ -4,7 +4,8 @@ async function request(url, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer mock-token',
-    'x-mock-office': 'mock-office', // Development mock office
+    'x-mock-office': localStorage.getItem('PSS_MOCK_OFFICE') || 'OVPRI',
+    'x-mock-role': localStorage.getItem('PSS_MOCK_ROLE') || 'Admin',
     ...options.headers,
   };
 
@@ -120,4 +121,25 @@ export const api = {
   updatePeriod: (id, data) => request(`/periods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   closePeriod: (id) => request(`/periods/${id}/close`, { method: 'PATCH' }),
   deletePeriod: (id) => request(`/periods/${id}`, { method: 'DELETE' }),
+
+  // Commitments
+  getCommitments: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.period_id) query.append('period_id', params.period_id);
+    if (params.status) query.append('status', params.status);
+    if (params.page) query.append('page', params.page);
+    if (params.limit) query.append('limit', params.limit);
+    if (params.sort_by) query.append('sort_by', params.sort_by);
+    if (params.sort_order) query.append('sort_order', params.sort_order);
+
+    const queryString = query.toString();
+    return request(`/commitments${queryString ? `?${queryString}` : ''}`);
+  },
+  getCommitmentById: (id) => request(`/commitments/${id}`),
+  createCommitment: (data) => request('/commitments', { method: 'POST', body: JSON.stringify(data) }),
+  updateCommitment: (id, data) => request(`/commitments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  lockCommitment: (id) => request(`/commitments/${id}/lock`, { method: 'PATCH' }),
+
+  // Dashboard
+  getDashboardSummary: () => request('/dashboard/summary'),
 };
