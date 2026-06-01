@@ -34,7 +34,6 @@ export class ServiceCatalogueService {
     private readonly naFlagRepo: Repository<NaFlag>,
   ) {}
 
-  // ─── Services ───────────────────────────────────────────────────────────
 
   async findAll(
     office: string,
@@ -92,32 +91,23 @@ export class ServiceCatalogueService {
   async findOne(id: string, office: string): Promise<Service> {
     return this.findOneOrFail(id, office);
   }
-
-  async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
-    const exists = await this.serviceRepo.findOne({
-      where: {
-        office,
-        name: dto.name,
-        classification: dto.classification,
-        sla_target_value: dto.sla_target_value,
-        sla_target_unit: dto.sla_target_unit ?? SlaUnit.DAYS,
-        responsible_unit: dto.responsible_unit,
-        with_referral: dto.with_referral ?? ReferralStatus.WITH,
-      },
-    });
-    if (exists) {
-      throw new ConflictException(
-        `An identical service "${dto.name}" already exists with the same classification, SLA, responsible unit, and referral status`,
-      );
+    async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
+        const exists = await this.serviceRepo.findOne({
+            where: {
+                office,
+                name: dto.name,
+                with_referral: dto.with_referral ?? ReferralStatus.WITH,
+            },
+        });
+        if (exists) {
+            throw new ConflictException(
+                `Service "${dto.name}" with the same referral status already exists in this office`,
+            );
+        }
+        const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
+        return this.serviceRepo.save(service);
     }
-    const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
-    return this.serviceRepo.save(service);
-  }
 
-  /**
-   * Update a service and log per-field audit rows.
-   * Each changed field produces one service_version row.
-   */
   async update(
     id: string,
     office: string,
@@ -131,7 +121,6 @@ export class ServiceCatalogueService {
       'responsible_unit', 'with_referral', 'required_documents', 'processing_steps', 'expected_output',
     ];
 
-    // Build per-field audit rows
     const versionRows: Partial<ServiceVersion>[] = [];
     for (const field of trackedFields) {
       if (dto[field] !== undefined) {
@@ -185,7 +174,6 @@ export class ServiceCatalogueService {
     service.archived_at = null;
     service.archived_by = null;
 
-    // Log status change
     await this.versionRepo.save(
       this.versionRepo.create({
         service_id: service.id,
@@ -220,9 +208,7 @@ export class ServiceCatalogueService {
     );
 
     return this.serviceRepo.save(service);
-  }
-
-  // ─── Intake Fields ──────────────────────────────────────────────────────
+    }
 
   async getIntakeFields(service_id: string, office: string): Promise<IntakeField[]> {
     await this.findOneOrFail(service_id, office);
@@ -272,8 +258,6 @@ export class ServiceCatalogueService {
     return { message: `Intake field ${field_id} deactivated` };
   }
 
-  // ─── NA Flags ───────────────────────────────────────────────────────────
-
   async createNaFlag(
     service_id: string,
     office: string,
@@ -308,8 +292,6 @@ export class ServiceCatalogueService {
     await this.naFlagRepo.save(flag);
     return { message: `NA flag ${flag_id} lifted` };
   }
-
-  // ─── Internal ───────────────────────────────────────────────────────────
 
   private async findOneOrFail(id: string, office: string): Promise<Service> {
     const service = await this.serviceRepo.findOne({ where: { id } });
