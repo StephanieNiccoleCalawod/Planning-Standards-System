@@ -10,7 +10,7 @@ import { ServiceCatalogueService } from './service/service-catalogue.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+   ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/modules/service-catalogue/.env' }),
 
     TypeOrmModule.forRootAsync({
       name: 'catalogue_db',

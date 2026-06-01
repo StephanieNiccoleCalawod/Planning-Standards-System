@@ -65,7 +65,6 @@ export class KpiSlaService {
         const existing = await this.kpiRepo.findOne({
             where: {
                 office,
-                name: dto.name,
                 category: dto.category,
                 service_id: dto.service_id ?? null,
                 is_active: true,
@@ -73,7 +72,7 @@ export class KpiSlaService {
         });
         if (existing) {
             throw new ConflictException(
-                `A KPI with name "${dto.name}" and category "${dto.category}" already exists for this service`,
+                `A KPI with category "${dto.category}" already exists for this service`,
             );
         }
 
