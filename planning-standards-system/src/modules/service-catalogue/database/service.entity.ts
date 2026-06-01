@@ -10,7 +10,7 @@ import {
 import { ServiceVersion } from './service-version.entity';
 import { IntakeField } from './service-intake-field.entity';
 import { NaFlag } from './service-na-flag.entity';
-import { ServiceClassification, ServiceStatus, SlaUnit } from '../enums';
+import { ServiceClassification, ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
 
 @Entity('service')
 export class Service {
@@ -47,6 +47,9 @@ export class Service {
 
   @Column({ length: 200 })
   responsible_unit: string;
+
+  @Column({ type: 'enum', enum: ReferralStatus, default: ReferralStatus.WITH })
+  with_referral: ReferralStatus;
 
   @Column({ type: 'jsonb', nullable: true, default: '[]' })
   required_documents: string[];

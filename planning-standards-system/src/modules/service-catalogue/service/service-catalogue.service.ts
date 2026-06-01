@@ -10,7 +10,7 @@ import { Service } from '../database/service.entity';
 import { ServiceVersion } from '../database/service-version.entity';
 import { IntakeField } from '../database/service-intake-field.entity';
 import { NaFlag } from '../database/service-na-flag.entity';
-import { ServiceStatus } from '../enums';
+import { ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { CreateIntakeFieldDto } from '../dto/create-intake-field.dto';
@@ -95,10 +95,20 @@ export class ServiceCatalogueService {
 
   async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
     const exists = await this.serviceRepo.findOne({
-      where: { office, name: dto.name },
+      where: {
+        office,
+        name: dto.name,
+        classification: dto.classification,
+        sla_target_value: dto.sla_target_value,
+        sla_target_unit: dto.sla_target_unit ?? SlaUnit.DAYS,
+        responsible_unit: dto.responsible_unit,
+        with_referral: dto.with_referral ?? ReferralStatus.WITH,
+      },
     });
     if (exists) {
-      throw new ConflictException(`Service "${dto.name}" already exists in this office`);
+      throw new ConflictException(
+        `An identical service "${dto.name}" already exists with the same classification, SLA, responsible unit, and referral status`,
+      );
     }
     const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
     return this.serviceRepo.save(service);
@@ -118,7 +128,7 @@ export class ServiceCatalogueService {
 
     const trackedFields = [
       'name', 'classification', 'sla_target_value', 'sla_target_unit',
-      'responsible_unit', 'required_documents', 'processing_steps', 'expected_output',
+      'responsible_unit', 'with_referral', 'required_documents', 'processing_steps', 'expected_output',
     ];
 
     // Build per-field audit rows

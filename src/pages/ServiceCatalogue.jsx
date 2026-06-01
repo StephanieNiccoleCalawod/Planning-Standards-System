@@ -509,10 +509,8 @@ export default function ServiceCatalogue() {
                 slaUnit = "Minutes";
               }
 
-              // Store referral status in local storage
-              const storedReferrals = JSON.parse(localStorage.getItem('service_referrals') || '{}');
-              storedReferrals[newSvc.serviceName] = newSvc.withReferral;
-              localStorage.setItem('service_referrals', JSON.stringify(storedReferrals));
+              // Map frontend referral values to backend enum values
+              const referralMap = { 'with': 'With', 'without': 'Without', 'n/a': 'N/A' };
 
               const payload = {
                 name: newSvc.serviceName,
@@ -520,6 +518,7 @@ export default function ServiceCatalogue() {
                 sla_target_value: slaValue,
                 sla_target_unit: slaUnit,
                 responsible_unit: newSvc.responsibleUnit,
+                with_referral: referralMap[newSvc.withReferral] || 'With',
                 required_documents: [],
                 processing_steps: newSvc.stepsTimeline ? newSvc.stepsTimeline.split("\n").filter(Boolean) : [],
                 expected_output: newSvc.expectedOutput,
@@ -566,11 +565,8 @@ export default function ServiceCatalogue() {
                 slaUnit = "Minutes";
               }
 
-              // Store referral status in local storage
-              const storedReferrals = JSON.parse(localStorage.getItem('service_referrals') || '{}');
-              storedReferrals[updatedSvc.id] = updatedSvc.withReferral;
-              storedReferrals[updatedSvc.name] = updatedSvc.withReferral;
-              localStorage.setItem('service_referrals', JSON.stringify(storedReferrals));
+              // Map frontend referral values to backend enum values
+              const referralMap = { 'with': 'With', 'without': 'Without', 'n/a': 'N/A' };
 
               const payload = {
                 name: updatedSvc.name,
@@ -578,6 +574,7 @@ export default function ServiceCatalogue() {
                 sla_target_value: slaValue,
                 sla_target_unit: slaUnit,
                 responsible_unit: updatedSvc.responsibleUnit,
+                with_referral: referralMap[updatedSvc.withReferral] || 'With',
                 required_documents: updatedSvc.intakeDocuments ? updatedSvc.intakeDocuments.split("\n").filter(Boolean) : [],
                 processing_steps: updatedSvc.stepsTimeline ? updatedSvc.stepsTimeline.split("\n").filter(Boolean) : [],
                 expected_output: updatedSvc.expectedOutput,

@@ -33,3 +33,10 @@ export enum SlaUnit {
   HOURS = 'Hours',
   DAYS = 'Days',
 }
+
+// ─── Referral Status ───────────────────────────────────────────────────────
+export enum ReferralStatus {
+  WITH = 'With',
+  WITHOUT = 'Without',
+  NA = 'N/A',
+}

@@ -9,7 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceClassification, SlaUnit } from '../enums';
+import { ServiceClassification, SlaUnit, ReferralStatus } from '../enums';
 
 export class CreateServiceDto {
   @ApiProperty({ example: 'Request for Transcript of Records' })
@@ -58,4 +58,9 @@ export class CreateServiceDto {
   @IsOptional()
   @IsString()
   expected_output?: string;
+
+  @ApiPropertyOptional({ enum: ReferralStatus, default: ReferralStatus.WITH, description: 'Referral status: With, Without, or N/A' })
+  @IsOptional()
+  @IsEnum(ReferralStatus)
+  with_referral?: ReferralStatus;
 }

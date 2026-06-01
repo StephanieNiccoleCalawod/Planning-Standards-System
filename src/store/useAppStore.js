@@ -105,7 +105,16 @@ export const useAppStore = create((set, get) => ({
 
       const formatted = servicesArray.map(s => {
         const formattedSla = formatSlaTarget(s);
-        const referral = determineReferral(s, storedReferrals);
+
+        // Read referral from API response; fall back to localStorage/heuristic for old records
+        let referral;
+        if (s.with_referral) {
+          // Map backend enum values to frontend values
+          const referralMap = { 'With': 'with', 'Without': 'without', 'N/A': 'n/a' };
+          referral = referralMap[s.with_referral] || s.with_referral;
+        } else {
+          referral = determineReferral(s, storedReferrals);
+        }
 
         return {
           ...s,
