@@ -34,11 +34,7 @@ export class CommitmentService {
     private readonly config: ConfigService,
   ) {}
 
-  // ─── Cross-service validation ───────────────────────────────────────────
 
-  /**
-   * Validates that a period exists in the kpi-sla microservice.
-   */
   private async validatePeriodExists(period_id: string): Promise<void> {
     const baseUrl = this.config.get<string>('KPI_SLA_URL');
     try {
@@ -50,9 +46,7 @@ export class CommitmentService {
     }
   }
 
-  /**
-   * Validates that a service exists in the service-catalogue microservice.
-   */
+
   private async validateServiceExists(service_id: string, office: string): Promise<void> {
     const baseUrl = this.config.get<string>('SERVICE_CATALOGUE_URL');
     try {
@@ -66,9 +60,6 @@ export class CommitmentService {
     }
   }
 
-  /**
-   * Validates that a KPI exists in the kpi-sla microservice.
-   */
   private async validateKpiExists(kpi_id: string, office: string): Promise<void> {
     const baseUrl = this.config.get<string>('KPI_SLA_URL');
     try {
@@ -82,17 +73,14 @@ export class CommitmentService {
     }
   }
 
-  // ─── Create Commitment (Draft) ──────────────────────────────────────────
-
   async createCommitment(
     office: string,
     actor: string,
     dto: CreateCommitmentDto,
   ): Promise<Commitment> {
-    // Validate period exists (cross-service)
-    await this.validatePeriodExists(dto.period_id);
+  await this.validatePeriodExists(dto.period_id);
 
-    // Enforce: only one Draft per office per period
+    
     const existingDraft = await this.commitmentRepo.findOne({
       where: {
         office,
@@ -108,7 +96,7 @@ export class CommitmentService {
       );
     }
 
-    // Create commitment with nested items
+  
     const commitment = this.commitmentRepo.create({
       office,
       period_id: dto.period_id,
@@ -119,7 +107,7 @@ export class CommitmentService {
 
     const saved = await this.commitmentRepo.save(commitment);
 
-    // Create commitment items
+   
     if (dto.items?.length > 0) {
       const items = dto.items.map((itemDto) =>
         this.itemRepo.create({
@@ -136,8 +124,7 @@ export class CommitmentService {
     return this.findOneCommitment(saved.id, office);
   }
 
-  // ─── Find All Commitments ───────────────────────────────────────────────
-
+ 
   async findAllCommitments(
     office: string,
     filters: { period_id?: string; status?: string },
@@ -169,7 +156,7 @@ export class CommitmentService {
     return { data, total, page: pagination.page, limit: pagination.limit };
   }
 
-  // ─── Find One Commitment ────────────────────────────────────────────────
+ 
 
   async findOneCommitment(id: string, office: string): Promise<Commitment> {
     const commitment = await this.commitmentRepo.findOne({
@@ -183,8 +170,7 @@ export class CommitmentService {
     return commitment;
   }
 
-  // ─── Update Commitment (Draft only) ─────────────────────────────────────
-
+  
   async updateCommitment(
     id: string,
     office: string,
@@ -193,19 +179,15 @@ export class CommitmentService {
   ): Promise<Commitment> {
     const commitment = await this.findOneCommitment(id, office);
 
-    // Guard: locked commitments are immutable
     if (commitment.status === CommitmentStatus.LOCKED) {
       throw new ForbiddenException(
         'This commitment is locked and cannot be modified. Locked commitments are immutable.',
       );
     }
 
-    // Snapshot current state before modifying
     await this.createVersionSnapshot(commitment, actor, 'Draft updated');
 
-    // Update items if provided
     if (dto.items) {
-      // Remove existing items and replace with new set
       await this.itemRepo.delete({ commitment_id: commitment.id });
       const items = dto.items.map((itemDto) =>
         this.itemRepo.create({
@@ -219,24 +201,23 @@ export class CommitmentService {
       await this.itemRepo.save(items);
     }
 
-    // Bump version number
+ 
     commitment.version_number += 1;
     await this.commitmentRepo.save(commitment);
 
     return this.findOneCommitment(id, office);
   }
 
-  // ─── Lock Commitment ────────────────────────────────────────────────────
-
+ 
   async lockCommitment(id: string, office: string, actor: string): Promise<Commitment> {
     const commitment = await this.findOneCommitment(id, office);
 
-    // Guard: already locked
+   
     if (commitment.status === CommitmentStatus.LOCKED) {
       throw new ConflictException('This commitment is already locked.');
     }
 
-    // Validate: all items must have non-null, positive target_value
+  
     const invalidItems = commitment.items.filter(
       (item) => item.target_value === null || item.target_value === undefined || item.target_value <= 0,
     );
@@ -253,10 +234,9 @@ export class CommitmentService {
       );
     }
 
-    // Snapshot before lock
     await this.createVersionSnapshot(commitment, actor, 'Locked by admin');
 
-    // Apply lock
+
     commitment.status = CommitmentStatus.LOCKED;
     commitment.locked_by = actor;
     commitment.locked_at = new Date();
@@ -269,7 +249,7 @@ export class CommitmentService {
     return this.findOneCommitment(id, office);
   }
 
-  // ─── Locked Commitments (OPCR data endpoint) ───────────────────────────
+  
 
   async findLockedCommitments(
     office: string,
@@ -278,7 +258,6 @@ export class CommitmentService {
     return this.findAllCommitments(office, { status: CommitmentStatus.LOCKED }, pagination);
   }
 
-  // ─── Version Snapshot Helper ────────────────────────────────────────────
 
   private async createVersionSnapshot(
     commitment: Commitment,

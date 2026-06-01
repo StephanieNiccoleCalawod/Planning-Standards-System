@@ -31,8 +31,6 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 export class ServiceCatalogueController {
   constructor(private readonly svc: ServiceCatalogueService) {}
 
-  // ─── Services ────────────────────────────────────────────────────────────
-
   @Get()
   @ApiOperation({ summary: 'Get all services for the authenticated office (paginated)' })
   @ApiQuery({ name: 'classification', required: false })
@@ -100,8 +98,6 @@ export class ServiceCatalogueController {
     return this.svc.deactivate(id, office, actor);
   }
 
-  // ─── Intake Fields ───────────────────────────────────────────────────────
-
   @Get(':id/intake-fields')
   @ApiOperation({ summary: 'Get all intake fields of a service' })
   getIntakeFields(@Request() req, @Param('id') id: string) {
@@ -143,8 +139,6 @@ export class ServiceCatalogueController {
     const office = req.user?.office ?? 'mock-office';
     return this.svc.removeIntakeField(id, office, fieldId);
   }
-
-  // ─── NA Flags ────────────────────────────────────────────────────────────
 
   @Get(':id/na-flags')
   @ApiOperation({ summary: 'Get all NA flags of a service' })

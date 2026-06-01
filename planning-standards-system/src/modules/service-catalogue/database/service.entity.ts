@@ -29,19 +29,11 @@ export class Service {
 
   @Index('idx_service_classification')
   @Column({ type: 'enum', enum: ServiceClassification })
-  classification: ServiceClassification;
+    classification: ServiceClassification;
 
-  /**
-   * SLA target numeric value — interpreted together with sla_target_unit.
-   * Replaces the old sla_target_days NUMERIC(6,2) column.
-   */
   @Column({ type: 'int' })
-  sla_target_value: number;
+    sla_target_value: number;
 
-  /**
-   * Unit for sla_target_value (Minutes, Hours, Days).
-   * Defaults to 'Days' for backward compatibility with old sla_target_days.
-   */
   @Column({ type: 'enum', enum: SlaUnit, default: SlaUnit.DAYS })
   sla_target_unit: SlaUnit;
 

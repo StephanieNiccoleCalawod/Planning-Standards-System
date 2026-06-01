@@ -33,9 +33,8 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('api')
 export class KpiSlaController {
-  constructor(private readonly svc: KpiSlaService) {}
+    constructor(private readonly svc: KpiSlaService) { }
 
-  // ─── KPIs ───────────────────────────────────────────────────────────────
 
   @Post('kpis')
   @HttpCode(HttpStatus.CREATED)
@@ -78,8 +77,6 @@ export class KpiSlaController {
     return this.svc.removeKpi(id, office);
   }
 
-  // ─── SLA Rules ──────────────────────────────────────────────────────────
-
   @Post('sla-rules')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an SLA rule' })
@@ -104,7 +101,6 @@ export class KpiSlaController {
     return this.svc.updateSlaRule(id, office, actor, dto);
   }
 
-  // ─── Holidays ───────────────────────────────────────────────────────────
 
   @Post('holidays')
   @HttpCode(HttpStatus.CREATED)
@@ -139,7 +135,6 @@ export class KpiSlaController {
     return this.svc.removeHoliday(id);
   }
 
-  // ─── Evaluation Periods ─────────────────────────────────────────────────
 
   @Post('periods')
   @HttpCode(HttpStatus.CREATED)

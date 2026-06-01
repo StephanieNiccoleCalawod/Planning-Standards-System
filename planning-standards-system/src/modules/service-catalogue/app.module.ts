@@ -10,8 +10,7 @@ import { ServiceCatalogueService } from './service/service-catalogue.service';
 
 @Module({
   imports: [
-   ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/modules/service-catalogue/.env' }),
-
+        ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       name: 'catalogue_db',
       imports: [ConfigModule],
@@ -21,7 +20,7 @@ import { ServiceCatalogueService } from './service/service-catalogue.service';
         host:     config.get('DB_HOST'),
         port:     config.get<number>('DB_PORT'),
         username: config.get('DB_USERNAME'),
-        password: config.get('DB_PASSWORD'),
+          password: String(config.get('DB_PASSWORD')),
         database: config.get('DB_NAME'),
         entities: [Service, ServiceVersion, IntakeField, NaFlag],
         synchronize: true,

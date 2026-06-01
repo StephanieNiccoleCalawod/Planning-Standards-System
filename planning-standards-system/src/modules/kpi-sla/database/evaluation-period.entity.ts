@@ -35,11 +35,6 @@ export class EvaluationPeriod {
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 
-  /**
-   * Soft-delete flag.
-   * false = logically deleted; the row is kept so external systems (e.g. ARMS)
-   * can still resolve the period ID via a direct GET /api/periods/:id lookup.
-   */
   @Column({ default: true })
   is_active: boolean;
 }
