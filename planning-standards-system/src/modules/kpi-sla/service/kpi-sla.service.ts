@@ -61,20 +61,19 @@ export class KpiSlaService {
         }
     }
 
-   
-
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
         const existing = await this.kpiRepo.findOne({
             where: {
                 office,
                 name: dto.name,
                 category: dto.category,
+                service_id: dto.service_id ?? null,
                 is_active: true,
             },
         });
         if (existing) {
             throw new ConflictException(
-                `A KPI with name "${dto.name}" and category "${dto.category}" already exists for this office`,
+                `A KPI with name "${dto.name}" and category "${dto.category}" already exists for this service`,
             );
         }
 
