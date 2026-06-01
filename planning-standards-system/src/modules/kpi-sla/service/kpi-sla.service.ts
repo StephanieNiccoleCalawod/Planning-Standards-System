@@ -237,22 +237,18 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
-        const overlapping = await this.periodRepo
-            .createQueryBuilder('p')
-            .where('p.office = :office', { office })
-            .andWhere('p.period_type = :type', { type: dto.period_type })
-            .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
-            .andWhere('p.start_date <= :end', { end: dto.end_date })
-            .andWhere('p.end_date >= :start', { start: dto.start_date })
-            .getOne();
+        const activePeriod = await this.periodRepo.findOne({
+            where: { office, status: PeriodStatus.OPEN, is_active: true },
+        });
 
-        if (overlapping) {
-            throw new ConflictException(
-                `An overlapping OPEN period of type "${dto.period_type}" already exists (${overlapping.name})`,
-            );
-        }
+        const newStatus = activePeriod ? PeriodStatus.QUEUED : PeriodStatus.OPEN;
 
-        const period = this.periodRepo.create({ ...dto, office, created_by: actor });
+        const period = this.periodRepo.create({
+            ...dto,
+            office,
+            created_by: actor,
+            status: newStatus,
+        });
         return this.periodRepo.save(period);
     }
 
@@ -286,8 +282,21 @@ export class KpiSlaService {
     async closePeriod(id: string, office: string): Promise<EvaluationPeriod> {
         const period = await this.periodRepo.findOne({ where: { id, office } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
+
         period.status = PeriodStatus.CLOSED;
-        return this.periodRepo.save(period);
+        await this.periodRepo.save(period);
+
+        const nextQueued = await this.periodRepo.findOne({
+            where: { office, status: PeriodStatus.QUEUED, is_active: true },
+            order: { created_at: 'ASC' },
+        });
+
+        if (nextQueued) {
+            nextQueued.status = PeriodStatus.OPEN;
+            await this.periodRepo.save(nextQueued);
+        }
+
+        return period;
     }
 
     async removePeriod(id: string, office: string): Promise<{ message: string }> {
