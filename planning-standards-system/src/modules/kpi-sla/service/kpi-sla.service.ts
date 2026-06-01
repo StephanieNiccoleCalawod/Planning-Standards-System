@@ -235,6 +235,21 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
+        const overlapping = await this.periodRepo
+            .createQueryBuilder('p')
+            .where('p.office = :office', { office })
+            .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
+            .andWhere('p.is_active = true')
+            .andWhere('p.start_date <= :end', { end: dto.end_date })
+            .andWhere('p.end_date >= :start', { start: dto.start_date })
+            .getOne();
+
+        if (overlapping) {
+            throw new ConflictException(
+               `Dates overlap with an existing OPEN period "${overlapping.name}". Please choose dates outside the existing period range.`,
+            );
+        }
+
         const activePeriod = await this.periodRepo.findOne({
             where: { office, status: PeriodStatus.OPEN, is_active: true },
         });
