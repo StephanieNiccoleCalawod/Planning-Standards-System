@@ -196,9 +196,16 @@ export default function KPIModal({
             size="small"
           >
             <MenuItem value="">Select Service...</MenuItem>
-            {services.map(s => (
-              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-            ))}
+            {services.map(s => {
+              const withRef = s.withReferral?.toLowerCase();
+              const refLabel = withRef === 'without' ? '(Without Referral)' :
+                               withRef === 'n/a' ? '(Not Applicable)' : '(With Referral)';
+              return (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name} {refLabel}
+                </MenuItem>
+              );
+            })}
           </TextField>
         </DialogContent>
 

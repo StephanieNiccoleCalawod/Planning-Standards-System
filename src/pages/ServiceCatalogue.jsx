@@ -327,7 +327,9 @@ export default function ServiceCatalogue() {
                   </TableCell>
                   <TableCell>
                     {svc.naFlag ? (
-                      <Chip label="N/A" size="small" variant="outlined" sx={{ fontWeight: 700, color: 'text.secondary', bgcolor: '#F1F5F9' }} />
+                      <Tooltip title={svc.naFlags?.[0]?.reason || "Service flagged as N/A for this period."} arrow placement="top">
+                        <Chip label="N/A" size="small" variant="outlined" sx={{ fontWeight: 700, color: 'text.secondary', bgcolor: '#F1F5F9', cursor: 'help' }} />
+                      </Tooltip>
                     ) : (
                       <Typography color="text.disabled">—</Typography>
                     )}
@@ -368,7 +370,25 @@ export default function ServiceCatalogue() {
                               size="small"
                               color="info"
                               disabled={svc.archived}
-                              onClick={() => setFieldsService(svc)}
+                              onClick={async () => {
+                                try {
+                                  const res = await api.getIntakeFields(svc.id);
+                                  const intakeFields = (res || []).map(f => ({
+                                    id: f.id,
+                                    label: f.label,
+                                    type: f.field_type === 'BOOLEAN' || f.field_type === 'CHECKBOX' ? 'Checkbox' : f.field_type.charAt(0).toUpperCase() + f.field_type.slice(1).toLowerCase(),
+                                    required: f.is_required,
+                                    options: f.dropdown_options || [],
+                                    displayOrder: f.display_order
+                                  }));
+                                  setFieldsService({ ...svc, intakeFields: intakeFields.sort((a,b) => a.displayOrder - b.displayOrder) });
+                                } catch (err) {
+                                  console.error("Failed to load intake fields", err);
+                                  triggerSnackbar("Failed to load intake fields", "error");
+                                  // Fallback to empty if it fails
+                                  setFieldsService({ ...svc, intakeFields: [] });
+                                }
+                              }}
                               sx={{
                                 border: '1px solid',
                                 borderColor: 'rgba(2, 132, 199, 0.2)',
@@ -385,11 +405,12 @@ export default function ServiceCatalogue() {
                           </span>
                         </Tooltip>
                         {svc.active && activePeriod && (
-                          <Tooltip title="Flag as N/A" arrow>
+                          <Tooltip title={svc.naFlag ? "Already flagged as N/A" : "Flag as N/A"} arrow>
                             <span>
                               <IconButton
                                 size="small"
                                 color="warning"
+                                disabled={svc.naFlag}
                                 onClick={() => setFlaggingService(svc)}
                                 sx={{
                                   border: '1px solid',
@@ -604,9 +625,49 @@ export default function ServiceCatalogue() {
         <IntakeFieldBuilderModal
           service={fieldsService}
           onClose={() => setFieldsService(null)}
-          onSave={(updatedSvc) => {
-            updateServiceIntakeFieldsLocal(updatedSvc);
-            triggerSnackbar("Intake fields updated successfully!", "success");
+          onSave={async (updatedSvc) => {
+            try {
+              const oldFields = fieldsService.intakeFields || [];
+              const newFields = updatedSvc.intakeFields || [];
+              const isNew = (id) => typeof id === 'number' || (typeof id === 'string' && id.length < 36 && !id.includes('-'));
+
+              // 1. Delete removed fields
+              const toDelete = oldFields.filter(of => !newFields.some(nf => nf.id === of.id));
+              for (const f of toDelete) {
+                await api.deleteIntakeField(updatedSvc.id, f.id);
+              }
+
+              // 2. Create or Update fields
+              for (const f of newFields) {
+                const dto = {
+                  label: f.label,
+                  field_type: f.type.toUpperCase() === 'CHECKBOX' ? 'BOOLEAN' : f.type.toUpperCase(),
+                  is_required: f.required,
+                  display_order: f.displayOrder,
+                  dropdown_options: f.options || []
+                };
+
+                if (isNew(f.id)) {
+                  await api.createIntakeField(updatedSvc.id, dto);
+                } else {
+                  await api.updateIntakeField(updatedSvc.id, f.id, dto);
+                }
+              }
+
+              updateServiceIntakeFieldsLocal(updatedSvc);
+              setResultModal({
+                type: "success",
+                title: "Success!",
+                message: "Intake fields saved successfully to the database."
+              });
+            } catch (err) {
+              console.error(err);
+              setResultModal({
+                type: "error",
+                title: "Something went wrong",
+                message: err.message || "Failed to save intake fields to the database."
+              });
+            }
           }}
         />
       )}
@@ -619,12 +680,19 @@ export default function ServiceCatalogue() {
           onConfirm={async (serviceId, periodId, reason) => {
             try {
               await api.createNaFlag(serviceId, { period_id: periodId, reason });
-              triggerSnackbar("Service successfully flagged as N/A", "success");
               setFlaggingService(null);
-              // Locally update state to show the flag if needed, or re-fetch
-              fetchServices();
+              await fetchServices();
+              setResultModal({
+                type: "success",
+                title: "Success",
+                message: "Service successfully flagged as N/A."
+              });
             } catch (err) {
-              triggerSnackbar(err.message || "Failed to flag service", "error");
+              setResultModal({
+                type: "error",
+                title: "Error",
+                message: err.message || "Failed to flag service."
+              });
             }
           }}
         />

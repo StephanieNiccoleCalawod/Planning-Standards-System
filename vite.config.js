@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
+    watch: {
+      usePolling: true,
+    },
     proxy: {
       // Service Catalogue service runs on port 3000
       '/api/services': {

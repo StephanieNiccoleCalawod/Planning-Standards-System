@@ -349,50 +349,86 @@ export default function KPIStandards() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>CATEGORY</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>TARGET VALUE</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>LINKED SERVICE</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>REFERRAL STATUS</TableCell>
               <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: 140 }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {paginatedKpis.length > 0 ? (
-              paginatedKpis.map((kpi) => (
-                <TableRow
-                  key={kpi.id}
-                  hover
-                  sx={{
-                    opacity: kpi.active ? 1 : 0.6,
-                    '& .MuiTableCell-root': {
-                      py: 1.5,
-                      borderBottom: '1px solid #CBD5E1',
-                      boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                >
-                  <TableCell>
-                    <Typography sx={{ fontWeight: 500, fontSize: '0.875rem', lineHeight: 1.2, color: 'text.primary', mb: 0 }}>
-                      {kpi.name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={kpi.category}
-                      size="small"
-                      sx={{
-                        fontWeight: 700,
-                        fontSize: '0.7rem',
-                        ...(kpi.category === "Timeliness" && { bgcolor: '#EFF6FF', color: '#2563EB', border: '1px solid rgba(37, 99, 235, 0.15)' }),
-                        ...(kpi.category === "Quality" && { bgcolor: '#FFFBEB', color: '#D97706', border: '1px solid rgba(217, 119, 6, 0.15)' }),
-                        ...(kpi.category === "Efficiency" && { bgcolor: '#ECFDF5', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.15)' })
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "text.primary", fontSize: '0.875rem' }}>
-                    {kpi.category === "Quality" ? `${Number(kpi.target_value)}%` : formatDuration(kpi.target_value)}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontWeight: 500 }}>
-                    {services.find(s => s.id === kpi.service_id)?.name || "Unlinked Service"}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+              paginatedKpis.map((kpi) => {
+                const svc = services.find(s => s.id === kpi.service_id);
+                const withRef = svc?.withReferral?.toLowerCase();
+                return (
+                  <TableRow
+                    key={kpi.id}
+                    hover
+                    sx={{
+                      opacity: kpi.active ? 1 : 0.6,
+                      '& .MuiTableCell-root': {
+                        py: 1.5,
+                        borderBottom: '1px solid #CBD5E1',
+                        boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 500, fontSize: '0.875rem', lineHeight: 1.2, color: 'text.primary', mb: 0 }}>
+                        {kpi.name}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={kpi.category}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.7rem',
+                          ...(kpi.category === "Timeliness" && { bgcolor: '#EFF6FF', color: '#2563EB', border: '1px solid rgba(37, 99, 235, 0.15)' }),
+                          ...(kpi.category === "Quality" && { bgcolor: '#FFFBEB', color: '#D97706', border: '1px solid rgba(217, 119, 6, 0.15)' }),
+                          ...(kpi.category === "Efficiency" && { bgcolor: '#ECFDF5', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.15)' })
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "text.primary", fontSize: '0.875rem' }}>
+                      {kpi.category === "Quality" ? `${Number(kpi.target_value)}%` : formatDuration(kpi.target_value)}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontWeight: 500 }}>
+                      {svc?.name || "Unlinked Service"}
+                    </TableCell>
+                    <TableCell>
+                      {svc ? (
+                        <Chip
+                          label={
+                            withRef === 'without' ? "Without Referral" :
+                            withRef === 'n/a' ? "Not Applicable" : "With Referral"
+                          }
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: '0.725rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.02em',
+                            ...(withRef === "without" ? { 
+                              bgcolor: '#F0F9FF', 
+                              color: '#0284C7', 
+                              border: '1px solid rgba(2, 132, 199, 0.15)' 
+                            } : withRef === "n/a" ? { 
+                              bgcolor: '#F1F5F9', 
+                              color: '#64748B', 
+                              border: '1px solid rgba(100, 116, 139, 0.15)' 
+                            } : { 
+                              bgcolor: '#FEF2F2', 
+                              color: '#9B1C1C', 
+                              border: '1px solid rgba(155, 28, 28, 0.15)' 
+                            })
+                          }}
+                        />
+                      ) : (
+                        <Typography color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                       <Tooltip title="Edit KPI Target" arrow>
                         <span>
                           <IconButton
@@ -462,10 +498,11 @@ export default function KPIStandards() {
                     </Box>
                   </TableCell>
                 </TableRow>
-              ))
+              );
+            })
             ) : (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                     No KPI targets found matching your active filter criteria.
                   </Typography>

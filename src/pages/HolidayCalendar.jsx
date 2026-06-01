@@ -32,6 +32,7 @@ import PageHeader from "../components/PageHeader";
 import HolidayModal from "../modals/HolidayModal";
 import DeleteConfirmModal from "../modals/DeleteConfirmModal";
 import HolidayRegistryModal from "../modals/HolidayRegistryModal";
+import ResultModal from "../modals/ResultModal";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -77,10 +78,12 @@ export default function HolidayCalendar() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [deletingHoliday, setDeletingHoliday] = useState(null);
   const [showRegistryModal, setShowRegistryModal] = useState(false);
+  const [resultModal, setResultModal] = useState({ open: false, type: "success", title: "", message: "" });
 
   const triggerSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -124,7 +127,8 @@ export default function HolidayCalendar() {
   const filteredHolidays = holidays.filter(h => {
     const matchesSearch = h.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = !typeFilter || h.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesMonth = monthFilter === "" || new Date(h.date).getMonth() === parseInt(monthFilter);
+    return matchesSearch && matchesType && matchesMonth;
   });
 
   const holidayMap = {};
@@ -161,12 +165,22 @@ export default function HolidayCalendar() {
   const handleSave = async e => {
     e.preventDefault();
     if (!name.trim() || !date) {
-      triggerSnackbar("Name and date are required.", "error");
+      setResultModal({
+        open: true,
+        type: "error",
+        title: "Validation Error",
+        message: "Name and date are required."
+      });
       return;
     }
     const dup = holidays.some(h => h.date === date && h.id !== editingHoliday?.id);
     if (dup) {
-      triggerSnackbar(`A holiday already exists on ${date}.`, "error");
+      setResultModal({
+        open: true,
+        type: "error",
+        title: "Duplicate Holiday",
+        message: `A holiday already exists on ${date}.`
+      });
       return;
     }
 
@@ -180,32 +194,53 @@ export default function HolidayCalendar() {
     try {
       if (editingHoliday) {
         await updateHoliday(editingHoliday.id, payload);
-        triggerSnackbar("Holiday updated successfully.", "success");
+        setResultModal({
+          open: true,
+          type: "success",
+          title: "Success!",
+          message: "Holiday updated successfully."
+        });
       } else {
         await createHoliday(payload);
-        if (isRecurring) {
-          triggerSnackbar("Recurring holiday encoded for 5 years.", "success");
-        } else {
-          triggerSnackbar("Holiday encoded successfully.", "success");
-        }
+        setResultModal({
+          open: true,
+          type: "success",
+          title: "Success!",
+          message: isRecurring ? "Recurring holiday encoded for 5 years." : "Holiday encoded successfully."
+        });
       }
       closeModal();
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to save holiday.", "error");
+      setResultModal({
+        open: true,
+        type: "error",
+        title: "Something went wrong",
+        message: err.message || "Failed to save holiday."
+      });
     }
   };
 
   const handleDelete = async (id, hName) => {
     try {
       await deleteHoliday(id);
-      triggerSnackbar(`"${hName}" deleted successfully.`, "success");
+      setResultModal({
+        open: true,
+        type: "success",
+        title: "Success",
+        message: `"${hName}" deleted successfully.`
+      });
       setDeletingHoliday(null);
       setShowModal(false);
       setEditingHoliday(null);
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to delete holiday.", "error");
+      setResultModal({
+        open: true,
+        type: "error",
+        title: "Error",
+        message: err.message || "Failed to delete holiday."
+      });
     }
   };
 
@@ -288,6 +323,20 @@ export default function HolidayCalendar() {
             <MenuItem value="National">National</MenuItem>
             <MenuItem value="Local">Local</MenuItem>
             <MenuItem value="Campus">Campus</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            label="All Months"
+            size="small"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            sx={{ width: 150 }}
+          >
+            <MenuItem value="">All Months</MenuItem>
+            {MONTHS.map((m, idx) => (
+              <MenuItem key={m} value={idx}>{m}</MenuItem>
+            ))}
           </TextField>
 
           <Button
@@ -476,7 +525,7 @@ export default function HolidayCalendar() {
                               {g.name}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
-                              {g.type}{g.is_recurring ? " · Recurring" : ""} · {g.yearLabel}
+                              {g.type}{g.is_recurring ? " · Recurring" : ""} · {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()]} {d.getDate()}, {g.yearLabel}
                             </Typography>
                           </Box>
                         </Box>
@@ -760,6 +809,16 @@ export default function HolidayCalendar() {
         onConfirm={() => handleDelete(deletingHoliday.id, deletingHoliday.name)}
         onCancel={() => setDeletingHoliday(null)}
       />
+
+      {/* ── Result Modal (Success/Error) ── */}
+      {resultModal.open && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => setResultModal(prev => ({ ...prev, open: false }))}
+        />
+      )}
 
       {/* ── Holiday Registry Modal (View All) ── */}
       <HolidayRegistryModal

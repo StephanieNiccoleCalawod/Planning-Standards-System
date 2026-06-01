@@ -39,14 +39,14 @@ export default function SLAConfiguration() {
     fetchPeriods
   } = useAppStore();
 
-  const [workingDays, setWorkingDays] = useState(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+  const [workingDays, setWorkingDays] = useState([]);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("17:00");
   const [warnThreshold, setWarnThreshold] = useState(80);
   const [overdueThreshold, setOverdueThreshold] = useState(100);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const [errorModal, setErrorModal] = useState({ show: false, title: "", message: "" });
+  const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   const [activeRuleId, setActiveRuleId] = useState(null);
@@ -100,14 +100,8 @@ export default function SLAConfiguration() {
           setStartTime(activeRule.work_start_time.slice(0, 5));
           setEndTime(activeRule.work_end_time.slice(0, 5));
 
-          if (activeRule.work_schedule_type === "WEEKDAYS") {
-            setWorkingDays(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
-          } else if (activeRule.work_schedule_type === "MONDAY_TO_SATURDAY") {
-            setWorkingDays(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
-          } else if (activeRule.work_schedule_type === "CUSTOM" && Array.isArray(activeRule.work_schedule_config)) {
-            const activeDays = activeRule.work_schedule_config.filter(c => c.is_working).map(c => c.day);
-            setWorkingDays(activeDays);
-          }
+          // workingDays is intentionally left empty as requested by the user,
+          // so it forces them to select it manually every time.
 
           const sortedVersions = Array.isArray(activeRule.versions)
             ? [...activeRule.versions].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
@@ -181,6 +175,7 @@ export default function SLAConfiguration() {
   };
 
   useEffect(() => {
+    setWorkingDays([]);
     loadData();
   }, []);
 
@@ -261,12 +256,20 @@ export default function SLAConfiguration() {
       } else {
         await createSlaRule(payload);
       }
-      triggerSnackbar("SLA Compliance Rules updated and new version saved successfully!", "success");
+      setShowConfirm(false);
+      setResultModal({
+        show: true,
+        type: "success",
+        title: "Success",
+        message: "SLA Compliance Rules updated and new version saved successfully!"
+      });
       await loadData();
     } catch (err) {
       console.error("Failed to save SLA configuration:", err);
-      setErrorModal({
+      setShowConfirm(false);
+      setResultModal({
         show: true,
+        type: "error",
         title: "SLA Save Failure",
         message: err.message || "Failed to save the SLA configuration rules. Please verify your backend server state and database parameters."
       });
@@ -293,9 +296,9 @@ export default function SLAConfiguration() {
         boxSizing: 'border-box'
       }}>
         {/* Left Form Panel */}
-        <Card sx={{ borderRadius: 2, p: { xs: 2, sm: 3 }, border: '1px solid #E2E8F0', bgcolor: 'background.paper', width: '100%', height: '100%' }}>
-          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Box sx={{ flexGrow: 1 }}>
+        <Card sx={{ alignSelf: 'start', borderRadius: 2, p: { xs: 2, sm: 3 }, border: '1px solid #E2E8F0', bgcolor: 'background.paper', width: '100%' }}>
+          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column' }}>
+            <Box>
               {/* Working Days */}
               <Box sx={{ mb: 4 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -617,13 +620,13 @@ export default function SLAConfiguration() {
         onCancel={() => setShowConfirm(false)}
       />
 
-      {/* Error Dialog */}
-      {errorModal.show && (
+      {/* Result Modal */}
+      {resultModal.show && (
         <ResultModal
-          type="error"
-          title={errorModal.title}
-          message={errorModal.message}
-          onClose={() => setErrorModal(prev => ({ ...prev, show: false }))}
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => setResultModal(prev => ({ ...prev, show: false }))}
         />
       )}
 

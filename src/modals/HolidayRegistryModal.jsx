@@ -39,11 +39,13 @@ const MONTHS = [
 export default function HolidayRegistryModal({ open, onClose, registryGroups = [], totalCount = 0, onEdit }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
 
   const filtered = registryGroups.filter(g => {
     const matchSearch = g.name.toLowerCase().includes(search.toLowerCase());
     const matchType   = !typeFilter || g.type === typeFilter;
-    return matchSearch && matchType;
+    const matchMonth  = monthFilter === '' || g.dateObject.getMonth() === parseInt(monthFilter);
+    return matchSearch && matchType && matchMonth;
   });
 
   return (
@@ -101,6 +103,18 @@ export default function HolidayRegistryModal({ open, onClose, registryGroups = [
           <MenuItem value="Local">Local</MenuItem>
           <MenuItem value="Campus">Campus</MenuItem>
         </TextField>
+        <TextField
+          select
+          size="small"
+          value={monthFilter}
+          onChange={e => setMonthFilter(e.target.value)}
+          sx={{ width: 140 }}
+        >
+          <MenuItem value="">All Months</MenuItem>
+          {MONTHS.map((m, idx) => (
+            <MenuItem key={m} value={idx}>{m}</MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       {/* ── List ── */}
@@ -150,7 +164,7 @@ export default function HolidayRegistryModal({ open, onClose, registryGroups = [
                         {g.name}
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                        {g.type}{g.is_recurring ? ' · Recurring' : ''} · {g.yearLabel}
+                        {g.type}{g.is_recurring ? ' · Recurring' : ''} · {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()]} {d.getDate()}, {g.yearLabel}
                       </Typography>
                     </Box>
                   </Box>
