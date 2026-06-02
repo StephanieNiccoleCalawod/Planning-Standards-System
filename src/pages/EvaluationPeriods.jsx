@@ -80,6 +80,8 @@ export default function EvaluationPeriods() {
     fetchPeriods();
   }, []);
 
+  const activeExists = periods.some(p => p.status === "Active" || p.status === "Open");
+
   const handleOpenAdd = () => {
     setName("");
     setType("Semestral");
@@ -95,8 +97,8 @@ export default function EvaluationPeriods() {
     if (!name.trim() || !startDate || !endDate) {
       setResultModal({
         type: "error",
-        title: "Validation Error",
-        message: "Period name, start, and end dates are required!"
+        title: "Missing Required Fields",
+        message: "Please fill out all the required fields (Period Name, Start Date, and End Date)."
       });
       return;
     }
@@ -104,22 +106,14 @@ export default function EvaluationPeriods() {
     if (new Date(startDate) > new Date(endDate)) {
       setResultModal({
         type: "error",
-        title: "Validation Error",
-        message: "Start date cannot be after end date!"
+        title: "Invalid Dates",
+        message: "The end date cannot be earlier than the start date."
       });
       return;
     }
 
-    // Strictly enforce single active period database constraint
-    const activeExists = periods.some(p => p.status === "Active" || p.status === "Open");
-    if (activeState && activeExists) {
-      setResultModal({
-        type: "error",
-        title: "Unique Constraint Violation",
-        message: "Only one Active or Open evaluation period is allowed at a time!"
-      });
-      return;
-    }
+    // The backend automatically determines if it should be Open or Queued based on existing periods.
+    // So we don't need to block creation here anymore.
 
     const payload = {
       name,
@@ -368,13 +362,19 @@ export default function EvaluationPeriods() {
           </Grid>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1 }}>
-            <Toggle checked={activeState} onChange={() => setActiveState(p => !p)} />
-            <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <Toggle 
+              checked={activeExists ? false : activeState} 
+              onChange={() => !activeExists && setActiveState(p => !p)} 
+              disabled={activeExists}
+            />
+            <Typography variant="body2" sx={{ fontWeight: 700, color: activeExists ? "text.disabled" : "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               ACTIVE
             </Typography>
           </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>
-            Only one evaluation period can be active at a time per office profile to maintain unique data consistency.
+            {activeExists 
+              ? "An active period already exists. This new period will be saved as Queued and will automatically open when the current active period is closed."
+              : "Only one evaluation period can be active at a time per office profile to maintain data consistency."}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
