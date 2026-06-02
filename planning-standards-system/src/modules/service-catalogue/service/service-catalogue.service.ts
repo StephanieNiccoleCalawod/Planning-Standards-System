@@ -32,7 +32,7 @@ export class ServiceCatalogueService {
 
     @InjectRepository(NaFlag, 'catalogue_db')
     private readonly naFlagRepo: Repository<NaFlag>,
-  ) {}
+  ) { }
 
 
   async findAll(
@@ -91,22 +91,22 @@ export class ServiceCatalogueService {
   async findOne(id: string, office: string): Promise<Service> {
     return this.findOneOrFail(id, office);
   }
-    async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
-        const exists = await this.serviceRepo.findOne({
-            where: {
-                office,
-                name: dto.name,
-                with_referral: dto.with_referral ?? ReferralStatus.WITH,
-            },
-        });
-        if (exists) {
-            throw new ConflictException(
-                `Service "${dto.name}" with the same referral status already exists in this office`,
-            );
-        }
-        const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
-        return this.serviceRepo.save(service);
+  async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
+    const exists = await this.serviceRepo.findOne({
+      where: {
+        office,
+        name: dto.name,
+        with_referral: dto.with_referral ?? ReferralStatus.WITH,
+      },
+    });
+    if (exists) {
+      throw new ConflictException(
+        `Service "${dto.name}" with the same referral status already exists in this office`,
+      );
     }
+    const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
+    return this.serviceRepo.save(service);
+  }
 
   async update(
     id: string,
@@ -208,7 +208,7 @@ export class ServiceCatalogueService {
     );
 
     return this.serviceRepo.save(service);
-    }
+  }
 
   async getIntakeFields(service_id: string, office: string): Promise<IntakeField[]> {
     await this.findOneOrFail(service_id, office);
@@ -223,15 +223,15 @@ export class ServiceCatalogueService {
     office: string,
     dto: CreateIntakeFieldDto,
   ): Promise<IntakeField> {
-      await this.findOneOrFail(service_id, office);
-      const exists = await this.intakeFieldRepo.findOne({
-          where: { service_id, label: dto.label, is_active: true },
-      });
-      if (exists) {
-          throw new ConflictException(
-              `Intake field "${dto.label}" already exists for this service`,
-          );
-      }
+    await this.findOneOrFail(service_id, office);
+    const exists = await this.intakeFieldRepo.findOne({
+      where: { service_id, label: dto.label, is_active: true },
+    });
+    if (exists) {
+      throw new ConflictException(
+        `Intake field "${dto.label}" already exists for this service`,
+      );
+    }
 
     const field = this.intakeFieldRepo.create({ ...dto, service_id });
     return this.intakeFieldRepo.save(field);

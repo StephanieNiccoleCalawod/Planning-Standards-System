@@ -67,12 +67,9 @@ export default function EvaluationPeriods() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [activeState, setActiveState] = useState(true);
+  const [resultModal, setResultModal] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-
-  const triggerSnackbar = (message, severity = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
 
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
@@ -95,19 +92,31 @@ export default function EvaluationPeriods() {
     e.preventDefault();
 
     if (!name.trim() || !startDate || !endDate) {
-      triggerSnackbar("Period name, start, and end dates are required!", "error");
+      setResultModal({
+        type: "error",
+        title: "Validation Error",
+        message: "Period name, start, and end dates are required!"
+      });
       return;
     }
 
     if (new Date(startDate) > new Date(endDate)) {
-      triggerSnackbar("Start date cannot be after end date!", "error");
+      setResultModal({
+        type: "error",
+        title: "Validation Error",
+        message: "Start date cannot be after end date!"
+      });
       return;
     }
 
     // Strictly enforce single active period database constraint
-    const activeExists = periods.some(p => p.status === "Active");
+    const activeExists = periods.some(p => p.status === "Active" || p.status === "Open");
     if (activeState && activeExists) {
-      triggerSnackbar("Unique Constraint Violation: Only one Active evaluation period is allowed at a time!", "error");
+      setResultModal({
+        type: "error",
+        title: "Unique Constraint Violation",
+        message: "Only one Active or Open evaluation period is allowed at a time!"
+      });
       return;
     }
 
@@ -120,11 +129,19 @@ export default function EvaluationPeriods() {
 
     try {
       await createPeriod(payload);
-      triggerSnackbar("Evaluation period created successfully!", "success");
+      setResultModal({
+        type: "success",
+        title: "Success",
+        message: "Evaluation period created successfully!"
+      });
       setShowAdd(false);
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to create evaluation period", "error");
+      setResultModal({
+        type: "error",
+        title: "Error",
+        message: err.message || "Failed to create evaluation period"
+      });
     }
   };
 
@@ -132,11 +149,19 @@ export default function EvaluationPeriods() {
     if (!closingPeriod) return;
     try {
       await closePeriod(closingPeriod.id);
-      triggerSnackbar(`Evaluation period "${closingPeriod.name}" is now closed.`, "success");
+      setResultModal({
+        type: "success",
+        title: "Success",
+        message: `Evaluation period "${closingPeriod.name}" is now closed.`
+      });
       setClosingPeriod(null);
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to close evaluation period", "error");
+      setResultModal({
+        type: "error",
+        title: "Error",
+        message: err.message || "Failed to close evaluation period"
+      });
     }
   };
 
@@ -144,10 +169,18 @@ export default function EvaluationPeriods() {
     e.stopPropagation();
     try {
       await deletePeriod(period.id);
-      triggerSnackbar("Evaluation period deleted successfully.", "success");
+      setResultModal({
+        type: "success",
+        title: "Success",
+        message: "Evaluation period deleted successfully."
+      });
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to delete evaluation period", "error");
+      setResultModal({
+        type: "error",
+        title: "Error",
+        message: err.message || "Failed to delete evaluation period"
+      });
     }
   };
 
@@ -389,17 +422,16 @@ export default function EvaluationPeriods() {
         </DialogActions>
       </Dialog>
 
-      {/* Notification Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      {/* Result Modal for Success/Error */}
+      {resultModal && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => setResultModal(null)}
+        />
+      )}
+
     </Box>
   );
 }

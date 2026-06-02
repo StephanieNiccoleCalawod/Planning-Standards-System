@@ -23,6 +23,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 import Toggle from "../components/Toggle";
+import ResultModal from "./ResultModal";
 
 export default function IntakeFieldBuilderModal({ service, onClose, onSave }) {
   const initialFields = service?.intakeFields || [];
@@ -37,6 +38,7 @@ export default function IntakeFieldBuilderModal({ service, onClose, onSave }) {
   const [dropdownOptions, setDropdownOptions] = useState(""); // Comma separated options for dropdowns
 
   const [errors, setErrors] = useState({});
+  const [resultModal, setResultModal] = useState(null);
 
   // Reset form states
   const resetForm = () => {
@@ -61,6 +63,23 @@ export default function IntakeFieldBuilderModal({ service, onClose, onSave }) {
     const e = {};
     if (!label.trim()) e.label = true;
     if (fieldType === "Dropdown" && !dropdownOptions.trim()) e.dropdownOptions = true;
+
+    // Duplication Check: Allow same name OR same field type, but NOT both.
+    // Meaning if both label AND type match an existing field, it's a duplicate.
+    const isDuplicate = fields.some(f => 
+      f.label.trim().toLowerCase() === label.trim().toLowerCase() && 
+      f.type === fieldType && 
+      f.id !== editingFieldId
+    );
+
+    if (isDuplicate) {
+      setResultModal({
+        type: "error",
+        title: "Duplicate Field",
+        message: `An intake field with the name "${label}" and type "${fieldType}" already exists.`
+      });
+      return;
+    }
 
     if (Object.keys(e).length > 0) {
       setErrors(e);
@@ -131,9 +150,10 @@ export default function IntakeFieldBuilderModal({ service, onClose, onSave }) {
   };
 
   return (
-    <Dialog
-      open
-      onClose={onClose}
+    <>
+      <Dialog
+        open
+        onClose={onClose}
       fullWidth
       maxWidth="md"
       PaperProps={{
@@ -462,25 +482,29 @@ export default function IntakeFieldBuilderModal({ service, onClose, onSave }) {
         </Box>
       </DialogContent>
 
-      {/* Footer */}
-      <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2.5, pt: 1, gap: 1 }}>
-        <Button
-          variant="outlined"
-          color="inherit"
-          onClick={onClose}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          Close
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSaveAll}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          Save
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'flex-end', gap: 1 }}>
+          <Button variant="outlined" color="inherit" onClick={onClose} sx={{ px: 3 }}>
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveAll}
+            sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' }, px: 4 }}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Result Modal for Validation Errors */}
+      {resultModal && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => setResultModal(null)}
+        />
+      )}
+    </>
   );
 }
