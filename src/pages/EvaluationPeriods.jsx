@@ -39,7 +39,7 @@ import {
 import { useAppStore } from "../store/useAppStore";
 import PageHeader from "../components/PageHeader";
 import Toggle from "../components/Toggle";
-
+import ResultModal from "../modals/ResultModal";
 const mapTypeToBackend = (t) => {
   switch (t) {
     case "Quarterly": return "Quarterly";
