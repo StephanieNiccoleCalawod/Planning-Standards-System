@@ -230,41 +230,40 @@ export class KpiSlaService {
     return { message: `Holiday ${id} removed` };
   }
 
-  async createPeriod(office: string, actor: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
-    if (new Date(dto.start_date) >= new Date(dto.end_date)) {
-      throw new BadRequestException('start_date must be before end_date');
+    async createPeriod(office: string, actor: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
+        if (new Date(dto.start_date) >= new Date(dto.end_date)) {
+            throw new BadRequestException('start_date must be before end_date');
+        }
+
+        const overlapping = await this.periodRepo
+            .createQueryBuilder('p')
+            .where('p.office = :office', { office })
+            .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
+            .andWhere('p.is_active = true')
+            .andWhere('p.start_date <= :end', { end: dto.end_date })
+            .andWhere('p.end_date >= :start', { start: dto.start_date })
+            .getOne();
+
+        if (overlapping) {
+            throw new ConflictException(
+                `Selected dates overlap with an existing OPEN period "${overlapping.name}". Please choose dates after the existing period ends.`,
+            );
+        }
+
+        const activePeriod = await this.periodRepo.findOne({
+            where: { office, status: PeriodStatus.OPEN, is_active: true },
+        });
+
+        const newStatus = activePeriod ? PeriodStatus.QUEUED : PeriodStatus.OPEN;
+
+        const period = this.periodRepo.create({
+            ...dto,
+            office,
+            created_by: actor,
+            status: newStatus,
+        });
+        return this.periodRepo.save(period);
     }
-
-    const overlapping = await this.periodRepo
-      .createQueryBuilder('p')
-      .where('p.office = :office', { office })
-      .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
-      .andWhere('p.is_active = true')
-      .andWhere('p.start_date <= :end', { end: dto.end_date })
-      .andWhere('p.end_date >= :start', { start: dto.start_date })
-      .getOne();
-
-    if (overlapping) {
-      throw new ConflictException(
-        `Dates overlap with an existing OPEN period "${overlapping.name}". Please choose dates outside the existing period range.`,
-      );
-    }
-
-    const activePeriod = await this.periodRepo.findOne({
-      where: { office, status: PeriodStatus.OPEN, is_active: true },
-    });
-
-    const newStatus = activePeriod ? PeriodStatus.QUEUED : PeriodStatus.OPEN;
-
-    const period = this.periodRepo.create({
-      ...dto,
-      office,
-      created_by: actor,
-      status: newStatus,
-    });
-    return this.periodRepo.save(period);
-  }
-
   async findAllPeriods(
     office: string,
     pagination: PaginationDto = new PaginationDto(),
