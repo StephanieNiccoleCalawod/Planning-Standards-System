@@ -223,7 +223,16 @@ export class ServiceCatalogueService {
     office: string,
     dto: CreateIntakeFieldDto,
   ): Promise<IntakeField> {
-    await this.findOneOrFail(service_id, office);
+      await this.findOneOrFail(service_id, office);
+      const exists = await this.intakeFieldRepo.findOne({
+          where: { service_id, label: dto.label, is_active: true },
+      });
+      if (exists) {
+          throw new ConflictException(
+              `Intake field "${dto.label}" already exists for this service`,
+          );
+      }
+
     const field = this.intakeFieldRepo.create({ ...dto, service_id });
     return this.intakeFieldRepo.save(field);
   }
