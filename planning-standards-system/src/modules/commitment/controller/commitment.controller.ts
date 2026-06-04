@@ -26,7 +26,6 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 export class CommitmentController {
   constructor(private readonly svc: CommitmentService) {}
 
-  // ─── Commitments ────────────────────────────────────────────────────────
 
   @Post('commitments')
   @HttpCode(HttpStatus.CREATED)
@@ -81,7 +80,6 @@ export class CommitmentController {
     return this.svc.lockCommitment(id, office, actor);
   }
 
-  // ─── OPCR Data Endpoint (Locked commitments) ───────────────────────────
 
   @Get('opcr/commitments')
   @ApiOperation({ summary: 'Get all locked (submitted) commitments — OPCR data endpoint' })

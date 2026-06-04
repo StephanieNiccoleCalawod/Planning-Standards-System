@@ -35,4 +35,4 @@ export class CreateKpiDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
-}
+}

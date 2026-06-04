@@ -14,7 +14,7 @@ export class JwtAuthGuard implements CanActivate {
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
     const mockEnabled = this.config.get<string>('MOCK_JWT_ENABLED') === 'true';
 
-    // ── MOCK MODE (if explicitly enabled or no secret in dev) ─────────────
+  
     if (!isProd && (mockEnabled || !secret)) {
       const role = this.config.get<string>('MOCK_JWT_ROLE') || req.headers['x-mock-role'] || 'Admin';
       req.user = {
@@ -23,7 +23,7 @@ export class JwtAuthGuard implements CanActivate {
         role,
       };
     } else {
-      // ── PRODUCTION MODE ───────────────────────────────────────────────────
+   
       if (!authHeader?.startsWith('Bearer ')) {
         throw new UnauthorizedException('Missing or invalid Authorization header');
       }
@@ -41,7 +41,6 @@ export class JwtAuthGuard implements CanActivate {
       }
     }
 
-    // Role-based read-only enforcement
     if (req.user.role === 'Staff' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       throw new ForbiddenException('Staff members have read-only access');
     }
