@@ -7,13 +7,6 @@ import {
 } from 'typeorm';
 import { KpiCategory, KpiUnit } from '../enums';
 
-/**
- * KPI definition linked to a SERVICE (cross-service, validated via API).
- *
- * IMPORTANT: service_id is NOT a database-level FK because SERVICE lives
- * in a separate microservice (service-catalogue). Referential integrity
- * is enforced at the application layer via HTTP validation.
- */
 @Entity('kpi')
 export class Kpi {
   @PrimaryGeneratedColumn('uuid')
@@ -25,10 +18,6 @@ export class Kpi {
   @Column({ length: 100, nullable: true })
   sub_office: string;
 
-  /**
-   * References a SERVICE in the service-catalogue microservice.
-   * Validated via API call — no database FK across services.
-   */
   @Index('idx_kpi_service_id')
   @Column({ nullable: true })
   service_id: string;

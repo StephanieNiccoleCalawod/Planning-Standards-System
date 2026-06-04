@@ -21,19 +21,9 @@ export class SlaRule {
   @Column({ length: 100 })
   office: string;
 
-  /**
-   * High-level schedule type. For WEEKDAYS and MONDAY_TO_SATURDAY the
-   * engine can derive working days directly. For CUSTOM, the detailed
-   * configuration lives in work_schedule_config.
-   */
   @Column({ type: 'enum', enum: WorkScheduleType })
   work_schedule_type: WorkScheduleType;
 
-  /**
-   * Optional structured configuration for CUSTOM schedules.
-   * Expected format: array of { day, is_working, start, end } objects.
-   * Required when work_schedule_type = CUSTOM, null otherwise.
-   */
   @Column({ type: 'jsonb', nullable: true })
   work_schedule_config: object[] | null;
 

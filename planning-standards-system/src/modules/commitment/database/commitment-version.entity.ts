@@ -9,11 +9,6 @@ import {
 } from 'typeorm';
 import { Commitment } from './commitment.entity';
 
-/**
- * Audit snapshot of a commitment at a specific version.
- * Created each time a draft is revised or before a lock occurs,
- * capturing the full state for traceability.
- */
 @Entity('commitment_version')
 export class CommitmentVersion {
   @PrimaryGeneratedColumn('uuid')
@@ -42,10 +37,6 @@ export class CommitmentVersion {
   @CreateDateColumn({ type: 'timestamptz' })
   revised_at: Date;
 
-  /**
-   * JSONB snapshot of the full commitment + items at this version.
-   * Allows reconstructing any historical state without joins.
-   */
   @Column({ type: 'jsonb', nullable: true })
   snapshot: Record<string, any>;
 }

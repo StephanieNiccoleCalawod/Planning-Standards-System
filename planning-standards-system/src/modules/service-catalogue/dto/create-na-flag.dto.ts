@@ -1,13 +1,13 @@
-import { IsString, IsOptional, IsUUID } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateNaFlagDto {
-  @ApiProperty()
-  @IsUUID()
-  period_id: string;
+    @ApiProperty()
+    @IsUUID()
+    period_id: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  reason?: string;
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty({ message: 'reason is required and cannot be blank' })
+    reason: string;
 }

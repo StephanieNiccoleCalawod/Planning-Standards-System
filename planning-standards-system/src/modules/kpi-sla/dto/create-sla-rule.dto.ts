@@ -15,9 +15,6 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkScheduleType } from '../enums';
 
-/**
- * Custom validator: warn_threshold_pct must be less than overdue_threshold_pct
- */
 @ValidatorConstraint({ name: 'warnLessThanOverdue', async: false })
 class WarnLessThanOverdueConstraint implements ValidatorConstraintInterface {
   validate(_value: any, args: ValidationArguments): boolean {

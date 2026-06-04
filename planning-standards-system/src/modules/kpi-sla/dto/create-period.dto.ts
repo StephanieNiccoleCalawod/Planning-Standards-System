@@ -11,9 +11,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { PeriodType } from '../enums';
 
-/**
- * Custom validator: start_date must be before end_date
- */
+
 @ValidatorConstraint({ name: 'startBeforeEnd', async: false })
 class StartBeforeEndConstraint implements ValidatorConstraintInterface {
   validate(_value: any, args: ValidationArguments): boolean {

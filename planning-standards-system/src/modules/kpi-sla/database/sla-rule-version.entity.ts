@@ -9,11 +9,6 @@ import {
 import { SlaRule } from './sla-rule.entity';
 import { WorkScheduleType } from '../enums';
 
-/**
- * Snapshot of SLA rule state before each update.
- * Captures the complete set of mutable fields so the full history
- * of configuration changes can be reconstructed.
- */
 @Entity('sla_rule_version')
 export class SlaRuleVersion {
   @PrimaryGeneratedColumn('uuid')
@@ -41,7 +36,6 @@ export class SlaRuleVersion {
   @Column({ type: 'int' })
   warn_threshold_pct: number;
 
-  /** Previously missing from version snapshots — now captured */
   @Column({ type: 'int' })
   overdue_threshold_pct: number;
 

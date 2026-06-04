@@ -2,13 +2,6 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Forbi
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
-/**
- * Verifies the JWT issued by auth-service (ARMS).
- * Extracts `office` and `sub` claims and attaches to req.user.
- *
- * Mock mode: if JWT_SECRET is not set, falls back to mock values
- * so you can test without auth-service running.
- */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
@@ -21,7 +14,6 @@ export class JwtAuthGuard implements CanActivate {
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
     const mockEnabled = this.config.get<string>('MOCK_JWT_ENABLED') === 'true';
 
-    // ── MOCK MODE (if explicitly enabled or no secret in dev) ─────────────
     if (!isProd && (mockEnabled || !secret)) {
       const role = this.config.get<string>('MOCK_JWT_ROLE') || req.headers['x-mock-role'] || 'Admin';
       req.user = {
@@ -30,7 +22,6 @@ export class JwtAuthGuard implements CanActivate {
         role,
       };
     } else {
-      // ── PRODUCTION MODE ───────────────────────────────────────────────────
       if (!authHeader?.startsWith('Bearer ')) {
         throw new UnauthorizedException('Missing or invalid Authorization header');
       }
@@ -41,14 +32,13 @@ export class JwtAuthGuard implements CanActivate {
         req.user = {
           sub:    payload.sub,
           office: payload.office,
-          role:   payload.role || 'Admin', // default to Admin if not in payload
+          role:   payload.role || 'Admin',
         };
       } catch {
         throw new UnauthorizedException('Invalid or expired token');
       }
     }
 
-    // Role-based read-only enforcement
     if (req.user.role === 'Staff' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       throw new ForbiddenException('Staff members have read-only access');
     }

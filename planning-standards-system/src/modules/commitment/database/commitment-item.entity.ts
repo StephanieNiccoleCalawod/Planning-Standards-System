@@ -10,13 +10,6 @@ import {
 import { Commitment } from './commitment.entity';
 import { CommitmentItemUnit } from '../enums';
 
-/**
- * A single line-item inside a commitment form.
- *
- * IMPORTANT: service_id and kpi_id are NOT database-level FKs because
- * SERVICE lives in service-catalogue and KPI lives in kpi-sla.
- * Referential integrity is enforced at the application layer via HTTP.
- */
 @Entity('commitment_item')
 export class CommitmentItem {
   @PrimaryGeneratedColumn('uuid')
@@ -30,18 +23,10 @@ export class CommitmentItem {
   @Column()
   commitment_id: string;
 
-  /**
-   * References a SERVICE in the service-catalogue microservice.
-   * Validated via API call — no database FK across services.
-   */
   @Index('idx_commitment_item_service')
   @Column()
   service_id: string;
 
-  /**
-   * References a KPI in the kpi-sla microservice.
-   * Validated via API call — no database FK across services.
-   */
   @Index('idx_commitment_item_kpi')
   @Column()
   kpi_id: string;
