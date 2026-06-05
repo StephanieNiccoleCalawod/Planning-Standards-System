@@ -3,6 +3,7 @@ import {
     NotFoundException,
     ConflictException,
     BadRequestException,
+    ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -391,9 +392,14 @@ export class KpiSlaService {
         return this.periodRepo.save(period);
     }
 
-    async closePeriod(id: string, office: string): Promise<EvaluationPeriod> {
+    
+    async completePeriod(id: string, office: string): Promise<EvaluationPeriod> {
         const period = await this.periodRepo.findOne({ where: { id, office } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
+
+        if (period.status !== PeriodStatus.OPEN) {
+            throw new ForbiddenException('Only OPEN periods can be marked as completed.');
+        }
 
         period.status = PeriodStatus.CLOSED;
         await this.periodRepo.save(period);
@@ -411,11 +417,17 @@ export class KpiSlaService {
         return period;
     }
 
+  
     async removePeriod(id: string, office: string): Promise<{ message: string }> {
         const period = await this.periodRepo.findOne({ where: { id, office } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
+
+        if (period.status !== PeriodStatus.QUEUED) {
+            throw new ForbiddenException('Only QUEUED periods can be deleted.');
+        }
+
         period.is_active = false;
         await this.periodRepo.save(period);
-        return { message: `Period ${id} deactivated` };
+        return { message: `Period ${id} deleted` };
     }
 }

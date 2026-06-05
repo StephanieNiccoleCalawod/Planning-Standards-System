@@ -185,15 +185,15 @@ export class KpiSlaController {
         return this.svc.updatePeriod(id, office, dto);
     }
 
-    @Patch('periods/:id/close')
-    @ApiOperation({ summary: 'Close an evaluation period (auto-activates next QUEUED period)' })
-    closePeriod(@Request() req, @Param('id') id: string) {
+    @Patch('periods/:id/complete')
+    @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed — auto-activates next QUEUED period' })
+    completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
-        return this.svc.closePeriod(id, office);
+        return this.svc.completePeriod(id, office);
     }
 
     @Delete('periods/:id')
-    @ApiOperation({ summary: 'Delete an evaluation period' })
+    @ApiOperation({ summary: 'Delete a QUEUED evaluation period' })
     removePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removePeriod(id, office);
