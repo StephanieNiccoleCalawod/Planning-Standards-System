@@ -10,6 +10,7 @@ import { EvaluationPeriod } from './database/evaluation-period.entity';
 import { KpiSlaController } from './controller/kpi-sla.controller';
 import { KpiSlaService } from './service/kpi-sla.service';
 import { PhHolidayService } from './service/ph-holiday.service';
+import { HolidaySeederService } from './service/holiday-seeder.service';
 
 @Module({
     imports: [
@@ -34,6 +35,6 @@ import { PhHolidayService } from './service/ph-holiday.service';
         TypeOrmModule.forFeature([Kpi, SlaRule, SlaRuleVersion, Holiday, EvaluationPeriod], 'kpi_sla_db'),
     ],
     controllers: [KpiSlaController],
-    providers: [KpiSlaService, PhHolidayService],
+    providers: [KpiSlaService, PhHolidayService, HolidaySeederService],
 })
 export class AppModule { }
