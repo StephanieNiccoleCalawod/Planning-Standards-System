@@ -60,6 +60,36 @@ export class KpiSlaService {
         }
     }
 
+    private computeWarningLevel(endDate: string): {
+        days_until_end: number;
+        warning_level: 'none' | 'warning' | 'due' | 'overdue';
+        warning_message: string | null;
+    } {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+        const diffMs = end.getTime() - today.getTime();
+        const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        if (days > 7) return { days_until_end: days, warning_level: 'none', warning_message: null };
+        if (days > 0) return {
+            days_until_end: days,
+            warning_level: 'warning',
+            warning_message: `This period ends in ${days} day${days !== 1 ? 's' : ''}. Please prepare to close it.`,
+        };
+        if (days === 0) return {
+            days_until_end: 0,
+            warning_level: 'due',
+            warning_message: 'This period has reached its end date. Are you ready to mark it as completed?',
+        };
+        return {
+            days_until_end: days,
+            warning_level: 'overdue',
+            warning_message: `OVERDUE — Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
+        };
+    }
+
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
         const existing = await this.kpiRepo.findOne({
             where: {
@@ -243,18 +273,23 @@ export class KpiSlaService {
     async findAllHolidays(
         filters: { month?: number; year?: number; type?: string },
         pagination: PaginationDto = new PaginationDto(),
-    ): Promise<{ data: Holiday[]; total: number; page: number; limit: number }> {
+    ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
         const query = this.holidayRepo.createQueryBuilder('h');
 
         if (filters.month) query.andWhere('EXTRACT(MONTH FROM h.holiday_date::date) = :month', { month: filters.month });
         if (filters.year) query.andWhere('EXTRACT(YEAR FROM h.holiday_date::date) = :year', { year: filters.year });
         if (filters.type) query.andWhere('h.type = :type', { type: filters.type });
 
-        const [data, total] = await query
-            .orderBy('h.holiday_date', pagination.sort_order === 'DESC' ? 'DESC' : 'ASC')
+        const [holidays, total] = await query
+            .orderBy('h.holiday_date', 'ASC')
             .skip((pagination.page - 1) * pagination.limit)
             .take(pagination.limit)
             .getManyAndCount();
+
+        const data = holidays.map(h => ({
+            ...h,
+            date: h.holiday_date,
+        }));
 
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
@@ -272,7 +307,6 @@ export class KpiSlaService {
         await this.holidayRepo.delete(id);
         return { message: `Holiday ${id} removed` };
     }
-
 
     async createPeriod(office: string, actor: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
         if (new Date(dto.start_date) >= new Date(dto.end_date)) {
@@ -312,21 +346,42 @@ export class KpiSlaService {
     async findAllPeriods(
         office: string,
         pagination: PaginationDto = new PaginationDto(),
-    ): Promise<{ data: EvaluationPeriod[]; total: number; page: number; limit: number }> {
-        const [data, total] = await this.periodRepo.findAndCount({
+    ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+        const [periods, total] = await this.periodRepo.findAndCount({
             where: { office, is_active: true },
             order: { start_date: pagination.sort_order === 'ASC' ? 'ASC' : 'DESC' },
             skip: (pagination.page - 1) * pagination.limit,
             take: pagination.limit,
         });
 
+        const data = periods.map(p => ({
+            ...p,
+            ...this.computeWarningLevel(p.end_date),
+        }));
+
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async findOnePeriod(id: string): Promise<EvaluationPeriod> {
+    async findOnePeriod(id: string): Promise<any> {
         const period = await this.periodRepo.findOne({ where: { id } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
-        return period;
+        return {
+            ...period,
+            ...this.computeWarningLevel(period.end_date),
+        };
+    }
+
+    async getPeriodWarnings(office: string): Promise<any[]> {
+        const periods = await this.periodRepo.find({
+            where: { office, status: PeriodStatus.OPEN, is_active: true },
+        });
+
+        return periods
+            .map(p => ({
+                ...p,
+                ...this.computeWarningLevel(p.end_date),
+            }))
+            .filter(p => p.warning_level !== 'none');
     }
 
     async updatePeriod(id: string, office: string, dto: UpdatePeriodDto): Promise<EvaluationPeriod> {

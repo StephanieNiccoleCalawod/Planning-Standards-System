@@ -165,6 +165,13 @@ export class KpiSlaController {
         return this.svc.findAllPeriods(office, pagination);
     }
 
+    @Get('periods/warnings')
+    @ApiOperation({ summary: 'Get OPEN periods with warning/due/overdue status for dashboard banner' })
+    getPeriodWarnings(@Request() req) {
+        const office = req.user?.office ?? 'mock-office';
+        return this.svc.getPeriodWarnings(office);
+    }
+
     @Get('periods/:id')
     @ApiOperation({ summary: 'Get a single evaluation period by ID' })
     findOnePeriod(@Param('id') id: string) {
