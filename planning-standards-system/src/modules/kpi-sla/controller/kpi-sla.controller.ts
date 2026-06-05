@@ -35,8 +35,6 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 export class KpiSlaController {
     constructor(private readonly svc: KpiSlaService) { }
 
-    // ─── KPI ────────────────────────────────────────────────────────────────
-
     @Post('kpis')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create a KPI' })
@@ -74,8 +72,6 @@ export class KpiSlaController {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removeKpi(id, office);
     }
-
-    // ─── SLA Rules ──────────────────────────────────────────────────────────
 
     @Post('sla-rules')
     @HttpCode(HttpStatus.CREATED)
@@ -120,8 +116,6 @@ export class KpiSlaController {
         return this.svc.restoreSlaVersion(id, versionId, office, actor);
     }
 
-    // ─── Holidays ───────────────────────────────────────────────────────────
-
     @Post('holidays')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Add a holiday' })
@@ -153,15 +147,6 @@ export class KpiSlaController {
         return this.svc.removeHoliday(id);
     }
 
-    @Post('holidays/sync/:year')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Sync Philippine public holidays from Nager-Date API for a given year' })
-    syncPhHolidays(@Param('year') year: string) {
-        return this.svc.syncPhHolidays(Number(year));
-    }
-
-    // ─── Evaluation Periods ─────────────────────────────────────────────────
-
     @Post('periods')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create an evaluation period' })
@@ -181,7 +166,7 @@ export class KpiSlaController {
     }
 
     @Get('periods/:id')
-    @ApiOperation({ summary: 'Get a single evaluation period by ID (includes soft-deleted — for ARMS compatibility)' })
+    @ApiOperation({ summary: 'Get a single evaluation period by ID' })
     findOnePeriod(@Param('id') id: string) {
         return this.svc.findOnePeriod(id);
     }

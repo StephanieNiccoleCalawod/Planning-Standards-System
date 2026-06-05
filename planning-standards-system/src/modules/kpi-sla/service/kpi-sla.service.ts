@@ -24,7 +24,6 @@ import { UpdateHolidayDto } from '../dto/update-holiday.dto';
 import { CreatePeriodDto } from '../dto/create-period.dto';
 import { UpdatePeriodDto } from '../dto/update-period.dto';
 import { PaginationDto } from '../dto/pagination.dto';
-import { PhHolidayService } from './ph-holiday.service';
 
 @Injectable()
 export class KpiSlaService {
@@ -46,7 +45,6 @@ export class KpiSlaService {
 
         private readonly http: HttpService,
         private readonly config: ConfigService,
-        private readonly phHolidayService: PhHolidayService,
     ) { }
 
     private async validateServiceExists(service_id: string, office: string): Promise<void> {
@@ -275,36 +273,6 @@ export class KpiSlaService {
         return { message: `Holiday ${id} removed` };
     }
 
-    async syncPhHolidays(year: number): Promise<{ synced: number; skipped: number }> {
-        const phHolidays = await this.phHolidayService.fetchPhHolidays(year);
-
-        let synced = 0;
-        let skipped = 0;
-
-        for (const h of phHolidays) {
-            const holidayName = h.name;
-            const exists = await this.holidayRepo.findOne({
-                where: { holiday_date: h.date, name: holidayName },
-            });
-
-            if (exists) {
-                skipped++;
-                continue;
-            }
-
-            await this.holidayRepo.save(
-                this.holidayRepo.create({
-                    holiday_date: h.date,
-                    name: holidayName,
-                    type: this.phHolidayService.mapToHolidayType(h.types),
-                    is_recurring: h.fixed,
-                }),
-            );
-            synced++;
-        }
-
-        return { synced, skipped };
-    }
 
     async createPeriod(office: string, actor: string, dto: CreatePeriodDto): Promise<EvaluationPeriod> {
         if (new Date(dto.start_date) >= new Date(dto.end_date)) {
