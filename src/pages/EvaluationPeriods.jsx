@@ -1,4 +1,4 @@
-﻿
+
 
 
 
@@ -61,6 +61,7 @@ export default function EvaluationPeriods() {
 
     const [showAdd, setShowAdd] = useState(false);
     const [closingPeriod, setClosingPeriod] = useState(null);
+    const [deletingPeriod, setDeletingPeriod] = useState(null);
 
     // Add Form states
     const [name, setName] = useState("");
@@ -160,15 +161,16 @@ export default function EvaluationPeriods() {
         }
     };
 
-    const handleDelete = async (period, e) => {
-        e.stopPropagation();
+    const handleDeleteConfirm = async () => {
+        if (!deletingPeriod) return;
         try {
-            await deletePeriod(period.id);
+            await deletePeriod(deletingPeriod.id);
             setResultModal({
                 type: "success",
                 title: "Success",
-                message: "Evaluation period deleted successfully."
+                message: `Evaluation period "${deletingPeriod.name}" deleted successfully.`
             });
+            setDeletingPeriod(null);
         } catch (err) {
             console.error(err);
             setResultModal({
@@ -271,7 +273,7 @@ export default function EvaluationPeriods() {
                                                     <Tooltip title="Delete Period">
                                                         <IconButton
                                                             size="small"
-                                                            onClick={(e) => handleDelete(p, e)}
+                                                            onClick={(e) => { e.stopPropagation(); setDeletingPeriod(p); }}
                                                             sx={{
                                                                 border: '1px solid #CBD5E1',
                                                                 borderRadius: 1.5,
@@ -419,6 +421,40 @@ export default function EvaluationPeriods() {
                         sx={{ bgcolor: '#D97706', '&:hover': { bgcolor: '#B45309' }, fontWeight: 600 }}
                     >
                         Yes, Close Period
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Deactivate Confirmation Modal */}
+            <Dialog
+                open={Boolean(deletingPeriod)}
+                onClose={() => setDeletingPeriod(null)}
+                fullWidth
+                maxWidth="xs"
+                PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+            >
+                <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
+                    Deactivate Evaluation Period?
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        Are you sure you want to deactivate the evaluation period{" "}
+                        <span style={{ fontWeight: 700, color: '#0F172A' }}>"{deletingPeriod?.name}"</span>?
+                        <br />
+                        <br />
+                        Deactivating this period will hide it from the active registry. This action can be undone if needed.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2, pt: 1, gap: 1 }}>
+                    <Button variant="outlined" color="inherit" onClick={() => setDeletingPeriod(null)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleDeleteConfirm}
+                        sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#B91C1C' }, fontWeight: 600, textTransform: 'none' }}
+                    >
+                        Deactivate
                     </Button>
                 </DialogActions>
             </Dialog>

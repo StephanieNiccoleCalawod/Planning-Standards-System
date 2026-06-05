@@ -297,10 +297,10 @@ export const useAppStore = create((set, get) => ({
   },
 
   // Holidays CRUD Actions
-  fetchHolidays: async () => {
+  fetchHolidays: async (params = {}) => {
     set({ loadingHolidays: true });
     try {
-      const res = await api.getHolidays();
+      const res = await api.getHolidays({ limit: 100, ...params });
       const holidaysArray = res?.data || [];
 
       const formatted = holidaysArray.map(h => ({
@@ -486,7 +486,7 @@ export const useAppStore = create((set, get) => ({
       throw err;
     }
   },
-  
+
   clearActiveCommitment: () => set({ activeCommitment: null }),
 
   setUserRole: (role) => {

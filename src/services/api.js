@@ -19,11 +19,11 @@ async function request(url, options = {}) {
     try {
       const errBody = await response.json();
       if (errBody?.message) {
-        errorMsg = Array.isArray(errBody.message) 
-          ? errBody.message.join(', ') 
+        errorMsg = Array.isArray(errBody.message)
+          ? errBody.message.join(', ')
           : errBody.message;
       }
-    } catch (_) {}
+    } catch (_) { }
     throw new Error(errorMsg);
   }
 

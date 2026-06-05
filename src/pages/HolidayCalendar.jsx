@@ -256,7 +256,7 @@ export default function HolidayCalendar() {
     const existing = registryGroups.find(g => g.name.toLowerCase() === h.name.toLowerCase() && g.type === h.type);
     const d = new Date(h.date);
     const y = d.getFullYear();
-    
+
     if (existing) {
       existing.years.push(y);
       existing.records.push(h);
@@ -354,9 +354,9 @@ export default function HolidayCalendar() {
       {/* ── Main Layout ── */}
       <Box sx={{ display: "flex", gap: 3, flexWrap: { xs: "wrap", md: "nowrap" }, width: "100%", mt: 1 }}>
         {/* ══ Sidebar Panel ══ */}
-        <Box sx={{ 
-          flex: { xs: "1 1 100%", md: "0 0 calc(33.333333% - 12px)" }, 
-          minWidth: 0, 
+        <Box sx={{
+          flex: { xs: "1 1 100%", md: "0 0 calc(33.333333% - 12px)" },
+          minWidth: 0,
           width: "100%",
           order: { xs: 2, md: 1 }
         }}>
@@ -574,9 +574,9 @@ export default function HolidayCalendar() {
         </Box>
 
         {/* ══ Calendar Panel ══ */}
-        <Box sx={{ 
-          flex: { xs: "1 1 100%", md: "0 0 calc(66.666667% - 12px)" }, 
-          minWidth: 0, 
+        <Box sx={{
+          flex: { xs: "1 1 100%", md: "0 0 calc(66.666667% - 12px)" },
+          minWidth: 0,
           width: "100%",
           order: { xs: 1, md: 2 }
         }}>

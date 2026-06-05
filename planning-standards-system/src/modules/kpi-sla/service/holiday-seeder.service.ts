@@ -12,13 +12,13 @@ export class HolidaySeederService implements OnApplicationBootstrap {
         const startYear = currentYear - 3;
         const endYear = currentYear + 3;
 
-        this.logger.log(`Starting holiday auto-sync for years ${startYear}–${endYear}...`);
+        this.logger.log(`Starting holiday auto-sync for years ${startYear} to ${endYear}...`);
 
         for (let year = startYear; year <= endYear; year++) {
             try {
                 const result = await this.phHolidayService.syncPhHolidays(year);
                 this.logger.log(
-                    `${year} — synced: ${result.synced}, skipped: ${result.skipped}`,
+                    `${year} - synced: ${result.synced}, skipped: ${result.skipped}`,
                 );
             } catch (err) {
                 this.logger.error(`Holiday sync failed for ${year}`, String(err));
