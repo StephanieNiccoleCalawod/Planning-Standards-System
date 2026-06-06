@@ -184,9 +184,12 @@ export default function HolidayCalendar() {
       return;
     }
 
+    const [yearPart, monthPart, dayPart] = date.split('-').map(Number);
     const payload = {
       name,
-      holiday_date: date,
+      month: monthPart,
+      day: dayPart,
+      year: yearPart,
       type: mapTypeToBackend(type),
       is_recurring: isRecurring
     };

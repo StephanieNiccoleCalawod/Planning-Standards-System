@@ -5,7 +5,7 @@ import { PaginationDto } from './pagination.dto';
 import { HolidayType } from '../enums';
 
 export class GetHolidaysQueryDto extends PaginationDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Filter by month (1-12)' })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -13,7 +13,7 @@ export class GetHolidaysQueryDto extends PaginationDto {
   @Max(12)
   month?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Filter by year (null = every-year holidays)' })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -26,3 +26,4 @@ export class GetHolidaysQueryDto extends PaginationDto {
   @IsEnum(HolidayType)
   type?: string;
 }
+
