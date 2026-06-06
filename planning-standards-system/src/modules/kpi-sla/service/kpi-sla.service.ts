@@ -87,7 +87,7 @@ export class KpiSlaService {
         return {
             days_until_end: days,
             warning_level: 'overdue',
-            warning_message: `OVERDUE � Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
+            warning_message: `OVERDUE – Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
         };
     }
 
@@ -306,10 +306,12 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
+        // ✅ FIXED: Check overlap against ALL statuses (OPEN, QUEUED, CLOSED)
+        // Previously only checked OPEN periods, allowing new periods to be created
+        // with dates that overlap a CLOSED (completed) period.
         const overlapping = await this.periodRepo
             .createQueryBuilder('p')
             .where('p.office = :office', { office })
-            .andWhere('p.status = :status', { status: PeriodStatus.OPEN })
             .andWhere('p.is_active = true')
             .andWhere('p.start_date <= :end', { end: dto.end_date })
             .andWhere('p.end_date >= :start', { start: dto.start_date })
@@ -317,7 +319,7 @@ export class KpiSlaService {
 
         if (overlapping) {
             throw new ConflictException(
-                `Selected dates overlap with an existing OPEN period "${overlapping.name}". Please choose dates after the existing period ends.`,
+                `Selected dates overlap with an existing ${overlapping.status} period "${overlapping.name}". Please choose non-overlapping dates.`,
             );
         }
 
@@ -384,7 +386,6 @@ export class KpiSlaService {
         return this.periodRepo.save(period);
     }
 
-    
     async completePeriod(id: string, office: string): Promise<EvaluationPeriod> {
         const period = await this.periodRepo.findOne({ where: { id, office } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
@@ -409,7 +410,6 @@ export class KpiSlaService {
         return period;
     }
 
-  
     async removePeriod(id: string, office: string): Promise<{ message: string }> {
         const period = await this.periodRepo.findOne({ where: { id, office } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
