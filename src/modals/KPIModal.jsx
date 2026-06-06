@@ -68,10 +68,10 @@ export default function KPIModal({
             fullWidth
             value={name}
             error={!!errors.name}
-            helperText={errors.name ? 'KPI Name is required.' : ''}
+            helperText={errors.name || ''}
             onChange={(e) => {
               setName(e.target.value);
-              setErrors(prev => ({ ...prev, name: false }));
+              setErrors(prev => ({ ...prev, name: '' }));
             }}
             variant="outlined"
             size="small"
@@ -87,6 +87,7 @@ export default function KPIModal({
             onChange={(e) => {
               const newCat = e.target.value;
               setCategory(newCat);
+              setErrors({});
               if (newCat === 'Quality') {
                 setUnit('%');
               } else {
@@ -107,13 +108,14 @@ export default function KPIModal({
                 label="Target Value"
                 placeholder="e.g. 95"
                 type="number"
-                inputProps={{ step: 'any', min: 0 }}
+                inputProps={{ step: 'any', min: 0, max: 100 }}
                 required
                 value={target}
                 error={!!errors.target}
+                helperText={errors.target || ''}
                 onChange={(e) => {
                   setTarget(e.target.value);
-                  setErrors(prev => ({ ...prev, target: false }));
+                  setErrors(prev => ({ ...prev, target: '' }));
                 }}
                 size="small"
               />
@@ -141,7 +143,7 @@ export default function KPIModal({
                   error={!!errors.target}
                   onChange={(e) => {
                     setTargetDays(e.target.value);
-                    setErrors(prev => ({ ...prev, target: false }));
+                    setErrors(prev => ({ ...prev, target: '' }));
                   }}
                   size="small"
                 />
@@ -154,7 +156,7 @@ export default function KPIModal({
                   error={!!errors.target}
                   onChange={(e) => {
                     setTargetHours(e.target.value);
-                    setErrors(prev => ({ ...prev, target: false }));
+                    setErrors(prev => ({ ...prev, target: '' }));
                   }}
                   size="small"
                 />
@@ -167,14 +169,14 @@ export default function KPIModal({
                   error={!!errors.target}
                   onChange={(e) => {
                     setTargetMins(e.target.value);
-                    setErrors(prev => ({ ...prev, target: false }));
+                    setErrors(prev => ({ ...prev, target: '' }));
                   }}
                   size="small"
                 />
               </Box>
               {errors.target && (
                 <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 500 }}>
-                  At least one target duration (Days, Hours, or Minutes) is required.
+                  {errors.target}
                 </Typography>
               )}
             </Box>
@@ -188,10 +190,10 @@ export default function KPIModal({
             fullWidth
             value={serviceId}
             error={!!errors.serviceId}
-            helperText={errors.serviceId ? 'Please link a Service Charter.' : ''}
+            helperText={errors.serviceId || ''}
             onChange={(e) => {
               setServiceId(e.target.value);
-              setErrors(prev => ({ ...prev, serviceId: false }));
+              setErrors(prev => ({ ...prev, serviceId: '' }));
             }}
             size="small"
           >

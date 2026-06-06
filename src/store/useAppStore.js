@@ -316,14 +316,26 @@ export const useAppStore = create((set, get) => ({
       const displayYear = params.year || new Date().getFullYear();
 
       const formatted = holidaysArray.map(h => {
-        const y = h.year ?? displayYear;
-        const mm = String(h.month).padStart(2, '0');
-        const dd = String(h.day).padStart(2, '0');
+        let dateVal = "";
+        if (h.month !== undefined && h.day !== undefined && h.month !== null && h.day !== null) {
+          const y = h.year ?? displayYear;
+          const mm = String(h.month).padStart(2, '0');
+          const dd = String(h.day).padStart(2, '0');
+          dateVal = `${y}-${mm}-${dd}`;
+        } else if (h.holiday_date) {
+          dateVal = h.holiday_date.split('T')[0];
+        } else if (h.date) {
+          dateVal = h.date.split('T')[0];
+        } else {
+          // fallback to display year
+          dateVal = `${displayYear}-01-01`;
+        }
+
         return {
           ...h,
           id: h.id,
           name: h.name,
-          date: `${y}-${mm}-${dd}`,
+          date: dateVal,
           type: mapHolidayTypeToFrontend(h.type),
           is_recurring: h.is_recurring
         };

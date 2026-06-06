@@ -152,17 +152,67 @@ export default function KPIStandards() {
     e.preventDefault();
 
     const err = {};
-    if (!name.trim()) err.name = true;
-    if (!serviceId) err.serviceId = true;
+    if (!name.trim()) {
+      err.name = "KPI Name is required.";
+    }
+
+    if (!serviceId) {
+      err.serviceId = "Please link a Service Charter.";
+    }
 
     const isTimeCategory = category === "Timeliness" || category === "Efficiency";
-    const hasTimeValue = targetDays.toString().trim() || targetHours.toString().trim() || targetMins.toString().trim();
-    if (isTimeCategory && !hasTimeValue) err.target = true;
-    if (!isTimeCategory && !target.toString().trim()) err.target = true;
+    if (isTimeCategory) {
+      const dStr = targetDays.toString().trim();
+      const hStr = targetHours.toString().trim();
+      const mStr = targetMins.toString().trim();
+
+      if (!dStr && !hStr && !mStr) {
+        err.target = "At least one target duration (Days, Hours, or Minutes) is required.";
+      } else {
+        const daysVal = Number(targetDays) || 0;
+        const hoursVal = Number(targetHours) || 0;
+        const minsVal = Number(targetMins) || 0;
+
+        if (daysVal < 0 || hoursVal < 0 || minsVal < 0) {
+          err.target = "Target duration values cannot be negative.";
+        } else if (hoursVal > 23) {
+          err.target = "Hours must be between 0 and 23.";
+        } else if (minsVal > 59) {
+          err.target = "Minutes must be between 0 and 59.";
+        } else if (daysVal === 0 && hoursVal === 0 && minsVal === 0) {
+          err.target = "Total target duration must be greater than 0 minutes.";
+        }
+      }
+    } else {
+      const valStr = target.toString().trim();
+      if (!valStr) {
+        err.target = "Target Value is required.";
+      } else {
+        const val = Number(target);
+        if (isNaN(val)) {
+          err.target = "Target Value must be a valid number.";
+        } else if (val < 0 || val > 100) {
+          err.target = "Target Value must be a percentage between 0% and 100%.";
+        }
+      }
+    }
+
+    // Uniqueness validation: A service cannot have more than one active KPI of the same category
+    if (serviceId) {
+      const isDuplicate = kpis.some(k => 
+        k.service_id === serviceId && 
+        k.category === category && 
+        k.active && 
+        k.id !== editingKpi?.id
+      );
+      if (isDuplicate) {
+        err.serviceId = `An active KPI Target with category "${category}" already exists for the selected Service Charter.`;
+      }
+    }
 
     if (Object.keys(err).length > 0) {
       setErrors(err);
-      triggerSnackbar("Please fill in all required fields.", "error");
+      triggerSnackbar("Please resolve the validation errors before saving.", "error");
       return;
     }
 

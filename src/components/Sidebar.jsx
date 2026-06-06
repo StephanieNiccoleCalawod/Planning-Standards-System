@@ -29,14 +29,7 @@ const NAV_TREE = [
       { key: "opcrCommitments", label: "OPCR Commitments", routeKey: "opcrCommitments", icon: "file" },
     ],
   },
-  {
-    section: "System",
-    items: [
-      { key: "users", label: "Users", routeKey: "users", icon: "users" },
-      { key: "officeSettings", label: "Office Settings", routeKey: "officeSettings", icon: "settings" },
-      { key: "versionHistory", label: "Version History", routeKey: "versionHistory", icon: "history" },
-    ],
-  },
+
 ];
 
 const ICONS = {
@@ -89,25 +82,7 @@ const ICONS = {
       <line x1="8" y1="18" x2="13" y2="18" />
     </svg>
   ),
-  users: (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  ),
-  settings: (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
-  history: (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="18" x2="15" y2="18" />
-    </svg>
-  ),
+
 };
 
 export default function Sidebar({ active, setActive, isOpen, onClose }) {
@@ -324,7 +299,7 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             </div>
           ))}
         </div>
-  
+
         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(0, 0, 0, 0.1)' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)', marginBottom: 6, letterSpacing: '0.05em' }}>
             CHANGE ROLE
@@ -347,16 +322,6 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             <option value="Admin" style={{ background: '#1a1a2e', color: '#fff' }}>Admin</option>
             <option value="Staff" style={{ background: '#1a1a2e', color: '#fff' }}>Staff</option>
           </select>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="sidebar-avatar">A</div>
-            <div>
-              <div className="sidebar-user-name">Admin</div>
-              <div className="sidebar-user-role">Administrative System</div>
-            </div>
-          </div>
         </div>
       </div>
     </>

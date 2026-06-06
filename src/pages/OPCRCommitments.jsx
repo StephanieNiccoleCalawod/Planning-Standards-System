@@ -15,10 +15,12 @@ import {
   IconButton,
   Tooltip
 } from "@mui/material";
-import { Add as AddIcon, Edit as EditIcon, Visibility as VisibilityIcon } from "@mui/icons-material";
+import { Add as AddIcon, Edit as EditIcon } from "@mui/icons-material";
 import { useAppStore } from "../store/useAppStore";
 import PageHeader from "../components/PageHeader";
 import CommitmentWizardModal from "../modals/CommitmentWizardModal";
+import ViewCommitmentDetail from "./ViewCommitmentDetail";
+import ResultModal from "../modals/ResultModal";
 
 export default function OPCRCommitments() {
   const {
@@ -32,6 +34,9 @@ export default function OPCRCommitments() {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedCommitmentId, setSelectedCommitmentId] = useState(null);
   const [wizardReadOnly, setWizardReadOnly] = useState(false);
+  const [showViewDetails, setShowViewDetails] = useState(false);
+  const [viewCommitmentId, setViewCommitmentId] = useState(null);
+  const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
 
   const isStaff = userRole === 'Staff';
 
@@ -44,6 +49,18 @@ export default function OPCRCommitments() {
     const p = periods.find(p => p.id === periodId);
     return p ? p.name : "Unknown Period";
   };
+
+  if (showViewDetails && viewCommitmentId) {
+    return (
+      <ViewCommitmentDetail
+        commitmentId={viewCommitmentId}
+        onBack={() => {
+          setShowViewDetails(false);
+          setViewCommitmentId(null);
+        }}
+      />
+    );
+  }
 
   return (
     <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
@@ -74,7 +91,7 @@ export default function OPCRCommitments() {
         <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+              <TableRow sx={{ bgcolor: '#F8FAFC', '& .MuiTableCell-root': { py: 1.5, whiteSpace: 'nowrap' } }}>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>PERIOD</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>STATUS</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>LAST UPDATED</TableCell>
@@ -96,7 +113,17 @@ export default function OPCRCommitments() {
                   const isLocked = c.status === "Locked";
 
                   return (
-                    <TableRow key={c.id}>
+                    <TableRow 
+                      key={c.id}
+                      hover
+                      sx={{
+                        '& .MuiTableCell-root': {
+                          py: 1.5,
+                          borderBottom: '1px solid #CBD5E1',
+                          boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
+                        }
+                      }}
+                    >
                       <TableCell sx={{ fontWeight: 700, color: '#1E293B' }}>{getPeriodName(c.period_id)}</TableCell>
                       <TableCell>
                         <Chip
@@ -112,26 +139,60 @@ export default function OPCRCommitments() {
                       </TableCell>
                       <TableCell sx={{ fontWeight: 500, color: 'text.secondary', fontSize: '0.85rem' }}>{updatedFmt}</TableCell>
                       <TableCell align="center">
-                        <Tooltip title={isLocked || isStaff ? "View Details" : "Edit Draft"}>
-                          <IconButton
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                          {!(isLocked || isStaff) && (
+                            <Tooltip title="Edit Draft" arrow>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => {
+                                  setSelectedCommitmentId(c.id);
+                                  setWizardReadOnly(false);
+                                  setShowWizard(true);
+                                }}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'rgba(25, 118, 210, 0.2)',
+                                  bgcolor: 'rgba(25, 118, 210, 0.04)',
+                                  '&:hover': {
+                                    bgcolor: 'rgba(25, 118, 210, 0.08)',
+                                  },
+                                  width: 30,
+                                  height: 30
+                                }}
+                              >
+                                <EditIcon sx={{ width: 15, height: 15 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          <Button
                             size="small"
                             onClick={() => {
-                              setSelectedCommitmentId(c.id);
-                              setWizardReadOnly(isLocked || isStaff);
-                              setShowWizard(true);
+                              setViewCommitmentId(c.id);
+                              setShowViewDetails(true);
                             }}
                             sx={{
-                              border: '1px solid',
-                              borderColor: 'rgba(25, 118, 210, 0.2)',
-                              bgcolor: 'rgba(25, 118, 210, 0.04)',
-                              color: 'primary.main',
-                              '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.08)' },
-                              width: 32, height: 32
+                              color: '#800000',
+                              fontWeight: 700,
+                              fontSize: '0.85rem',
+                              textTransform: 'none',
+                              minWidth: 'unset',
+                              width: 50,
+                              height: 30,
+                              px: 0,
+                              py: 0,
+                              borderRadius: '6px',
+                              lineHeight: 1,
+                              '&:hover': {
+                                bgcolor: 'rgba(128, 0, 0, 0.06)',
+                                color: '#990000',
+                              }
                             }}
                           >
-                            {isLocked || isStaff ? <VisibilityIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-                          </IconButton>
-                        </Tooltip>
+                            View
+                          </Button>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
@@ -147,12 +208,28 @@ export default function OPCRCommitments() {
           open={showWizard}
           commitmentId={selectedCommitmentId}
           readOnly={wizardReadOnly}
-          onClose={() => {
+          onClose={(saved) => {
             setShowWizard(false);
             setSelectedCommitmentId(null);
             setWizardReadOnly(false);
             fetchCommitments();
+            if (saved === true) {
+              setResultModal({
+                show: true,
+                type: "success",
+                title: "Draft Saved Successfully!",
+                message: "Your commitment draft has been saved successfully."
+              });
+            }
           }}
+        />
+      )}
+      {resultModal.show && (
+        <ResultModal
+          type={resultModal.type}
+          title={resultModal.title}
+          message={resultModal.message}
+          onClose={() => setResultModal(prev => ({ ...prev, show: false }))}
         />
       )}
     </Box>

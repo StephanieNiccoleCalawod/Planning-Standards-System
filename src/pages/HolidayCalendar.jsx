@@ -251,7 +251,9 @@ export default function HolidayCalendar() {
   const selectedKey = selectedDate ? toKey(currentYear, currentMonth, selectedDate) : null;
   const selectedHolidays = selectedKey ? (holidayMap[selectedKey] || []) : [];
 
-  const allHolidaysSorted = [...filteredHolidays].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const allHolidaysSorted = [...filteredHolidays]
+    .filter(h => h.date && !isNaN(new Date(h.date).getTime()))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // Group holidays by name for a clean, non-repetitive Holiday Registry view
   const registryGroups = [];
