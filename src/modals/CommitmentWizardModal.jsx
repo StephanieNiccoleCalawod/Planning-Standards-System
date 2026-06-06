@@ -123,21 +123,12 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
     }
   }, [open, loading, commitmentId, activeCommitment, commitments, periods]);
 
-  // Auto-save logic
-  useEffect(() => {
-    if (!open || !selectedPeriod || readOnly) return;
-
-    const timeoutId = setTimeout(() => {
-      saveDraft();
-    }, 2000); // Debounce 2 seconds after changes
-
-    return () => clearTimeout(timeoutId);
-  }, [selectedPeriod, selectedServices, kpiTargets]);
+  // Auto-save disabled by user request
 
   const saveDraft = async () => {
     if (!selectedPeriod) return;
     
-    setAutoSaveStatus("Saving...");
+    setAutoSaveStatus("Saving Draft...");
     
     // Build items array based on selected services and their kpis
     const items = [];
@@ -163,11 +154,11 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         });
         setDraftId(newDraft.id);
       }
-      setAutoSaveStatus("Saved");
+      setAutoSaveStatus("Draft Saved");
       setTimeout(() => setAutoSaveStatus(""), 3000);
     } catch (err) {
-      console.error("Auto-save failed", err);
-      setAutoSaveStatus("Save failed");
+      console.error("Save draft failed", err);
+      setAutoSaveStatus("Save Failed");
     }
   };
 
@@ -376,8 +367,27 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
         <DialogActions sx={{ p: 3, borderTop: '1px solid #E2E8F0' }}>
           <Button onClick={onClose} color="inherit" sx={{ mr: 'auto' }}>
-            {readOnly ? "Close" : "Close (Auto-saved)"}
+            Close
           </Button>
+          
+          {activeStep > 0 && !readOnly && (
+            <Button
+              variant="outlined"
+              onClick={saveDraft}
+              sx={{
+                color: '#800000',
+                borderColor: '#800000',
+                '&:hover': {
+                  bgcolor: 'rgba(128, 0, 0, 0.04)',
+                  borderColor: '#990000',
+                  color: '#990000'
+                },
+                fontWeight: 600
+              }}
+            >
+              Save as Draft
+            </Button>
+          )}
           
           <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined">
             Back
