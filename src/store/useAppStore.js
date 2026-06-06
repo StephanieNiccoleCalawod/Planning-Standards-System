@@ -370,7 +370,24 @@ export const useAppStore = create((set, get) => ({
         ...p
       }));
 
-      const sorted = formatted.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+      const sorted = formatted.sort((a, b) => {
+        const getPriority = (status) => {
+          if (status === "Open" || status === "Active") return 1;
+          if (status === "Queued") return 2;
+          return 3; // Closed / Completed
+        };
+        const priorityA = getPriority(a.status);
+        const priorityB = getPriority(b.status);
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        // If both are Queued, sort ascending (closest start date first)
+        if (a.status === "Queued") {
+          return new Date(a.start_date) - new Date(b.start_date);
+        }
+        // Otherwise (Closed/Completed or Active), sort descending (latest first)
+        return new Date(b.start_date) - new Date(a.start_date);
+      });
 
       set({ periods: sorted, loadingPeriods: false });
     } catch (err) {
