@@ -35,6 +35,7 @@ export default function SLAConfiguration() {
     fetchSlaRules,
     updateSlaRule,
     createSlaRule,
+    restoreSlaVersion,
     periods,
     fetchPeriods
   } = useAppStore();
@@ -46,6 +47,7 @@ export default function SLAConfiguration() {
   const [overdueThreshold, setOverdueThreshold] = useState(100);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [restoringVersion, setRestoringVersion] = useState(null);
   const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
@@ -272,6 +274,30 @@ export default function SLAConfiguration() {
         type: "error",
         title: "SLA Save Failure",
         message: err.message || "Failed to save the SLA configuration rules. Please verify your backend server state and database parameters."
+      });
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoringVersion || !activeRuleId) return;
+    try {
+      await restoreSlaVersion(activeRuleId, restoringVersion.id);
+      setRestoringVersion(null);
+      setResultModal({
+        show: true,
+        type: "success",
+        title: "Success",
+        message: "SLA compliance rules version restored successfully!"
+      });
+      await loadData();
+    } catch (err) {
+      console.error("Failed to restore SLA version:", err);
+      setRestoringVersion(null);
+      setResultModal({
+        show: true,
+        type: "error",
+        title: "Error",
+        message: err.message || "Failed to restore SLA compliance rules version"
       });
     }
   };
@@ -529,12 +555,38 @@ export default function SLAConfiguration() {
                       }} />
 
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                            Version {versionNumber}
-                          </Typography>
-                          {item.is_active_rule && (
-                            <Chip label="Active" size="small" color="success" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase' }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                              Version {versionNumber}
+                            </Typography>
+                            {item.is_active_rule && (
+                              <Chip label="Active" size="small" color="success" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase' }} />
+                            )}
+                          </Box>
+                          {!item.is_active_rule && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => setRestoringVersion(item)}
+                              sx={{
+                                color: '#800000',
+                                borderColor: '#800000',
+                                '&:hover': {
+                                  bgcolor: 'rgba(128, 0, 0, 0.04)',
+                                  borderColor: '#800000'
+                                },
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                                borderRadius: 2,
+                                py: 0.25,
+                                px: 1.5,
+                                height: 26
+                              }}
+                            >
+                              Restore
+                            </Button>
                           )}
                         </Box>
 
@@ -618,6 +670,28 @@ export default function SLAConfiguration() {
         confirmLabel="Yes, Publish New Version"
         onConfirm={handleConfirmSave}
         onCancel={() => setShowConfirm(false)}
+      />
+
+      {/* ── Restore Confirmation Modal ── */}
+      <ConfirmModal
+        open={Boolean(restoringVersion)}
+        title={`Restore Version ${restoringVersion ? history.length - history.indexOf(restoringVersion) : ""}?`}
+        subtitle="This action will restore a previous configuration version"
+        body={
+          <>
+            Are you sure you want to restore{" "}
+            <span style={{ color: '#0F172A', fontWeight: '700' }}>Version {restoringVersion ? history.length - history.indexOf(restoringVersion) : ""}</span>{" "}
+            of the SLA compliance rules?
+          </>
+        }
+        alertText={
+          <>
+            This will apply the selected version's work schedule, shift, and thresholds to all future computations. The current active settings will be saved as a new version.
+          </>
+        }
+        confirmLabel="Yes, Restore Version"
+        onConfirm={handleConfirmRestore}
+        onCancel={() => setRestoringVersion(null)}
       />
 
       {/* Result Modal */}

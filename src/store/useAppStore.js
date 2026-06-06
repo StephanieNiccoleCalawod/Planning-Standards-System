@@ -296,6 +296,17 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
+  restoreSlaVersion: async (id, versionId) => {
+    try {
+      const res = await api.restoreSlaVersion(id, versionId);
+      await get().fetchSlaRules();
+      return res;
+    } catch (err) {
+      console.error("useAppStore.restoreSlaVersion failed:", err);
+      throw err;
+    }
+  },
+
   // Holidays CRUD Actions
   fetchHolidays: async (params = {}) => {
     set({ loadingHolidays: true });

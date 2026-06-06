@@ -91,6 +91,7 @@ export const api = {
   getSlaRules: () => request('/sla-rules'),
   createSlaRule: (data) => request('/sla-rules', { method: 'POST', body: JSON.stringify(data) }),
   updateSlaRule: (id, data) => request(`/sla-rules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  restoreSlaVersion: (id, versionId) => request(`/sla-rules/${id}/versions/${versionId}/restore`, { method: 'PATCH' }),
 
   // Holidays
   getHolidays: (params = {}) => {
