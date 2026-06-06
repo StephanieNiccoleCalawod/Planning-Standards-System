@@ -31,6 +31,7 @@ export default function OPCRCommitments() {
 
   const [showWizard, setShowWizard] = useState(false);
   const [selectedCommitmentId, setSelectedCommitmentId] = useState(null);
+  const [wizardReadOnly, setWizardReadOnly] = useState(false);
 
   const isStaff = userRole === 'Staff';
 
@@ -58,7 +59,11 @@ export default function OPCRCommitments() {
               variant="contained"
               color="primary"
               startIcon={<AddIcon />}
-              onClick={() => setShowWizard(true)}
+              onClick={() => {
+                setSelectedCommitmentId(null);
+                setWizardReadOnly(false);
+                setShowWizard(true);
+              }}
               sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
             >
               Create / Edit Commitment
@@ -110,7 +115,11 @@ export default function OPCRCommitments() {
                         <Tooltip title={isLocked || isStaff ? "View Details" : "Edit Draft"}>
                           <IconButton
                             size="small"
-                            onClick={() => setShowWizard(true)}
+                            onClick={() => {
+                              setSelectedCommitmentId(c.id);
+                              setWizardReadOnly(isLocked || isStaff);
+                              setShowWizard(true);
+                            }}
                             sx={{
                               border: '1px solid',
                               borderColor: 'rgba(25, 118, 210, 0.2)',
@@ -136,9 +145,12 @@ export default function OPCRCommitments() {
       {showWizard && (
         <CommitmentWizardModal
           open={showWizard}
-          readOnly={isStaff}
+          commitmentId={selectedCommitmentId}
+          readOnly={wizardReadOnly}
           onClose={() => {
             setShowWizard(false);
+            setSelectedCommitmentId(null);
+            setWizardReadOnly(false);
             fetchCommitments();
           }}
         />

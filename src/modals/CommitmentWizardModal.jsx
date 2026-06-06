@@ -27,16 +27,18 @@ import ConfirmModal from "./ConfirmModal";
 
 const steps = ["Setup Period", "Select Services", "Define Targets & Lock"];
 
-export default function CommitmentWizardModal({ open, onClose, readOnly }) {
+export default function CommitmentWizardModal({ open, onClose, commitmentId, readOnly }) {
   const {
     periods,
     services,
     kpis,
     commitments,
+    activeCommitment,
     fetchPeriods,
     fetchServices,
     fetchKpis,
     fetchCommitments,
+    fetchCommitmentById,
     createCommitmentDraft,
     updateCommitmentDraft,
     lockCommitment,
@@ -56,16 +58,21 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
   useEffect(() => {
     if (open) {
       setLoading(true);
-      Promise.all([
+      const promises = [
         fetchPeriods(),
         fetchServices(),
-        fetchKpis(),
-        fetchCommitments({ status: 'Draft' })
-      ]).then(() => setLoading(false));
+        fetchKpis()
+      ];
+      if (commitmentId) {
+        promises.push(fetchCommitmentById(commitmentId));
+      } else {
+        promises.push(fetchCommitments({ status: 'Draft' }));
+      }
+      Promise.all(promises).then(() => setLoading(false));
     }
-  }, [open]);
+  }, [open, commitmentId]);
 
-  // Load draft if it exists — only once on initial open
+  // Load draft or selected commitment if it exists — only once on initial open
   const hasLoadedDraft = React.useRef(false);
   useEffect(() => {
     if (!open) {
@@ -73,7 +80,24 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
       return;
     }
     if (hasLoadedDraft.current || loading) return;
-    if (commitments.length > 0 || periods.length > 0) {
+    
+    if (commitmentId) {
+      if (activeCommitment && String(activeCommitment.id) === String(commitmentId)) {
+        hasLoadedDraft.current = true;
+        setDraftId(activeCommitment.id);
+        setSelectedPeriod(activeCommitment.period_id);
+        const sIds = [...new Set(activeCommitment.items?.map(i => i.service_id) || [])];
+        setSelectedServices(sIds);
+        
+        const targets = {};
+        activeCommitment.items?.forEach(i => {
+          if (i.target_value !== null && i.target_value !== undefined) {
+            targets[i.kpi_id] = i.target_value;
+          }
+        });
+        setKpiTargets(targets);
+      }
+    } else if (commitments.length > 0 || periods.length > 0) {
       hasLoadedDraft.current = true;
       const draft = commitments.find(c => c.status === "Draft");
       if (draft) {
@@ -97,7 +121,7 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
         }
       }
     }
-  }, [open, loading, commitments, periods]);
+  }, [open, loading, commitmentId, activeCommitment, commitments, periods]);
 
   // Auto-save logic
   useEffect(() => {
@@ -188,8 +212,9 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
     );
   }
 
-  const activePeriods = periods.filter(p => p.status === "Active" || p.status === "Open");
+  const displayPeriods = periods.filter(p => p.status === "Active" || p.status === "Open" || p.id === selectedPeriod);
   const availableServices = services.filter(s => {
+    if (selectedServices.includes(s.id)) return true; // Always show selected services
     if (!s.active) return false;
     // Check if flagged N/A for the currently selected period
     if (selectedPeriod && Array.isArray(s.naFlags) && s.naFlags.some(f => String(f.period_id) === String(selectedPeriod))) {
@@ -236,10 +261,10 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
                 onChange={(e) => setSelectedPeriod(e.target.value)}
                 disabled={!!draftId || readOnly}
               >
-                {activePeriods.length === 0 && (
+                {displayPeriods.length === 0 && (
                   <MenuItem disabled value="">No active periods available</MenuItem>
                 )}
-                {activePeriods.map(p => (
+                {displayPeriods.map(p => (
                   <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                 ))}
               </TextField>
@@ -268,8 +293,9 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
                       return (
                         <ListItem key={svc.id} disablePadding sx={{ borderBottom: '1px solid #F1F5F9' }}>
                           <Button 
-                            onClick={() => handleToggleService(svc.id)} 
+                            onClick={() => !readOnly && handleToggleService(svc.id)} 
                             fullWidth 
+                            disabled={readOnly}
                             sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.5, color: 'inherit', textTransform: 'none' }}
                           >
                             <ListItemIcon>
@@ -350,7 +376,7 @@ export default function CommitmentWizardModal({ open, onClose, readOnly }) {
 
         <DialogActions sx={{ p: 3, borderTop: '1px solid #E2E8F0' }}>
           <Button onClick={onClose} color="inherit" sx={{ mr: 'auto' }}>
-            Close (Auto-saved)
+            {readOnly ? "Close" : "Close (Auto-saved)"}
           </Button>
           
           <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined">
