@@ -307,7 +307,7 @@ export const useAppStore = create((set, get) => ({
         ...h,
         id: h.id,
         name: h.name,
-        date: h.holiday_date,
+        date: h.holiday_date ? h.holiday_date.split('T')[0] : "",
         type: mapHolidayTypeToFrontend(h.type),
         is_recurring: h.is_recurring
       }));

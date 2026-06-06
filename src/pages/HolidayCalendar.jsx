@@ -94,8 +94,8 @@ export default function HolidayCalendar() {
   };
 
   useEffect(() => {
-    fetchHolidays();
-  }, []);
+    fetchHolidays({ year: currentYear });
+  }, [currentYear]);
 
   /* ── navigation ── */
   const prevMonth = () => {
