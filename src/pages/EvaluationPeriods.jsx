@@ -33,7 +33,8 @@ import {
 import {
     Add as AddIcon,
     Block as BlockIcon,
-    CheckCircle as CheckCircleIcon
+    CheckCircle as CheckCircleIcon,
+    Delete as DeleteIcon
 } from '@mui/icons-material';
 
 import { useAppStore } from "../store/useAppStore";
@@ -226,7 +227,9 @@ export default function EvaluationPeriods() {
                                 periods.map((p) => {
                                     const startFmt = new Date(p.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                                     const endFmt = new Date(p.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-                                    const isActive = p.status === "Active";
+                                    const isActive = p.status === "Active" || p.status === "Open";
+                                    const isQueued = p.status === "Queued";
+                                    const isClosed = p.status === "Closed" || p.status === "Completed";
 
                                     return (
                                         <TableRow key={p.id} sx={{ opacity: isActive ? 1 : 0.7 }}>
@@ -238,52 +241,58 @@ export default function EvaluationPeriods() {
                                             <TableCell sx={{ fontWeight: 500 }}>{endFmt}</TableCell>
                                             <TableCell>
                                                 <Chip
-                                                    label={p.status}
+                                                    label={p.status === "Open" ? "Active" : p.status}
                                                     size="small"
                                                     sx={{
-                                                        bgcolor: isActive ? '#ECFDF5' : '#F1F5F9',
-                                                        color: isActive ? '#059669' : '#64748B',
-                                                        border: isActive ? '1px solid rgba(5, 150, 105, 0.15)' : '1px solid rgba(100, 116, 139, 0.1)',
+                                                        bgcolor: isActive ? '#ECFDF5' : (isQueued ? '#FFFBEB' : '#F1F5F9'),
+                                                        color: isActive ? '#059669' : (isQueued ? '#D97706' : '#64748B'),
+                                                        border: isActive ? '1px solid rgba(5, 150, 105, 0.15)' : (isQueued ? '1px solid rgba(217, 119, 6, 0.15)' : '1px solid rgba(100, 116, 139, 0.1)'),
                                                         fontWeight: 600,
                                                     }}
                                                 />
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                                    {isActive ? (
-                                                        <Tooltip title="Close Period">
+                                                    {isActive && (
+                                                        <Button
+                                                            variant="contained"
+                                                            size="small"
+                                                            onClick={() => setClosingPeriod(p)}
+                                                            sx={{
+                                                                bgcolor: '#059669',
+                                                                '&:hover': { bgcolor: '#047857' },
+                                                                textTransform: 'none',
+                                                                fontWeight: 600,
+                                                                fontSize: '0.75rem',
+                                                                borderRadius: 1.5,
+                                                                px: 2,
+                                                                py: 0.5
+                                                            }}
+                                                        >
+                                                            Complete
+                                                        </Button>
+                                                    )}
+                                                    {isQueued && (
+                                                        <Tooltip title="Delete Period">
                                                             <IconButton
                                                                 size="small"
-                                                                onClick={() => setClosingPeriod(p)}
+                                                                onClick={(e) => { e.stopPropagation(); setDeletingPeriod(p); }}
                                                                 sx={{
                                                                     border: '1px solid #CBD5E1',
                                                                     borderRadius: 1.5,
-                                                                    color: '#D97706',
-                                                                    '&:hover': { bgcolor: '#FFFBEB', borderColor: '#D97706' }
+                                                                    color: '#EF4444',
+                                                                    '&:hover': { bgcolor: '#FEF2F2', borderColor: '#EF4444' }
                                                                 }}
                                                             >
-                                                                <CheckCircleIcon fontSize="small" />
+                                                                <DeleteIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                    ) : (
+                                                    )}
+                                                    {isClosed && (
                                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', py: 0.5, px: 1 }}>
                                                             Completed
                                                         </Typography>
                                                     )}
-                                                    <Tooltip title="Delete Period">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => { e.stopPropagation(); setDeletingPeriod(p); }}
-                                                            sx={{
-                                                                border: '1px solid #CBD5E1',
-                                                                borderRadius: 1.5,
-                                                                color: '#EF4444',
-                                                                '&:hover': { bgcolor: '#FEF2F2', borderColor: '#EF4444' }
-                                                            }}
-                                                        >
-                                                            <BlockIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
                                                 </Box>
                                             </TableCell>
                                         </TableRow>
@@ -425,7 +434,7 @@ export default function EvaluationPeriods() {
                 </DialogActions>
             </Dialog>
 
-            {/* Deactivate Confirmation Modal */}
+            {/* Delete Confirmation Modal */}
             <Dialog
                 open={Boolean(deletingPeriod)}
                 onClose={() => setDeletingPeriod(null)}
@@ -434,15 +443,15 @@ export default function EvaluationPeriods() {
                 PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
             >
                 <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
-                    Deactivate Evaluation Period?
+                    Delete Evaluation Period?
                 </DialogTitle>
                 <DialogContent>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Are you sure you want to deactivate the evaluation period{" "}
+                        Are you sure you want to delete the queued evaluation period{" "}
                         <span style={{ fontWeight: 700, color: '#0F172A' }}>"{deletingPeriod?.name}"</span>?
                         <br />
                         <br />
-                        Deactivating this period will hide it from the active registry. This action can be undone if needed.
+                        This will remove the queued period from the registry.
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2, pt: 1, gap: 1 }}>
@@ -454,7 +463,7 @@ export default function EvaluationPeriods() {
                         onClick={handleDeleteConfirm}
                         sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#B91C1C' }, fontWeight: 600, textTransform: 'none' }}
                     >
-                        Deactivate
+                        Delete
                     </Button>
                 </DialogActions>
             </Dialog>

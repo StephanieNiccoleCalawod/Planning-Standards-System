@@ -25,7 +25,11 @@ export default function PageHeader({ breadcrumb, title, action }) {
         } else {
           setActivePeriod(active.name);
         }
+      } else {
+        setActivePeriod("");
       }
+    } else {
+      setActivePeriod("");
     }
   }, [periods]);
 

@@ -119,7 +119,7 @@ export const api = {
   },
   createPeriod: (data) => request('/periods', { method: 'POST', body: JSON.stringify(data) }),
   updatePeriod: (id, data) => request(`/periods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  closePeriod: (id) => request(`/periods/${id}/close`, { method: 'PATCH' }),
+  closePeriod: (id) => request(`/periods/${id}/complete`, { method: 'PATCH' }),
   deletePeriod: (id) => request(`/periods/${id}`, { method: 'DELETE' }),
 
   // Commitments
