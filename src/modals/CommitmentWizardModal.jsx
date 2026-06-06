@@ -407,10 +407,10 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
       {showLockConfirm && (
         <ConfirmModal
+          open={showLockConfirm}
           title="Lock Commitment?"
-          message="Are you sure you want to lock and submit this commitment? Once locked, it cannot be edited, and it will serve as the official basis for the evaluation period."
-          confirmText="Yes, Lock & Submit"
-          confirmColor="success"
+          body="Are you sure you want to lock and submit this commitment? Once locked, it cannot be edited, and it will serve as the official basis for the evaluation period."
+          confirmLabel="Yes, Lock & Submit"
           onConfirm={handleLock}
           onCancel={() => setShowLockConfirm(false)}
         />
