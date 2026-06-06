@@ -7,14 +7,20 @@ import {
 } from 'typeorm';
 import { HolidayType } from '../enums';
 
-@Unique('uq_holiday_date_name', ['holiday_date', 'name'])
+@Unique('uq_holiday_month_day_year_name', ['month', 'day', 'year', 'name'])
 @Entity('holiday')
 export class Holiday {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'date' })
-  holiday_date: string;
+  @Column({ type: 'smallint' })
+  month: number;
+
+  @Column({ type: 'smallint' })
+  day: number;
+
+  @Column({ type: 'smallint', nullable: true })
+  year: number | null;
 
   @Column({ length: 200 })
   name: string;

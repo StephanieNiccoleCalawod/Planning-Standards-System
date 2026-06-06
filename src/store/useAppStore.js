@@ -313,15 +313,21 @@ export const useAppStore = create((set, get) => ({
     try {
       const res = await api.getHolidays({ limit: 100, ...params });
       const holidaysArray = res?.data || [];
+      const displayYear = params.year || new Date().getFullYear();
 
-      const formatted = holidaysArray.map(h => ({
-        ...h,
-        id: h.id,
-        name: h.name,
-        date: h.holiday_date ? h.holiday_date.split('T')[0] : "",
-        type: mapHolidayTypeToFrontend(h.type),
-        is_recurring: h.is_recurring
-      }));
+      const formatted = holidaysArray.map(h => {
+        const y = h.year ?? displayYear;
+        const mm = String(h.month).padStart(2, '0');
+        const dd = String(h.day).padStart(2, '0');
+        return {
+          ...h,
+          id: h.id,
+          name: h.name,
+          date: `${y}-${mm}-${dd}`,
+          type: mapHolidayTypeToFrontend(h.type),
+          is_recurring: h.is_recurring
+        };
+      });
 
       set({ holidays: formatted, loadingHolidays: false });
     } catch (err) {

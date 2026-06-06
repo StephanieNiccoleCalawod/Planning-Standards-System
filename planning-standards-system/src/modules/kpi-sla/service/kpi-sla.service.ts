@@ -6,7 +6,7 @@ import {
     ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
@@ -87,7 +87,7 @@ export class KpiSlaService {
         return {
             days_until_end: days,
             warning_level: 'overdue',
-            warning_message: `OVERDUE — Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
+            warning_message: `OVERDUE ï¿½ Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
         };
     }
 
@@ -249,26 +249,22 @@ export class KpiSlaService {
         return this.slaRepo.save(rule);
     }
 
-    async createHoliday(dto: CreateHolidayDto): Promise<Holiday[]> {
-        const exists = await this.holidayRepo.findOne({
-            where: { holiday_date: dto.holiday_date, name: dto.name },
+    async createHoliday(dto: CreateHolidayDto): Promise<Holiday> {
+        const where: any = { month: dto.month, day: dto.day, name: dto.name };
+        where.year = dto.year ?? IsNull();
+
+        const exists = await this.holidayRepo.findOne({ where });
+        if (exists) throw new ConflictException('Holiday with this month, day, and name already exists');
+
+        const holiday = this.holidayRepo.create({
+            month: dto.month,
+            day: dto.day,
+            year: dto.year ?? null,
+            name: dto.name,
+            type: dto.type,
+            is_recurring: dto.is_recurring ?? false,
         });
-        if (exists) throw new ConflictException('Holiday with this date and name already exists');
-
-        const holidays: Holiday[] = [];
-        const baseDate = new Date(dto.holiday_date);
-        const yearsToCreate = dto.is_recurring ? 5 : 1;
-
-        for (let i = 0; i < yearsToCreate; i++) {
-            const date = new Date(baseDate);
-            date.setFullYear(date.getFullYear() + i);
-            const holiday = this.holidayRepo.create({
-                ...dto,
-                holiday_date: date.toISOString().split('T')[0],
-            });
-            holidays.push(await this.holidayRepo.save(holiday));
-        }
-        return holidays;
+        return this.holidayRepo.save(holiday);
     }
 
     async findAllHolidays(
@@ -277,22 +273,18 @@ export class KpiSlaService {
     ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
         const query = this.holidayRepo.createQueryBuilder('h');
 
-        if (filters.month) query.andWhere('EXTRACT(MONTH FROM h.holiday_date::date) = :month', { month: filters.month });
-        if (filters.year) query.andWhere('EXTRACT(YEAR FROM h.holiday_date::date) = :year', { year: filters.year });
+        if (filters.month) query.andWhere('h.month = :month', { month: filters.month });
+        if (filters.year) query.andWhere('(h.year = :year OR h.year IS NULL)', { year: filters.year });
         if (filters.type) query.andWhere('h.type = :type', { type: filters.type });
 
         const [holidays, total] = await query
-            .orderBy('h.holiday_date', 'ASC')
+            .orderBy('h.month', 'ASC')
+            .addOrderBy('h.day', 'ASC')
             .skip((pagination.page - 1) * pagination.limit)
             .take(pagination.limit)
             .getManyAndCount();
 
-        const data = holidays.map(h => ({
-            ...h,
-            date: h.holiday_date,
-        }));
-
-        return { data, total, page: pagination.page, limit: pagination.limit };
+        return { data: holidays, total, page: pagination.page, limit: pagination.limit };
     }
 
     async updateHoliday(id: string, dto: UpdateHolidayDto): Promise<Holiday> {

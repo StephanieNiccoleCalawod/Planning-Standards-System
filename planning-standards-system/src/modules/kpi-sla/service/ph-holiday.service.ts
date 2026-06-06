@@ -1,7 +1,7 @@
-﻿import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { Holiday } from '../database/holiday.entity';
 import { HolidayType } from '../enums';
@@ -53,27 +53,24 @@ export class PhHolidayService {
 
         for (const h of phHolidays) {
             const holidayName = h.name;
-            const existing = await this.holidayRepo
-                .createQueryBuilder('h')
-                .where('h.name = :name', { name: holidayName })
-                .andWhere('EXTRACT(YEAR FROM h.holiday_date::date) = :year', { year })
-                .getOne();
+            const [, monthStr, dayStr] = h.date.split('-');
+            const month = parseInt(monthStr, 10);
+            const day = parseInt(dayStr, 10);
+
+            const existing = await this.holidayRepo.findOne({
+                where: { month, day, name: holidayName, year: IsNull() },
+            });
 
             if (existing) {
-                if (existing.holiday_date === h.date) {
-                    skipped++;
-                    continue;
-                } else {
-                    await this.holidayRepo.delete(existing.id);
-                    this.logger.log(
-                        `Holiday date changed: "${holidayName}" ${existing.holiday_date} → ${h.date}`,
-                    );
-                }
+                skipped++;
+                continue;
             }
 
             await this.holidayRepo.save(
                 this.holidayRepo.create({
-                    holiday_date: h.date,
+                    month,
+                    day,
+                    year: null,
                     name: holidayName,
                     type: this.mapToHolidayType(h.types),
                     is_recurring: h.fixed,
