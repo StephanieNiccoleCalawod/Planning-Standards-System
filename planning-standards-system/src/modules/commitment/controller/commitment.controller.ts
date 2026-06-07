@@ -11,7 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiHeader } from '@nestjs/swagger';
 import { CommitmentService } from '../service/commitment.service';
 import { CreateCommitmentDto } from '../dto/create-commitment.dto';
 import { UpdateCommitmentDto } from '../dto/update-commitment.dto';
@@ -22,10 +22,14 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 @ApiTags('OPCR Commitments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@ApiHeader({
+  name: 'x-mock-office',
+  description: 'Mock office identifier (e.g. mock-office or mock-office-2)',
+  required: false,
+})
 @Controller('api')
 export class CommitmentController {
   constructor(private readonly svc: CommitmentService) {}
-
 
   @Post('commitments')
   @HttpCode(HttpStatus.CREATED)
@@ -79,7 +83,6 @@ export class CommitmentController {
     const actor = req.user?.sub ?? 'mock-actor';
     return this.svc.lockCommitment(id, office, actor);
   }
-
 
   @Get('opcr/commitments')
   @ApiOperation({ summary: 'Get all locked (submitted) commitments — OPCR data endpoint' })

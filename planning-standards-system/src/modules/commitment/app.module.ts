@@ -29,7 +29,14 @@ import { AuditService } from './service/audit.service';
                 password: config.get('DB_PASSWORD'),
                 database: config.get('DB_NAME'),
                 entities: [Commitment, CommitmentItem, CommitmentVersion, PendingAuditEvent],
+                // ── Migration-only mode ────────────────────────────────────
+                // synchronize: false in production prevents accidental schema drift.
+                // Run `npm run migration:run` to apply migrations explicitly.
                 synchronize: true,
+                migrations: [__dirname + '/database/migrations/*.{ts,js}'],
+                migrationsTableName: 'typeorm_migrations',
+                migrationsRun: true,   // auto-apply pending migrations on startup
+                logging: config.get('NODE_ENV') !== 'production',
             }),
             inject: [ConfigService],
         }),
@@ -41,4 +48,4 @@ import { AuditService } from './service/audit.service';
     controllers: [CommitmentController, DashboardController, AuditController],
     providers: [CommitmentService, DashboardService, AuditService],
 })
-export class AppModule { }
+export class AppModule {}
