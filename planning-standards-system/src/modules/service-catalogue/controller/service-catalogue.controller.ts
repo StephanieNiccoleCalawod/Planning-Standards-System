@@ -31,7 +31,6 @@ import { JwtAuthGuard } from '../guards/jwt.guard';
 export class ServiceCatalogueController {
     constructor(private readonly svc: ServiceCatalogueService) { }
 
-
     @Get()
     @ApiOperation({ summary: 'Get all services for the authenticated office (paginated)' })
     @ApiQuery({ name: 'classification', required: false })
@@ -42,10 +41,7 @@ export class ServiceCatalogueController {
     @ApiQuery({ name: 'limit', required: false, type: Number })
     @ApiQuery({ name: 'sort_by', required: false })
     @ApiQuery({ name: 'sort_order', required: false, enum: ['ASC', 'DESC'] })
-    findAll(
-        @Request() req,
-        @Query() query: GetServicesQueryDto,
-    ) {
+    findAll(@Request() req, @Query() query: GetServicesQueryDto) {
         const office = req.user?.office ?? 'mock-office';
         const { classification, status, search, include_archived, ...pagination } = query;
         return this.svc.findAll(office, { classification, status, search, include_archived }, pagination);
@@ -54,12 +50,15 @@ export class ServiceCatalogueController {
     @Get('na-flags')
     @ApiOperation({ summary: 'EMS reference — get all NA flags for an office and period' })
     @ApiQuery({ name: 'period_id', required: true })
-    getNaFlagsByPeriod(
-        @Request() req,
-        @Query('period_id') period_id: string,
-    ) {
+    getNaFlagsByPeriod(@Request() req, @Query('period_id') period_id: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.getNaFlagsByOfficeAndPeriod(office, period_id);
+    }
+
+    @Delete('na-flags/period/:period_id')
+    @ApiOperation({ summary: 'Bulk remove all N/A flags for a period — called when period is completed' })
+    removeNaFlagsByPeriod(@Param('period_id') period_id: string) {
+        return this.svc.removeNaFlagsByPeriod(period_id);
     }
 
     @Get(':id')
@@ -120,34 +119,21 @@ export class ServiceCatalogueController {
     @Post(':id/intake-fields')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Add an intake field to a service' })
-    createIntakeField(
-        @Request() req,
-        @Param('id') id: string,
-        @Body() dto: CreateIntakeFieldDto,
-    ) {
+    createIntakeField(@Request() req, @Param('id') id: string, @Body() dto: CreateIntakeFieldDto) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.createIntakeField(id, office, dto);
     }
 
     @Put(':id/intake-fields/:fieldId')
     @ApiOperation({ summary: 'Update an intake field' })
-    updateIntakeField(
-        @Request() req,
-        @Param('id') id: string,
-        @Param('fieldId') fieldId: string,
-        @Body() dto: UpdateIntakeFieldDto,
-    ) {
+    updateIntakeField(@Request() req, @Param('id') id: string, @Param('fieldId') fieldId: string, @Body() dto: UpdateIntakeFieldDto) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.updateIntakeField(id, office, fieldId, dto);
     }
 
     @Delete(':id/intake-fields/:fieldId')
     @ApiOperation({ summary: 'Deactivate an intake field' })
-    removeIntakeField(
-        @Request() req,
-        @Param('id') id: string,
-        @Param('fieldId') fieldId: string,
-    ) {
+    removeIntakeField(@Request() req, @Param('id') id: string, @Param('fieldId') fieldId: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removeIntakeField(id, office, fieldId);
     }
@@ -162,11 +148,7 @@ export class ServiceCatalogueController {
     @Post(':id/na-flags')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Flag a service as Not Applicable for a period' })
-    createNaFlag(
-        @Request() req,
-        @Param('id') id: string,
-        @Body() dto: CreateNaFlagDto,
-    ) {
+    createNaFlag(@Request() req, @Param('id') id: string, @Body() dto: CreateNaFlagDto) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
         return this.svc.createNaFlag(id, office, dto, actor);
@@ -174,11 +156,7 @@ export class ServiceCatalogueController {
 
     @Delete(':id/na-flags/:flagId')
     @ApiOperation({ summary: 'Lift a NA flag' })
-    removeNaFlag(
-        @Request() req,
-        @Param('id') id: string,
-        @Param('flagId') flagId: string,
-    ) {
+    removeNaFlag(@Request() req, @Param('id') id: string, @Param('flagId') flagId: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removeNaFlag(id, office, flagId);
     }

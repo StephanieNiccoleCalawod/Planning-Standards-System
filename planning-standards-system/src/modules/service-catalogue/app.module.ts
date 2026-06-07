@@ -7,10 +7,11 @@ import { IntakeField } from './database/service-intake-field.entity';
 import { NaFlag } from './database/service-na-flag.entity';
 import { ServiceCatalogueController } from './controller/service-catalogue.controller';
 import { ServiceCatalogueService } from './service/service-catalogue.service';
-
+import { HttpModule } from '@nestjs/axios';
 @Module({
   imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        HttpModule,
     TypeOrmModule.forRootAsync({
       name: 'catalogue_db',
       imports: [ConfigModule],

@@ -4,9 +4,13 @@
     ConflictException,
     ForbiddenException,
     BadRequestException,
+    UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { Service } from '../database/service.entity';
 import { ServiceVersion } from '../database/service-version.entity';
 import { IntakeField } from '../database/service-intake-field.entity';
@@ -33,6 +37,9 @@ export class ServiceCatalogueService {
 
         @InjectRepository(NaFlag, 'catalogue_db')
         private readonly naFlagRepo: Repository<NaFlag>,
+
+        private readonly http: HttpService,
+        private readonly config: ConfigService,
     ) { }
 
     async findAll(
@@ -48,11 +55,7 @@ export class ServiceCatalogueService {
     ): Promise<{ data: Service[]; total: number; page: number; limit: number }> {
         const query = this.serviceRepo
             .createQueryBuilder('service')
-            .leftJoinAndSelect(
-                'service.na_flags',
-                'na_flag',
-                'na_flag.removed_at IS NULL',
-            )
+            .leftJoinAndSelect('service.na_flags', 'na_flag', 'na_flag.removed_at IS NULL')
             .where('service.office = :office', { office });
 
         if (!filters.include_archived) {
@@ -60,21 +63,15 @@ export class ServiceCatalogueService {
         }
 
         if (filters.classification) {
-            query.andWhere('service.classification = :classification', {
-                classification: filters.classification,
-            });
+            query.andWhere('service.classification = :classification', { classification: filters.classification });
         }
 
         if (filters.status && filters.include_archived) {
-            query.andWhere('service.status = :statusFilter', {
-                statusFilter: filters.status,
-            });
+            query.andWhere('service.status = :statusFilter', { statusFilter: filters.status });
         }
 
         if (filters.search) {
-            query.andWhere('LOWER(service.name) LIKE LOWER(:search)', {
-                search: `%${filters.search}%`,
-            });
+            query.andWhere('LOWER(service.name) LIKE LOWER(:search)', { search: `%${filters.search}%` });
         }
 
         const allowedSortFields = ['name', 'classification', 'status', 'created_at', 'sla_target_value'];
@@ -95,11 +92,7 @@ export class ServiceCatalogueService {
 
     async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
         const exists = await this.serviceRepo.findOne({
-            where: {
-                office,
-                name: dto.name,
-                with_referral: dto.with_referral ?? ReferralStatus.WITH,
-            },
+            where: { office, name: dto.name, with_referral: dto.with_referral ?? ReferralStatus.WITH },
         });
         if (exists) {
             throw new ConflictException(
@@ -110,12 +103,7 @@ export class ServiceCatalogueService {
         return this.serviceRepo.save(service);
     }
 
-    async update(
-        id: string,
-        office: string,
-        dto: UpdateServiceDto,
-        actor: string,
-    ): Promise<Service> {
+    async update(id: string, office: string, dto: UpdateServiceDto, actor: string): Promise<Service> {
         const service = await this.findOneOrFail(id, office);
 
         const trackedFields = [
@@ -128,8 +116,7 @@ export class ServiceCatalogueService {
             if (dto[field] !== undefined) {
                 const oldVal = service[field];
                 const newVal = dto[field];
-                const changed = JSON.stringify(oldVal) !== JSON.stringify(newVal);
-                if (changed) {
+                if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
                     versionRows.push({
                         service_id: service.id,
                         field_changed: field,
@@ -142,9 +129,7 @@ export class ServiceCatalogueService {
         }
 
         if (versionRows.length > 0) {
-            await this.versionRepo.save(
-                versionRows.map((row) => this.versionRepo.create(row)),
-            );
+            await this.versionRepo.save(versionRows.map((row) => this.versionRepo.create(row)));
         }
 
         Object.assign(service, dto);
@@ -202,7 +187,6 @@ export class ServiceCatalogueService {
         return this.serviceRepo.save(service);
     }
 
-
     async getIntakeFields(service_id: string, office: string): Promise<IntakeField[]> {
         await this.findOneOrFail(service_id, office);
         return this.intakeFieldRepo.find({
@@ -211,11 +195,7 @@ export class ServiceCatalogueService {
         });
     }
 
-    async createIntakeField(
-        service_id: string,
-        office: string,
-        dto: CreateIntakeFieldDto,
-    ): Promise<IntakeField> {
+    async createIntakeField(service_id: string, office: string, dto: CreateIntakeFieldDto): Promise<IntakeField> {
         await this.findOneOrFail(service_id, office);
 
         const exists = await this.intakeFieldRepo.findOne({
@@ -231,47 +211,50 @@ export class ServiceCatalogueService {
         return this.intakeFieldRepo.save(field);
     }
 
-    async updateIntakeField(
-        service_id: string,
-        office: string,
-        field_id: string,
-        dto: UpdateIntakeFieldDto,
-    ): Promise<IntakeField> {
+    async updateIntakeField(service_id: string, office: string, field_id: string, dto: UpdateIntakeFieldDto): Promise<IntakeField> {
         await this.findOneOrFail(service_id, office);
-        const field = await this.intakeFieldRepo.findOne({
-            where: { id: field_id, service_id, is_active: true },
-        });
+        const field = await this.intakeFieldRepo.findOne({ where: { id: field_id, service_id, is_active: true } });
         if (!field) throw new NotFoundException(`Intake field ${field_id} not found`);
         Object.assign(field, dto);
         return this.intakeFieldRepo.save(field);
     }
 
-    async removeIntakeField(
-        service_id: string,
-        office: string,
-        field_id: string,
-    ): Promise<{ message: string }> {
+    async removeIntakeField(service_id: string, office: string, field_id: string): Promise<{ message: string }> {
         await this.findOneOrFail(service_id, office);
-        const field = await this.intakeFieldRepo.findOne({
-            where: { id: field_id, service_id },
-        });
+        const field = await this.intakeFieldRepo.findOne({ where: { id: field_id, service_id } });
         if (!field) throw new NotFoundException(`Intake field ${field_id} not found`);
         field.is_active = false;
         await this.intakeFieldRepo.save(field);
         return { message: `Intake field ${field_id} deactivated` };
     }
 
- 
-    async createNaFlag(
-        service_id: string,
-        office: string,
-        dto: CreateNaFlagDto,
-        actor: string,
-    ): Promise<NaFlag> {
+    async createNaFlag(service_id: string, office: string, dto: CreateNaFlagDto, actor: string): Promise<NaFlag> {
         await this.findOneOrFail(service_id, office);
 
         if (!dto.reason || dto.reason.trim().length === 0) {
             throw new BadRequestException('reason is required and cannot be blank');
+        }
+
+        // Block if service is part of a Locked commitment for this period (HTTP 422)
+        try {
+            const commitmentUrl = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
+            const response = await firstValueFrom(
+                this.http.get(`${commitmentUrl}/api/commitments`, {
+                    headers: { 'x-mock-office': office },
+                    params: { period_id: dto.period_id, status: 'Locked' },
+                }),
+            );
+            const commitments = response.data?.data ?? response.data ?? [];
+            const isLocked = commitments.some((c: any) =>
+                c.items?.some((item: any) => item.service_id === service_id),
+            );
+            if (isLocked) {
+                throw new UnprocessableEntityException(
+                    'Cannot flag this service as N/A — it is already part of a Locked commitment for this period.',
+                );
+            }
+        } catch (err) {
+            if (err instanceof UnprocessableEntityException) throw err;
         }
 
         const exists = await this.naFlagRepo.findOne({
@@ -288,10 +271,7 @@ export class ServiceCatalogueService {
         return this.naFlagRepo.find({ where: { service_id } });
     }
 
-    async getNaFlagsByOfficeAndPeriod(
-        office: string,
-        period_id: string,
-    ): Promise<NaFlag[]> {
+    async getNaFlagsByOfficeAndPeriod(office: string, period_id: string): Promise<NaFlag[]> {
         return this.naFlagRepo
             .createQueryBuilder('nf')
             .innerJoin('nf.service', 'service')
@@ -301,21 +281,31 @@ export class ServiceCatalogueService {
             .getMany();
     }
 
-    async removeNaFlag(
-        service_id: string,
-        office: string,
-        flag_id: string,
-    ): Promise<{ message: string }> {
+    async removeNaFlag(service_id: string, office: string, flag_id: string): Promise<{ message: string }> {
         await this.findOneOrFail(service_id, office);
-        const flag = await this.naFlagRepo.findOne({
-            where: { id: flag_id, service_id },
-        });
+        const flag = await this.naFlagRepo.findOne({ where: { id: flag_id, service_id } });
         if (!flag) throw new NotFoundException(`NA flag ${flag_id} not found`);
         flag.removed_at = new Date();
         await this.naFlagRepo.save(flag);
         return { message: `NA flag ${flag_id} lifted` };
     }
 
+    // Bulk remove all N/A flags for a period — called when a period is completed
+    async removeNaFlagsByPeriod(period_id: string): Promise<{ removed: number }> {
+        const flags = await this.naFlagRepo.find({
+            where: { period_id, removed_at: IsNull() },
+        });
+
+        if (flags.length === 0) return { removed: 0 };
+
+        const now = new Date();
+        for (const flag of flags) {
+            flag.removed_at = now;
+        }
+        await this.naFlagRepo.save(flags);
+
+        return { removed: flags.length };
+    }
 
     private async findOneOrFail(id: string, office: string): Promise<Service> {
         const service = await this.serviceRepo.findOne({ where: { id } });

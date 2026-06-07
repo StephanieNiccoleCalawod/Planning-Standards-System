@@ -6,7 +6,7 @@ import {
     ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
@@ -87,7 +87,7 @@ export class KpiSlaService {
         return {
             days_until_end: days,
             warning_level: 'overdue',
-            warning_message: `OVERDUE – Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
+            warning_message: `OVERDUE — Period ended ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} ago. Please close this period.`,
         };
     }
 
@@ -212,12 +212,7 @@ export class KpiSlaService {
         });
     }
 
-    async restoreSlaVersion(
-        id: string,
-        versionId: string,
-        office: string,
-        actor: string,
-    ): Promise<SlaRule> {
+    async restoreSlaVersion(id: string, versionId: string, office: string, actor: string): Promise<SlaRule> {
         const rule = await this.slaRepo.findOne({ where: { id, office } });
         if (!rule) throw new NotFoundException(`SLA Rule ${id} not found`);
 
@@ -250,20 +245,7 @@ export class KpiSlaService {
     }
 
     async createHoliday(dto: CreateHolidayDto): Promise<Holiday> {
-        const where: any = { month: dto.month, day: dto.day, name: dto.name };
-        where.year = dto.year ?? IsNull();
-
-        const exists = await this.holidayRepo.findOne({ where });
-        if (exists) throw new ConflictException('Holiday with this month, day, and name already exists');
-
-        const holiday = this.holidayRepo.create({
-            month: dto.month,
-            day: dto.day,
-            year: dto.year ?? null,
-            name: dto.name,
-            type: dto.type,
-            is_recurring: dto.is_recurring ?? false,
-        });
+        const holiday = this.holidayRepo.create({ ...dto });
         return this.holidayRepo.save(holiday);
     }
 
@@ -306,9 +288,6 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
-        // ✅ FIXED: Check overlap against ALL statuses (OPEN, QUEUED, CLOSED)
-        // Previously only checked OPEN periods, allowing new periods to be created
-        // with dates that overlap a CLOSED (completed) period.
         const overlapping = await this.periodRepo
             .createQueryBuilder('p')
             .where('p.office = :office', { office })
@@ -405,6 +384,14 @@ export class KpiSlaService {
         if (nextQueued) {
             nextQueued.status = PeriodStatus.OPEN;
             await this.periodRepo.save(nextQueued);
+        }
+
+        try {
+            const catalogueUrl = this.config.get<string>('SERVICE_CATALOGUE_URL');
+            await firstValueFrom(
+                this.http.delete(`${catalogueUrl}/api/services/na-flags/period/${period.id}`),
+            );
+        } catch {
         }
 
         return period;
