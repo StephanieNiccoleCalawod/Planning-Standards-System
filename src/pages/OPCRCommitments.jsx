@@ -40,6 +40,13 @@ export default function OPCRCommitments() {
 
   const isStaff = userRole === 'Staff';
 
+  // Determine if a locked commitment already exists for the active period
+  const activePeriod = periods.find(p => p.status === 'Active' || p.status === 'Open');
+  const lockedCommitmentForActivePeriod = activePeriod
+    ? commitments.find(c => String(c.period_id) === String(activePeriod.id) && c.status === 'Locked')
+    : null;
+  const isCreateBlocked = !isStaff && !!lockedCommitmentForActivePeriod;
+
   useEffect(() => {
     fetchPeriods();
     fetchCommitments();
@@ -72,19 +79,32 @@ export default function OPCRCommitments() {
             Office Commitments Registry
           </Typography>
           {!isStaff && (
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                setSelectedCommitmentId(null);
-                setWizardReadOnly(false);
-                setShowWizard(true);
-              }}
-              sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
+            <Tooltip
+              title={
+                isCreateBlocked
+                  ? `A locked commitment already exists for "${activePeriod?.name}". Only one commitment per period is allowed.`
+                  : ""
+              }
+              arrow
+              disableHoverListener={!isCreateBlocked}
             >
-              Create / Edit Commitment
-            </Button>
+              <span>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  disabled={isCreateBlocked}
+                  onClick={() => {
+                    setSelectedCommitmentId(null);
+                    setWizardReadOnly(false);
+                    setShowWizard(true);
+                  }}
+                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' } }}
+                >
+                  Create / Edit Commitment
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </Box>
 
@@ -219,6 +239,13 @@ export default function OPCRCommitments() {
                 type: "success",
                 title: "Draft Saved Successfully!",
                 message: "Your commitment draft has been saved successfully."
+              });
+            } else if (saved === 'locked') {
+              setResultModal({
+                show: true,
+                type: "success",
+                title: "Commitment Locked & Submitted!",
+                message: "Your commitment has been locked and submitted successfully."
               });
             }
           }}

@@ -1,5 +1,7 @@
 export default function ResultModal({ type = "success", title, message, onClose }) {
   const isSuccess = type === "success";
+  const isNext = type === "next";
+  const isError = type === "error";
 
   return (
     <div style={{
@@ -75,11 +77,20 @@ export default function ResultModal({ type = "success", title, message, onClose 
         <div
           className="result-icon-circle"
           style={{
-            background: isSuccess ? "#FFF5F5" : "#FEF2F2",
-            border: isSuccess ? "1.5px solid rgba(128,0,0,0.12)" : "1.5px solid rgba(239,68,68,0.15)",
+          background: isNext ? "#FAEEDA" : (isSuccess ? "#FFF5F5" : "#FEF2F2"),
+            border: isNext ? "1.5px solid rgba(200,150,12,0.25)" : (isSuccess ? "1.5px solid rgba(128,0,0,0.12)" : "1.5px solid rgba(239,68,68,0.15)"),
           }}
         >
-          {isSuccess ? (
+          {isNext ? (
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+              stroke="#C8960C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <polyline points="12 16 14 18 18 14" />
+            </svg>
+          ) : isSuccess ? (
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
               stroke="#800000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -97,12 +108,14 @@ export default function ResultModal({ type = "success", title, message, onClose 
 
         {/* Title */}
         <h3 className="result-modal-title">
-          {title || (isSuccess ? "Success!" : "Something went wrong")}
+          {title || (isNext ? "Period Transition" : isSuccess ? "Success!" : "Something went wrong")}
         </h3>
 
         {/* Message */}
         <p className="result-modal-message">
-          {message || (isSuccess
+          {message || (isNext
+            ? "The system has automatically moved to the next evaluation period."
+            : isSuccess
             ? "The action was completed successfully."
             : "An error occurred. Please try again."
           )}
@@ -112,14 +125,16 @@ export default function ResultModal({ type = "success", title, message, onClose 
         <button
           className="result-modal-btn"
           style={{
-            background: isSuccess ? "#800000" : "#EF4444",
-            boxShadow: isSuccess
+          background: isNext ? "#800000" : (isSuccess ? "#800000" : "#EF4444"),
+            boxShadow: isNext
+              ? "0 2px 8px rgba(128,0,0,0.22)"
+              : isSuccess
               ? "0 2px 8px rgba(128,0,0,0.2)"
               : "0 2px 8px rgba(239,68,68,0.2)",
           }}
           onClick={onClose}
         >
-          {isSuccess ? "Got it!" : "Try Again"}
+          {isNext ? "Got it!" : isSuccess ? "Got it!" : "Try Again"}
         </button>
       </div>
     </div>

@@ -28,13 +28,15 @@ import {
     Snackbar,
     Alert,
     Tooltip,
-    IconButton
+    IconButton,
+    Pagination
 } from '@mui/material';
 import {
     Add as AddIcon,
     Block as BlockIcon,
     CheckCircle as CheckCircleIcon,
-    Delete as DeleteIcon
+    Delete as DeleteIcon,
+    Search as SearchIcon
 } from '@mui/icons-material';
 
 import { useAppStore } from "../store/useAppStore";
@@ -57,7 +59,9 @@ export default function EvaluationPeriods() {
         fetchPeriods,
         createPeriod,
         closePeriod,
-        deletePeriod
+        deletePeriod,
+        commitments = [],
+        fetchCommitments
     } = useAppStore();
 
     const [showAdd, setShowAdd] = useState(false);
@@ -71,6 +75,9 @@ export default function EvaluationPeriods() {
     const [endDate, setEndDate] = useState("");
     const [activeState, setActiveState] = useState(true);
     const [resultModal, setResultModal] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchQuery, setSearchQuery] = useState("");
+    const rowsPerPage = 10;
 
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
@@ -80,7 +87,10 @@ export default function EvaluationPeriods() {
 
     useEffect(() => {
         fetchPeriods();
+        fetchCommitments();
     }, []);
+
+    const hasDraftCommitment = commitments.some(c => c.status === "Draft");
 
     const activeExists = periods.some(p => p.status === "Active" || p.status === "Open");
 
@@ -95,6 +105,17 @@ export default function EvaluationPeriods() {
 
     const handleSave = async (e) => {
         e.preventDefault();
+
+        // Check for any draft commitments in the system
+        const hasDraft = commitments.some(c => c.status === "Draft");
+        if (hasDraft) {
+            setResultModal({
+                type: "error",
+                title: "Draft Commitment Found",
+                message: "Please lock or submit all draft commitments before creating a new evaluation period."
+            });
+            return;
+        }
 
         if (!name.trim() || !startDate || !endDate) {
             setResultModal({
@@ -144,20 +165,56 @@ export default function EvaluationPeriods() {
 
     const handleCloseConfirm = async () => {
         if (!closingPeriod) return;
-        try {
-            await closePeriod(closingPeriod.id);
-            setResultModal({
-                type: "success",
-                title: "Success",
-                message: `Evaluation period "${closingPeriod.name}" is now closed.`
-            });
+        const closedName = closingPeriod.name;
+
+        // Check if there is any draft commitment in this period
+        const hasDraftInPeriod = commitments.some(
+            c => c.status === "Draft" && String(c.period_id) === String(closingPeriod.id)
+        );
+        if (hasDraftInPeriod) {
             setClosingPeriod(null);
-        } catch (err) {
-            console.error(err);
             setResultModal({
                 type: "error",
-                title: "Error",
-                message: err.message || "Failed to close evaluation period"
+                title: "Draft Commitment Found",
+                message: `Cannot close the evaluation period "${closedName}" because there is still a draft commitment associated with it. Please lock or submit the commitment first.`
+            });
+            return;
+        }
+
+        try {
+            // closePeriod already calls fetchPeriods() internally in the store
+            await closePeriod(closingPeriod.id);
+            setClosingPeriod(null);
+
+            // Read the freshly-updated periods directly from store state
+            // (avoids stale closure from the React component's periods variable)
+            setTimeout(() => {
+                const freshPeriods = useAppStore.getState().periods;
+                const nextActivePeriod = freshPeriods.find(
+                    p => (p.status === "Active" || p.status === "Open") && p.name !== closedName
+                );
+
+                if (nextActivePeriod) {
+                    setResultModal({
+                        type: "next",
+                        title: "You are now in the next period",
+                        message: `"${closedName}" has been closed. The system has automatically moved to the next evaluation period: "${nextActivePeriod.name}".`
+                    });
+                } else {
+                    setResultModal({
+                        type: "success",
+                        title: "Period Closed Successfully",
+                        message: `Evaluation period "${closedName}" is now closed. There are no queued periods to activate.`
+                    });
+                }
+            }, 150);
+        } catch (err) {
+            console.error(err);
+            setClosingPeriod(null);
+            setResultModal({
+                type: "error",
+                title: "Failed to Close Period",
+                message: err.message || "Failed to close evaluation period. Please try again."
             });
         }
     };
@@ -181,33 +238,61 @@ export default function EvaluationPeriods() {
             });
         }
     };
+    const filteredPeriods = periods.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.status.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredPeriods.length / rowsPerPage) || 1;
+    const paginatedPeriods = filteredPeriods.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     return (
         <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
             {/* Top Header */}
             <PageHeader breadcrumb="Evaluation Periods" title="Evaluation Periods" />
 
-            {/* Main Table Card */}
-            <Card sx={{ borderRadius: 2, border: '1px solid #E2E8F0', mb: 3 }}>
-                <Box sx={{ p: 3, borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Schedule Registry
-                    </Typography>
+            {/* Search Card */}
+            <Card sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <TextField
+                        placeholder="Search period name..."
+                        size="small"
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        InputProps={{
+                            startAdornment: <SearchIcon color="disabled" sx={{ mr: 1 }} />,
+                        }}
+                        sx={{
+                            width: 280,
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: '8px',
+                                bgcolor: '#ffffff',
+                            }
+                        }}
+                    />
                     <Button
                         variant="contained"
                         color="primary"
                         startIcon={<AddIcon />}
                         onClick={handleOpenAdd}
-                        sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
+                        sx={{ ml: 'auto', bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
                     >
                         Create Evaluation Period
                     </Button>
                 </Box>
+            </Card>
+
+            {/* Main Table Card */}
+            <Card sx={{ borderRadius: 2, border: '1px solid #E2E8F0', mb: 3 }}>
 
                 <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
                     <Table>
                         <TableHead>
-                            <TableRow sx={{ bgcolor: '#F8FAFC' }}>
+                            <TableRow sx={{ bgcolor: '#F8FAFC', '& .MuiTableCell-root': { py: 1.5, whiteSpace: 'nowrap' } }}>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>PERIOD NAME</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>CYCLE TYPE</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>START DATE</TableCell>
@@ -217,14 +302,14 @@ export default function EvaluationPeriods() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {periods.length === 0 ? (
+                            {filteredPeriods.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                        No evaluation periods defined. Click "Create Evaluation Period" to get started.
+                                        {searchQuery ? "No periods match your search query." : "No evaluation periods defined. Click \"Create Evaluation Period\" to get started."}
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                periods.map((p) => {
+                                paginatedPeriods.map((p) => {
                                     const startFmt = new Date(p.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                                     const endFmt = new Date(p.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                                     const isActive = p.status === "Active" || p.status === "Open";
@@ -232,10 +317,43 @@ export default function EvaluationPeriods() {
                                     const isClosed = p.status === "Closed" || p.status === "Completed";
 
                                     return (
-                                        <TableRow key={p.id} sx={{ opacity: isActive ? 1 : 0.7 }}>
+                                        <TableRow
+                                            key={p.id}
+                                            hover
+                                            sx={{
+                                                opacity: isActive ? 1 : 0.7,
+                                                '& .MuiTableCell-root': {
+                                                    py: 1.5,
+                                                    borderBottom: '1px solid #CBD5E1',
+                                                    boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
+                                                }
+                                            }}
+                                        >
                                             <TableCell sx={{ fontWeight: 700, color: '#1E293B' }}>{p.name}</TableCell>
                                             <TableCell>
-                                                <Chip label={p.type} size="small" sx={{ bgcolor: '#F1F5F9', border: '1px solid #E2E8F0', color: '#475569', fontWeight: 600, borderRadius: 1 }} />
+                                                <Chip
+                                                    label={p.type}
+                                                    size="small"
+                                                    sx={{
+                                                        fontWeight: 600,
+                                                        borderRadius: 1,
+                                                        ...(p.type === "Quarterly" && {
+                                                            bgcolor: '#E8F5E9',
+                                                            color: '#2E7D32',
+                                                            border: '1px solid rgba(46, 125, 50, 0.15)'
+                                                        }),
+                                                        ...(p.type === "Semestral" && {
+                                                            bgcolor: '#FFF3E0',
+                                                            color: '#F57C00',
+                                                            border: '1px solid rgba(245, 124, 0, 0.15)'
+                                                        }),
+                                                        ...(p.type === "Annual" && {
+                                                            bgcolor: '#E3F2FD',
+                                                            color: '#1565C0',
+                                                            border: '1px solid rgba(21, 101, 192, 0.15)'
+                                                        }),
+                                                    }}
+                                                />
                                             </TableCell>
                                             <TableCell sx={{ fontWeight: 500 }}>{startFmt}</TableCell>
                                             <TableCell sx={{ fontWeight: 500 }}>{endFmt}</TableCell>
@@ -302,6 +420,19 @@ export default function EvaluationPeriods() {
                         </TableBody>
                     </Table>
                 </TableContainer>
+
+                {/* Pagination Container */}
+                {totalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, borderTop: '1px solid #E2E8F0' }}>
+                        <Pagination
+                            count={totalPages}
+                            page={currentPage}
+                            onChange={(e, val) => setCurrentPage(val)}
+                            color="primary"
+                            shape="rounded"
+                        />
+                    </Box>
+                )}
             </Card>
 
             {/* Add Period Modal Dialog */}

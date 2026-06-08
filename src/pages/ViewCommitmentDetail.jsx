@@ -78,25 +78,24 @@ export default function ViewCommitmentDetail({ commitmentId, onBack }) {
         breadcrumb="Commitments / Details" 
         title={
           <Button
-            startIcon={<ArrowBackIcon />}
+            startIcon={<ArrowBackIcon sx={{ fontSize: '1.1rem' }} />}
             onClick={onBack}
-            variant="outlined"
+            variant="text"
             size="small"
             sx={{
               color: 'var(--maroon, #580000)',
-              borderColor: 'var(--border, #E4E4E4)',
-              fontWeight: 700,
+              fontWeight: 600,
               textTransform: 'none',
-              fontSize: '0.8rem',
-              py: 0.5,
-              px: 1.5,
-              borderRadius: '8px',
-              bgcolor: '#ffffff',
-              boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.07))',
+              fontSize: '0.95rem',
+              py: 0.4,
+              px: 0.5,
+              minWidth: 0,
+              borderRadius: '6px',
+              letterSpacing: 0,
               '&:hover': {
-                bgcolor: 'var(--maroon-muted, #f2e8e8)',
-                borderColor: 'var(--maroon, #580000)',
-                color: 'var(--maroon, #580000)'
+                bgcolor: 'rgba(88,0,0,0.07)',
+                textDecoration: 'none',
+                color: 'var(--maroon, #800000)'
               }
             }}
           >

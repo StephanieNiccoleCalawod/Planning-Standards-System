@@ -7,9 +7,6 @@ import SLAConfiguration from "./pages/SLAConfiguration";
 import HolidayCalendar from "./pages/HolidayCalendar";
 import EvaluationPeriods from "./pages/EvaluationPeriods";
 import OPCRCommitments from "./pages/OPCRCommitments";
-import Users from "./pages/Users";
-import OfficeSettings from "./pages/OfficeSettings";
-import VersionHistory from "./pages/VersionHistory";
 
 const PAGES = {
   dashboard: <Dashboard />,
@@ -19,9 +16,6 @@ const PAGES = {
   holidayCalendar: <HolidayCalendar />,
   evaluationPeriods: <EvaluationPeriods />,
   opcrCommitments: <OPCRCommitments />,
-  users: <Users />,
-  officeSettings: <OfficeSettings />,
-  versionHistory: <VersionHistory />,
 };
 
 export default function App() {

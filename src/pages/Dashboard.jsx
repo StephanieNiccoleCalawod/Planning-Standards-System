@@ -11,6 +11,7 @@ const T = {
   blue:       "#2563EB",
   emerald:    "#10B981",
   amber:      "#F59E0B",
+  purple:     "#8B5CF6",
   slate50:    "#F8FAFC",
   slate100:   "#F1F5F9",
   slate200:   "#E2E8F0",
@@ -204,12 +205,18 @@ export default function Dashboard() {
   const totalServices    = services.filter(s => !s.archived).length;
   const activeServices   = summaryData ? summaryData.active_services_count : 0;
   const inactiveServices = totalServices - activeServices;
+  const naFlaggedServicesCount = services.filter(s => s.naFlag && !s.archived).length;
+
+  const totalKpis = kpis.length;
+  const activeKpis = kpis.filter(k => k.active).length;
+  const inactiveKpis = totalKpis - activeKpis;
 
   const simpleCount          = services.filter(s => s.classification === "Simple"           && !s.archived).length;
   const complexCount         = services.filter(s => s.classification === "Complex"          && !s.archived).length;
   const highlyTechnicalCount = services.filter(s => s.classification === "Highly Technical" && !s.archived).length;
 
-  const currentPeriod = summaryData?.active_period || { name: "N/A", id: null };
+  const activePeriod = summaryData?.current_period || summaryData?.active_period || null;
+  const currentPeriod = activePeriod || { name: "No active evaluation period", id: null };
   const commitmentStatus = summaryData?.commitment_status || "Not Started";
 
   const activeServiceIds = services.filter(s => s.active && !s.archived).map(s => s.id);
@@ -228,6 +235,18 @@ export default function Dashboard() {
   const periodDateRange = currentPeriod.start_date && currentPeriod.end_date
     ? `${new Date(currentPeriod.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(currentPeriod.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
     : "Semestral";
+
+  // KPI counts by category for donut chart
+  const activeKpisList = kpis.filter(k => k.active);
+  const timelinessCount = activeKpisList.filter(k => k.category === "Timeliness").length;
+  const qualityCount    = activeKpisList.filter(k => k.category === "Quality").length;
+  const efficiencyCount = activeKpisList.filter(k => k.category === "Efficiency").length;
+  const totalActiveKpis = activeKpisList.length;
+
+  const circumference = 238.76;
+  const lenTimeliness = totalActiveKpis > 0 ? (timelinessCount / totalActiveKpis) * circumference : 0;
+  const lenQuality = totalActiveKpis > 0 ? (qualityCount / totalActiveKpis) * circumference : 0;
+  const lenEfficiency = totalActiveKpis > 0 ? (efficiencyCount / totalActiveKpis) * circumference : 0;
 
   // Group holidays by name for a clean, non-repetitive Dashboard view
   const uniqueHolidays = [];
@@ -255,50 +274,43 @@ export default function Dashboard() {
     <Box sx={{ p: 4, bgcolor: T.slate50, minHeight: "100vh", fontFamily: "Outfit, sans-serif" }}>
       <PageHeader breadcrumb="Dashboard" title="Performance Overview" />
 
-      {/* ── Top 4 Summary Cards ── */}
+      {/* ── Top Summary Cards ── */}
       <Box sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(4, 1fr)" },
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
         gap: "20px",
         mb: 3,
       }}>
-        {/* Total Transactions */}
-        <StatCard accentColor={T.maroon}>
-          <StatLabel>Total Transactions</StatLabel>
-          <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <StatValue>{totalTransactions}</StatValue>
-            <Box sx={{
-              px: "8px", py: "3px", borderRadius: "9999px", fontSize: 11, fontWeight: 700,
-              bgcolor: "#ECFDF5", color: T.emerald,
-            }}>
-              ↑ 4%
-            </Box>
-          </Box>
-          <StatSubtext>this period</StatSubtext>
-        </StatCard>
-
-        {/* Service Classification */}
-        <StatCard accentColor={T.blue}>
-          <StatLabel>Commitment Status</StatLabel>
-          <StatValue>{commitmentStatus}</StatValue>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
-            <ClassifChip label="OPCR" count={1} />
-          </Box>
-        </StatCard>
-
         {/* Current Period */}
         <StatCard accentColor={T.emerald}>
           <StatLabel>Current Period</StatLabel>
-          <Box sx={{
-            display: "inline-block", px: "10px", py: "3px", borderRadius: "9999px",
-            fontSize: 10.5, fontWeight: 700, bgcolor: "#ECFDF5", color: "#047857", mb: 0.5,
-          }}>
-            ● Active
-          </Box>
-          <Typography sx={{ fontSize: 14, fontWeight: 700, color: T.slate900, lineHeight: 1.3 }}>
-            {currentPeriod.name}
-          </Typography>
-          <StatSubtext>{periodDateRange}</StatSubtext>
+          {activePeriod ? (
+            <>
+              <Box sx={{
+                display: "inline-block", px: "10px", py: "3px", borderRadius: "9999px",
+                fontSize: 10.5, fontWeight: 700, bgcolor: "#ECFDF5", color: "#047857", mb: 0.5,
+              }}>
+                ● Active
+              </Box>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: T.slate900, lineHeight: 1.3 }}>
+                {activePeriod.name}
+              </Typography>
+              <StatSubtext>{periodDateRange}</StatSubtext>
+            </>
+          ) : (
+            <>
+              <Box sx={{
+                display: "inline-block", px: "10px", py: "3px", borderRadius: "9999px",
+                fontSize: 10.5, fontWeight: 700, bgcolor: T.slate100, color: T.slate600, mb: 0.5,
+              }}>
+                ● Inactive
+              </Box>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: T.slate400, lineHeight: 1.3 }}>
+                No active evaluation period
+              </Typography>
+              <StatSubtext>N/A</StatSubtext>
+            </>
+          )}
         </StatCard>
 
         {/* Active Services */}
@@ -312,6 +324,30 @@ export default function Dashboard() {
           </Box>
           <StatSubtext>{inactiveServices} services inactive</StatSubtext>
         </StatCard>
+
+        {/* KPI Count Widget */}
+        <StatCard accentColor={T.maroon}>
+          <StatLabel>KPI Standards</StatLabel>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+            <StatValue>{activeKpis}</StatValue>
+            <Typography sx={{ fontSize: 20, color: T.slate400, fontWeight: 500 }}>
+              / {totalKpis}
+            </Typography>
+          </Box>
+          <StatSubtext>{inactiveKpis} KPIs inactive</StatSubtext>
+        </StatCard>
+
+        {/* N/A Flagged Services */}
+        <StatCard accentColor={T.slate600}>
+          <StatLabel>N/A Flagged Services</StatLabel>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+            <StatValue>{naFlaggedServicesCount}</StatValue>
+            <Typography sx={{ fontSize: 20, color: T.slate400, fontWeight: 500 }}>
+              / {totalServices}
+            </Typography>
+          </Box>
+          <StatSubtext>services flagged N/A</StatSubtext>
+        </StatCard>
       </Box>
 
       {/* ── Charts Row ── */}
@@ -320,52 +356,94 @@ export default function Dashboard() {
         gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
         gap: 3,
       }}>
-        {/* SLA Compliance Donut */}
+        {/* KPI Targets by Category Donut */}
         <ChartCard>
           <ChartHeader
-            title="SLA Compliance Rate"
-            subtitle="Calculated dynamically based on live services and transactions"
+            title="KPI Targets by Category"
+            subtitle="Distribution of active Key Performance Indicator (KPI) targets"
           />
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3.5, flexWrap: "wrap", py: 1 }}>
-            {/* Donut SVG */}
-            <Box sx={{ position: "relative", width: 170, height: 170 }}>
-              <svg width="100%" height="100%" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="38" fill="none" stroke={T.slate100} strokeWidth="8" />
-                <circle
-                  cx="50" cy="50" r="38" fill="none"
-                  stroke={T.maroon} strokeWidth="8"
-                  strokeDasharray="238.76"
-                  strokeDashoffset={238.76 - (238.76 * (complianceRate / 100))}
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                  style={{ transition: "stroke-dashoffset 0.8s ease-out" }}
-                />
-                {/* tick marks */}
-                {["50,8,50,16","50,84,50,92","8,50,16,50","84,50,92,50"].map((pts, i) => {
-                  const [x1,y1,x2,y2] = pts.split(",");
-                  return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fff" strokeWidth="2.5" />;
-                })}
-              </svg>
-              <Box sx={{
-                position: "absolute", inset: 0,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                lineHeight: 1.1,
-              }}>
-                <Typography sx={{ fontSize: 28, fontWeight: 700, color: T.slate900 }}>{complianceRate}%</Typography>
-                <Typography sx={{ fontSize: 11.5, color: T.slate600, fontWeight: 600, textTransform: "lowercase", mt: 0.25 }}>
-                  compliant
-                </Typography>
+          {totalActiveKpis > 0 ? (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 3.5, flexWrap: "wrap", py: 1 }}>
+              {/* Donut SVG */}
+              <Box sx={{ position: "relative", width: 170, height: 170 }}>
+                <svg width="100%" height="100%" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="38" fill="none" stroke={T.slate100} strokeWidth="8" />
+                  {lenTimeliness > 0 && (
+                    <circle
+                      cx="50" cy="50" r="38" fill="none"
+                      stroke={T.blue} strokeWidth="8"
+                      strokeDasharray={`${lenTimeliness} ${circumference - lenTimeliness}`}
+                      strokeDashoffset={0}
+                      transform="rotate(-90 50 50)"
+                      style={{ transition: "stroke-dashoffset 0.8s ease-out" }}
+                    />
+                  )}
+                  {lenQuality > 0 && (
+                    <circle
+                      cx="50" cy="50" r="38" fill="none"
+                      stroke={T.amber} strokeWidth="8"
+                      strokeDasharray={`${lenQuality} ${circumference - lenQuality}`}
+                      strokeDashoffset={-lenTimeliness}
+                      transform="rotate(-90 50 50)"
+                      style={{ transition: "stroke-dashoffset 0.8s ease-out" }}
+                    />
+                  )}
+                  {lenEfficiency > 0 && (
+                    <circle
+                      cx="50" cy="50" r="38" fill="none"
+                      stroke={T.emerald} strokeWidth="8"
+                      strokeDasharray={`${lenEfficiency} ${circumference - lenEfficiency}`}
+                      strokeDashoffset={-(lenTimeliness + lenQuality)}
+                      transform="rotate(-90 50 50)"
+                      style={{ transition: "stroke-dashoffset 0.8s ease-out" }}
+                    />
+                  )}
+                </svg>
+                <Box sx={{
+                  position: "absolute", inset: 0,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  lineHeight: 1.1,
+                }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 700, color: T.slate900 }}>{totalActiveKpis}</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: T.slate600, fontWeight: 600, textTransform: "lowercase", mt: 0.25 }}>
+                    active KPIs
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Legend */}
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <LegendRow dot={T.blue}     label="Timeliness (SLA)" count={timelinessCount} />
+                <LegendRow dot={T.amber}    label="Quality"          count={qualityCount} />
+                <LegendRow dot={T.emerald}  label="Efficiency"       count={efficiencyCount} />
               </Box>
             </Box>
-
-            {/* Legend */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <LegendRow dot={T.maroon}   label="Compliant"     count={compliantCount} />
-              <LegendRow dot={T.slate200} label="Non-Compliant" count={resolvedNonCompliantCount} />
-              <LegendRow dot="#EF4444"    label="Overdue"       count={overdueCount} />
-              <LegendRow dot={T.amber}    label="N/A"           count={naCount} />
+          ) : (
+            <Box sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              py: 4.5,
+              px: 3,
+              textAlign: "center"
+            }}>
+              <Box sx={{ color: T.slate400, mb: 2 }}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20V10" />
+                  <path d="M18 20V4" />
+                  <path d="M6 20v-4" />
+                  <circle cx="12" cy="12" r="10" strokeDasharray="4 4" />
+                </svg>
+              </Box>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: T.slate900, mb: 0.5 }}>
+                No active KPI targets defined
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: T.slate600, maxWidth: 300, lineHeight: 1.5 }}>
+                Define KPI standards first in the KPI Management section to visualize targets.
+              </Typography>
             </Box>
-          </Box>
+          )}
         </ChartCard>
 
         {/* Holidays List */}

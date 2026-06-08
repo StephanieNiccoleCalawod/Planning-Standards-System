@@ -276,10 +276,22 @@ export default function KPIStandards() {
   const handleToggleActive = async (id, kName, newStatus) => {
     try {
       await updateKpi(id, { is_active: newStatus });
-      triggerSnackbar(`"${kName}" has been ${newStatus ? 'activated' : 'deactivated'}.`, "success");
+      setResultModal({
+        show: true,
+        type: "success",
+        title: newStatus ? "KPI Target Activated!" : "KPI Target Deactivated!",
+        message: newStatus
+          ? `"${kName}" is now active and will be included in performance audits and scoring.`
+          : `"${kName}" has been deactivated and excluded from audits, scores, and Dashboard charts.`,
+      });
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || `Failed to update status`, "error");
+      setResultModal({
+        show: true,
+        type: "error",
+        title: "Operation Failed",
+        message: err.message || "Failed to update KPI Target status. Please try again.",
+      });
     }
   };
 
@@ -298,8 +310,8 @@ export default function KPIStandards() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 6;
-  const showPagination = filteredKpis.length >= 10 || currentPage > 1;
+  const rowsPerPage = 10;
+  const showPagination = filteredKpis.length > 10 || currentPage > 1;
   const totalPages = Math.ceil(filteredKpis.length / rowsPerPage) || 1;
   const paginatedKpis = filteredKpis.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
@@ -601,9 +613,10 @@ export default function KPIStandards() {
         entityLabel="KPI Target"
         itemName={deactivatingKpi?.name || ''}
         bodyExtra="Deactivating this target excludes it from current performance audits, scores, and active charts in the Dashboard."
-        onConfirm={() => {
-          handleToggleActive(deactivatingKpi.id, deactivatingKpi.name, false);
+        onConfirm={async () => {
+          const kpi = deactivatingKpi;
           setDeactivatingKpi(null);
+          await handleToggleActive(kpi.id, kpi.name, false);
         }}
         onCancel={() => setDeactivatingKpi(null)}
       />
@@ -615,9 +628,10 @@ export default function KPIStandards() {
         entityLabel="KPI Target"
         itemName={activatingKpi?.name || ''}
         bodyExtra="Activating this KPI will include it in active audits, evaluations, and metrics computation for this period."
-        onConfirm={() => {
-          handleToggleActive(activatingKpi.id, activatingKpi.name, true);
+        onConfirm={async () => {
+          const kpi = activatingKpi;
           setActivatingKpi(null);
+          await handleToggleActive(kpi.id, kpi.name, true);
         }}
         onCancel={() => setActivatingKpi(null)}
       />

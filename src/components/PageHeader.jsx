@@ -59,8 +59,16 @@ export default function PageHeader({ breadcrumb, title, action }) {
     <>
       {/* Sticky Breadcrumb Row */}
       <div className="sticky-breadcrumb-row">
-        <div className="breadcrumb-text">
-          Home / <span style={{ color: "#800000", fontWeight: 600 }}>{breadcrumb}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
+          <span style={{ color: breadcrumb === "Dashboard" ? "#580000" : "#64748B", fontWeight: breadcrumb === "Dashboard" ? 600 : 500 }}>
+            Dashboard
+          </span>
+          {breadcrumb !== "Dashboard" && (
+            <>
+              <span style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1 }}>›</span>
+              <span style={{ color: "#580000", fontWeight: 600 }}>{breadcrumb}</span>
+            </>
+          )}
         </div>
 
         {/* Right side: period badge + notification + profile */}

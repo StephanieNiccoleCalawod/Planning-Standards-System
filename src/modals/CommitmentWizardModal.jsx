@@ -54,7 +54,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
   const [targetErrors, setTargetErrors] = useState({});
   
   const [draftId, setDraftId] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [autoSaveStatus, setAutoSaveStatus] = useState("");
   const [showLockConfirm, setShowLockConfirm] = useState(false);
   const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
@@ -110,12 +110,11 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       const promises = [
         fetchPeriods(),
         fetchServices(),
-        fetchKpis()
+        fetchKpis(),
+        fetchCommitments()
       ];
       if (commitmentId) {
         promises.push(fetchCommitmentById(commitmentId));
-      } else {
-        promises.push(fetchCommitments({ status: 'Draft' }));
       }
       Promise.all(promises).then(() => setLoading(false));
     }
@@ -143,7 +142,8 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       }
     } else if (commitments.length > 0 || periods.length > 0) {
       hasLoadedDraft.current = true;
-      const draft = commitments.find(c => c.status === "Draft");
+      const activePeriod = periods.find(p => p.status === "Active" || p.status === "Open");
+      const draft = commitments.find(c => c.status === "Draft" && (!activePeriod || String(c.period_id) === String(activePeriod.id)));
       if (draft) {
         setDraftId(draft.id);
         setSelectedPeriod(draft.period_id);
@@ -166,6 +166,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   // Sync / initialize targets for any newly selected services
   useEffect(() => {
+    if (!hasLoadedDraft.current) return;
     if (open && kpis.length > 0 && selectedServices.length > 0) {
       setKpiTargets(prev => {
         const updated = { ...prev };
@@ -246,6 +247,60 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         title: "Failed to Save Draft",
         message: err.message || "Something went wrong while saving your draft."
       });
+    }
+  };
+
+  // Keep saveDraftSilent updated in a ref to avoid stale closure in setInterval
+  const saveDraftRef = React.useRef(saveDraftSilent);
+  useEffect(() => {
+    saveDraftRef.current = saveDraftSilent;
+  });
+
+  useEffect(() => {
+    const selectedPeriodObj = periods.find(p => String(p.id) === String(selectedPeriod));
+    const isPeriodClosed = selectedPeriodObj ? (selectedPeriodObj.status === "Closed" || selectedPeriodObj.status === "Completed") : false;
+    if (!open || readOnly || isPeriodClosed || !selectedPeriod) return;
+
+    const interval = setInterval(async () => {
+      setAutoSaveStatus("Auto-saving...");
+      try {
+        await saveDraftRef.current();
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+        setAutoSaveStatus(`Auto-saved at ${timeStr}`);
+      } catch (err) {
+        console.error("Auto-save failed:", err);
+        setAutoSaveStatus("Save Failed");
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [open, readOnly, selectedPeriod, periods]);
+
+  const handlePeriodChange = (periodId) => {
+    setSelectedPeriod(periodId);
+    
+    // Check if there is an existing draft commitment for this period
+    const existing = commitments.find(c => String(c.period_id) === String(periodId));
+    if (existing) {
+      if (existing.status === 'Draft') {
+        // Load the existing draft!
+        setDraftId(existing.id);
+        const sIds = [...new Set(existing.items?.map(i => i.service_id) || [])];
+        setSelectedServices(sIds);
+        const targets = loadTargets(existing.items);
+        setKpiTargets(targets);
+      } else {
+        // If it's Locked, reset draftId and services/targets (will be blocked from proceeding anyway)
+        setDraftId(null);
+        setSelectedServices([]);
+        setKpiTargets(loadTargets([]));
+      }
+    } else {
+      // If no commitment exists, reset draftId and services/targets to default kpi targets
+      setDraftId(null);
+      setSelectedServices([]);
+      setKpiTargets(loadTargets([]));
     }
   };
 
@@ -361,10 +416,15 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       await saveDraftSilent();
       await lockCommitment(draftId);
       setShowLockConfirm(false);
-      onClose();
+      onClose('locked');
     } catch (err) {
-      alert(err.message || "Failed to lock commitment.");
       setShowLockConfirm(false);
+      setResultModal({
+        show: true,
+        type: "error",
+        title: "Failed to Lock & Submit",
+        message: err.message || "Something went wrong while locking your commitment."
+      });
     }
   };
 
@@ -378,6 +438,21 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
     );
   }
 
+  const selectedPeriodObj = periods.find(p => String(p.id) === String(selectedPeriod));
+  const isPeriodClosed = selectedPeriodObj ? (selectedPeriodObj.status === "Closed" || selectedPeriodObj.status === "Completed") : false;
+  const isReadOnly = readOnly || isPeriodClosed;
+
+  // Block Step 1 → 2 navigation when a LOCKED commitment already exists for the chosen period
+  // (but allow editing that exact locked commitment if it's opened by commitmentId)
+  const lockedForSelectedPeriod = selectedPeriod
+    ? commitments.find(
+        c =>
+          String(c.period_id) === String(selectedPeriod) &&
+          c.status === 'Locked' &&
+          String(c.id) !== String(commitmentId)
+      )
+    : null;
+  const isBlockedByLockedCommitment = !!lockedForSelectedPeriod && !commitmentId;
   const displayPeriods = periods.filter(p => p.status === "Active" || p.status === "Open" || p.id === selectedPeriod);
   const availableServices = services.filter(s => {
     if (selectedServices.some(id => String(id) === String(s.id))) return true; // Always show selected services
@@ -391,7 +466,18 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth sx={{ '& .MuiDialog-paper': { borderRadius: 3, minHeight: '600px' } }}>
+      <Dialog 
+        open={open} 
+        onClose={onClose} 
+        fullWidth 
+        sx={{ 
+          '& .MuiDialog-paper': { 
+            maxWidth: '750px', 
+            borderRadius: 3, 
+            minHeight: '600px' 
+          } 
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             OPCR Commitment Wizard
@@ -431,8 +517,8 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                 fullWidth
                 label="Evaluation Period"
                 value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                disabled={!!draftId || readOnly}
+                onChange={(e) => handlePeriodChange(e.target.value)}
+                disabled={activeStep > 0 || !!commitmentId || isReadOnly}
               >
                 {displayPeriods.length === 0 && (
                   <MenuItem disabled value="">No active periods available</MenuItem>
@@ -441,10 +527,46 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                   <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                 ))}
               </TextField>
-              {draftId && (
+              {draftId && (activeStep > 0 || !!commitmentId) && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   Continuing from an existing draft. Period selection is locked.
                 </Typography>
+              )}
+              {draftId && activeStep === 0 && !commitmentId && (
+                <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 1, fontWeight: 600 }}>
+                  Note: An existing draft was found for this period and has been loaded.
+                </Typography>
+              )}
+
+              {/* Blocking alert when a locked commitment already exists for this period */}
+              {isBlockedByLockedCommitment && (
+                <Box
+                  sx={{
+                    mt: 3,
+                    p: '16px 20px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(220, 38, 38, 0.25)',
+                    bgcolor: '#FEF2F2',
+                    display: 'flex',
+                    gap: 2,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <Box sx={{ fontSize: 20, lineHeight: 1, flexShrink: 0, mt: '1px' }}>🔒</Box>
+                  <Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: '#DC2626', mb: 0.5 }}>
+                      Commitment Already Locked
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#7F1D1D', lineHeight: 1.5 }}>
+                      A locked commitment already exists for <strong>{selectedPeriodObj?.name}</strong>. Only one
+                      commitment is allowed per office per evaluation period. You cannot open a new commitment
+                      form for this period.
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#B91C1C', fontWeight: 600, display: 'block', mt: 1 }}>
+                      To view the existing commitment, close this dialog and click "View" in the table.
+                    </Typography>
+                  </Box>
+                </Box>
               )}
             </Box>
           )}
@@ -466,6 +588,9 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                     const isSelected = selectedServices.some(id => String(id) === String(svc.id));
                     const labelId = `checkbox-list-label-${svc.id}`;
                     
+                    const serviceKpis = kpis.filter(k => String(k.service_id) === String(svc.id) && k.active);
+                    const hasActiveKpis = serviceKpis.length > 0;
+
                     // Normalize classification styles
                     const cls = svc.classification || "Simple";
                     let chipStyle = { color: "#10B981", bg: "#ECFDF5", border: "1px solid rgba(16, 185, 129, 0.15)" }; // Simple default
@@ -478,7 +603,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                     return (
                       <Box
                         key={svc.id}
-                        onClick={() => !readOnly && handleToggleService(svc.id)}
+                        onClick={() => !isReadOnly && hasActiveKpis && handleToggleService(svc.id)}
                         sx={{
                           display: "flex",
                           alignItems: "center",
@@ -489,18 +614,21 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                           border: "1px solid",
                           borderColor: isSelected ? "#800000" : "#E2E8F0",
                           bgcolor: isSelected ? "#FFF5F5" : "#ffffff",
-                          cursor: readOnly ? "default" : "pointer",
+                          cursor: (isReadOnly || !hasActiveKpis) ? "not-allowed" : "pointer",
+                          opacity: hasActiveKpis ? 1 : 0.6,
                           transition: "all 0.2s ease-in-out",
-                          "&:hover": {
-                            borderColor: isSelected ? "#800000" : "#CBD5E1",
-                            bgcolor: isSelected ? "#FFF5F5" : "#F8FAFC",
-                          }
+                          ...(!hasActiveKpis ? {} : {
+                            "&:hover": {
+                              borderColor: isSelected ? "#800000" : "#CBD5E1",
+                              bgcolor: isSelected ? "#FFF5F5" : "#F8FAFC",
+                            }
+                          })
                         }}
                       >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Checkbox
                             checked={isSelected}
-                            disabled={readOnly}
+                            disabled={isReadOnly || !hasActiveKpis}
                             tabIndex={-1}
                             disableRipple
                             sx={{
@@ -520,20 +648,64 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                             </Typography>
                           </Box>
                         </Box>
-                        
-                        <Chip
-                          label={svc.classification}
-                          size="small"
-                          sx={{
-                            color: chipStyle.color,
-                            bgcolor: chipStyle.bg,
-                            border: chipStyle.border,
-                            fontWeight: 700,
-                            fontSize: "11px",
-                            borderRadius: "12px",
-                            px: 1
-                          }}
-                        />
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                          {!hasActiveKpis && (
+                            <Chip
+                              label="⚠️ No KPIs Defined"
+                              size="small"
+                              sx={{
+                                color: "#DC2626",
+                                bgcolor: "#FEF2F2",
+                                border: "1px solid rgba(239, 68, 68, 0.2)",
+                                fontWeight: 700,
+                                fontSize: "10px",
+                                borderRadius: "12px",
+                                px: 0.5,
+                              }}
+                            />
+                          )}
+                          <Chip
+                            label={
+                              svc.withReferral === 'without' ? "Without Referral" :
+                              svc.withReferral === 'n/a' ? "Not Applicable" : "With Referral"
+                            }
+                            size="small"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: "10px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.02em",
+                              borderRadius: "12px",
+                              px: 0.5,
+                              ...(svc.withReferral === "without" ? { 
+                                bgcolor: '#F0F9FF', 
+                                color: '#0284C7', 
+                                border: '1px solid rgba(2, 132, 199, 0.15)' 
+                              } : svc.withReferral === "n/a" ? { 
+                                bgcolor: '#F1F5F9', 
+                                color: '#64748B', 
+                                border: '1px solid rgba(100, 116, 139, 0.15)' 
+                              } : { 
+                                bgcolor: '#FEF2F2', 
+                                color: '#9B1C1C', 
+                                border: '1px solid rgba(155, 28, 28, 0.15)' 
+                              })
+                            }}
+                          />
+                          <Chip
+                            label={svc.classification}
+                            size="small"
+                            sx={{
+                              color: chipStyle.color,
+                              bgcolor: chipStyle.bg,
+                              border: chipStyle.border,
+                              fontWeight: 700,
+                              fontSize: "11px",
+                              borderRadius: "12px",
+                              px: 1
+                            }}
+                          />
+                        </Box>
                       </Box>
                     );
                   })
@@ -601,7 +773,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                           handleDurationChange(kpi.id, "days", e.target.value);
                                           setTargetErrors(prev => ({ ...prev, [kpi.id]: "" }));
                                         }}
-                                        disabled={readOnly}
+                                        disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
                                         sx={{ 
                                           width: 75,
@@ -628,7 +800,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                           handleDurationChange(kpi.id, "hours", e.target.value);
                                           setTargetErrors(prev => ({ ...prev, [kpi.id]: "" }));
                                         }}
-                                        disabled={readOnly}
+                                        disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
                                         sx={{ 
                                           width: 75,
@@ -655,7 +827,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                           handleDurationChange(kpi.id, "mins", e.target.value);
                                           setTargetErrors(prev => ({ ...prev, [kpi.id]: "" }));
                                         }}
-                                        disabled={readOnly}
+                                        disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
                                         sx={{ 
                                           width: 75,
@@ -692,7 +864,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         handleValueChange(kpi.id, e.target.value);
                                         setTargetErrors(prev => ({ ...prev, [kpi.id]: "" }));
                                       }}
-                                      disabled={readOnly}
+                                      disabled={isReadOnly}
                                       error={!!targetErrors[kpi.id]}
                                       sx={{ 
                                         width: 140,
@@ -729,10 +901,11 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         <DialogActions sx={{ p: 3, borderTop: '1px solid #E2E8F0', gap: 1 }}>
           <Box sx={{ flexGrow: 1 }} />
           
-          {activeStep > 0 && !readOnly && (
+          {activeStep > 0 && (
             <Button
               variant="outlined"
               onClick={saveDraft}
+              disabled={isReadOnly}
               sx={{
                 color: '#800000',
                 borderColor: '#800000',
@@ -769,21 +942,21 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
             <Button 
               variant="contained" 
               onClick={handleNext} 
-              disabled={activeStep === 0 && !selectedPeriod}
+              disabled={activeStep === 0 && (!selectedPeriod || isBlockedByLockedCommitment)}
               sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
             >
               Next
             </Button>
-          ) : !readOnly ? (
+          ) : (
             <Button 
               variant="contained" 
               color="success" 
               onClick={handleLockSubmitClick}
-              disabled={selectedServices.length === 0}
+              disabled={selectedServices.length === 0 || isReadOnly}
             >
               Lock & Submit
             </Button>
-          ) : null}
+          )}
         </DialogActions>
       </Dialog>
 

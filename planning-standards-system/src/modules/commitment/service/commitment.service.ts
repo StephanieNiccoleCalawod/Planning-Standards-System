@@ -266,6 +266,7 @@ export class CommitmentService {
                 }),
             );
             await this.itemRepo.save(items);
+            commitment.items = items;
         }
 
         commitment.version_number += 1;

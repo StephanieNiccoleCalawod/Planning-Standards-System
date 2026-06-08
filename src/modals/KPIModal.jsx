@@ -198,7 +198,7 @@ export default function KPIModal({
             size="small"
           >
             <MenuItem value="">Select Service...</MenuItem>
-            {services.map(s => {
+            {services.filter(s => s.active || String(s.id) === String(serviceId)).map(s => {
               const withRef = s.withReferral?.toLowerCase();
               const refLabel = withRef === 'without' ? '(Without Referral)' :
                                withRef === 'n/a' ? '(Not Applicable)' : '(With Referral)';

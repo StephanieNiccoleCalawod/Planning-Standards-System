@@ -33,10 +33,10 @@ import FlagOffIcon from '@mui/icons-material/FlagOutlined';
 
 import PageHeader from "../components/PageHeader";
 import AddServiceModal from "../modals/AddServiceModal";
-import DeactivateModal from "../modals/DeactivateModal";
 import IntakeFieldBuilderModal from "../modals/IntakeFieldBuilderModal";
 import ResultModal from "../modals/ResultModal";
 import NaFlagModal from "../modals/NaFlagModal";
+import ToggleStatusModal from "../modals/ToggleStatusModal";
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
 
@@ -66,6 +66,7 @@ export default function ServiceCatalogue() {
   const [showAdd, setShowAdd] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [deactivating, setDeactivating] = useState(null);
+  const [activating, setActivating] = useState(null);
   const [fieldsService, setFieldsService] = useState(null);
   const [flaggingService, setFlaggingService] = useState(null);
 
@@ -112,13 +113,59 @@ export default function ServiceCatalogue() {
 
   const confirmDeactivate = async () => {
     if (!deactivating) return;
+    const serviceName = deactivating.name;
     try {
       await deactivateService(deactivating.id);
-      triggerSnackbar("Service deactivated successfully!", "success");
       setDeactivating(null);
+      setResultModal({
+        type: "success",
+        title: "Service Deactivated",
+        message: `The service "${serviceName}" has been successfully deactivated and is now hidden from transaction logging.`
+      });
     } catch (err) {
       console.error(err);
-      triggerSnackbar(err.message || "Failed to deactivate service", "error");
+      setDeactivating(null);
+      setResultModal({
+        type: "error",
+        title: "Deactivation Failed",
+        message: err.message || `Failed to deactivate the service "${serviceName}".`
+      });
+    }
+  };
+
+  const confirmActivate = async () => {
+    if (!activating) return;
+    const serviceName = activating.name;
+    try {
+      await api.activateService(activating.id);
+      setActivating(null);
+      await fetchServices();
+      setResultModal({
+        type: "success",
+        title: "Service Activated",
+        message: `The service "${serviceName}" has been successfully activated and is now available for transaction logging.`
+      });
+    } catch (err) {
+      console.error(err);
+      setActivating(null);
+      setResultModal({
+        type: "error",
+        title: "Activation Failed",
+        message: err.message || `Failed to activate the service "${serviceName}".`
+      });
+    }
+  };
+
+  const handleUnflag = async (svc) => {
+    const flagId = svc.naFlags?.[0]?.id;
+    if (!flagId) return;
+    try {
+      await api.deleteNaFlag(svc.id, flagId);
+      triggerSnackbar("Service unflagged successfully!", "success");
+      await fetchServices();
+    } catch (err) {
+      console.error(err);
+      triggerSnackbar(err.message || "Failed to unflag service", "error");
     }
   };
 
@@ -405,25 +452,45 @@ export default function ServiceCatalogue() {
                           </span>
                         </Tooltip>
                         {svc.active && activePeriod && (
-                          <Tooltip title={svc.naFlag ? "Already flagged as N/A" : "Flag as N/A"} arrow>
-                            <span>
-                              <IconButton
-                                size="small"
-                                color="warning"
-                                disabled={svc.naFlag}
-                                onClick={() => setFlaggingService(svc)}
-                                sx={{
-                                  border: '1px solid',
-                                  borderColor: 'rgba(237, 108, 2, 0.2)',
-                                  bgcolor: 'rgba(237, 108, 2, 0.04)',
-                                  '&:hover': { bgcolor: 'rgba(237, 108, 2, 0.08)' },
-                                  width: 30, height: 30
-                                }}
-                              >
-                                <FlagOffIcon sx={{ width: 15, height: 15 }} />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
+                          svc.naFlag ? (
+                            <Tooltip title="Unflag Service" arrow>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="warning"
+                                  onClick={() => handleUnflag(svc)}
+                                  sx={{
+                                    border: '1px solid',
+                                    borderColor: 'rgba(237, 108, 2, 0.5)',
+                                    bgcolor: 'rgba(237, 108, 2, 0.15)',
+                                    '&:hover': { bgcolor: 'rgba(237, 108, 2, 0.25)' },
+                                    width: 30, height: 30
+                                  }}
+                                >
+                                  <FlagIcon sx={{ width: 15, height: 15 }} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="Flag as N/A" arrow>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="warning"
+                                  onClick={() => setFlaggingService(svc)}
+                                  sx={{
+                                    border: '1px solid',
+                                    borderColor: 'rgba(237, 108, 2, 0.2)',
+                                    bgcolor: 'rgba(237, 108, 2, 0.04)',
+                                    '&:hover': { bgcolor: 'rgba(237, 108, 2, 0.08)' },
+                                    width: 30, height: 30
+                                  }}
+                                >
+                                  <FlagOffIcon sx={{ width: 15, height: 15 }} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )
                         )}
                         {svc.active ? (
                           <Tooltip title="Deactivate Service" arrow>
@@ -453,16 +520,7 @@ export default function ServiceCatalogue() {
                               <IconButton
                                 size="small"
                                 color="success"
-                                onClick={async () => {
-                                  try {
-                                    await api.activateService(svc.id);
-                                    triggerSnackbar("Service activated successfully!", "success");
-                                    await fetchServices();
-                                  } catch (err) {
-                                    console.error(err);
-                                    triggerSnackbar(err.message || "Failed to activate service", "error");
-                                  }
-                                }}
+                                onClick={() => setActivating(svc)}
                                 sx={{
                                   border: '1px solid',
                                   borderColor: 'rgba(46, 125, 50, 0.2)',
@@ -612,10 +670,26 @@ export default function ServiceCatalogue() {
       )}
 
       {deactivating && (
-        <DeactivateModal
-          service={deactivating}
+        <ToggleStatusModal
+          open={Boolean(deactivating)}
+          isActivate={false}
+          itemName={deactivating.name}
+          entityLabel="Service"
+          bodyExtra="This service will be hidden from transaction logging immediately."
           onConfirm={confirmDeactivate}
           onCancel={() => setDeactivating(null)}
+        />
+      )}
+
+      {activating && (
+        <ToggleStatusModal
+          open={Boolean(activating)}
+          isActivate={true}
+          itemName={activating.name}
+          entityLabel="Service"
+          bodyExtra="This service will be restored to transaction logging immediately."
+          onConfirm={confirmActivate}
+          onCancel={() => setActivating(null)}
         />
       )}
 

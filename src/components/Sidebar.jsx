@@ -89,9 +89,9 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
   return (
     <>
       {isOpen && (
-        <div 
-          className="sidebar-backdrop" 
-          onClick={onClose} 
+        <div
+          className="sidebar-backdrop"
+          onClick={onClose}
           style={{
             position: 'fixed',
             top: 0,
@@ -106,10 +106,11 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
       )}
       <div className={`sidebar ${isOpen ? "open" : ""}`}>
         {/* Dynamic override style tag to fully bypass default layout lines */}
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .sidebar {
-            width: 260px;
-            background: #500000 !important;
+            width: 256px;
+            background: var(--maroon, #580000) !important;
             color: #ffffff;
             display: flex;
             flex-direction: column;
@@ -119,7 +120,7 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             left: 0;
             bottom: 0;
             box-sizing: border-box;
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
             font-family: "DM Sans", sans-serif;
             z-index: 1000;
             overflow: hidden;
@@ -134,27 +135,38 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             }
           }
           .sidebar-logo {
-            padding: 16px 20px 12px;
+            padding: 0 24px;
+            height: 61px;
             display: flex;
             align-items: center;
             gap: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
           }
           .sidebar-logo-mark {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: #ffffff;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            flex-shrink: 0;
           }
-          .sidebar-logo-text {
-            font-size: 14px;
+          .sidebar-logo-title {
+            font-size: 12px;
             font-weight: 700;
             color: #ffffff;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
+            margin: 0;
+          }
+          .sidebar-logo-subtitle {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 0.05em;
+            margin: 0;
           }
           .sidebar-nav {
             padding: 12px 0;
@@ -162,7 +174,7 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 4px;
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
           }
@@ -172,51 +184,43 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           .nav-section {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
           }
           .nav-section-title {
-            font-size: 10.5px !important;
-            letter-spacing: 0.08em !important;
-            text-transform: uppercase !important;
-            color: rgba(255, 255, 255, 0.38) !important;
-            padding: 6px 20px 2px 20px !important;
-            font-weight: 700 !important;
-            margin: 0 !important;
-          }
-          .nav-branch {
-            position: relative !important;
-            margin-left: 0 !important;
-            padding-left: 0 !important;
-          }
-          .nav-branch::before {
-            display: none !important;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold, #C8960C);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 16px 24px 8px 24px;
+            opacity: 0.8;
+            margin: 0;
           }
           .nav-leaf {
-            position: relative;
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 7px 20px;
-            margin: 0;
-            font-size: 13.5px;
-            color: rgba(255, 255, 255, 0.65) !important;
-            cursor: pointer;
-            border-radius: 0 !important;
+            gap: 16px;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin: 2px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7) !important;
             transition: background 0.15s ease, color 0.15s ease;
-            border-left: none !important;
-            box-shadow: none !important;
-          }
-          .nav-leaf::before {
-            display: none !important;
+            cursor: pointer;
+            border-left: 4px solid transparent;
           }
           .nav-leaf:hover {
             color: #ffffff !important;
-            background: rgba(255, 255, 255, 0.04) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
           }
           .nav-leaf.active {
             color: #ffffff !important;
-            background: rgba(255, 255, 255, 0.08) !important;
+            background: rgba(0, 0, 0, 0.2) !important;
             font-weight: 600;
+            border-left: 4px solid var(--gold, #C8960C) !important;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
           }
           .nav-leaf.active .nav-leaf-icon {
             color: #ffffff !important;
@@ -227,59 +231,39 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255, 255, 255, 0.65);
+            color: inherit;
             flex-shrink: 0;
-            transition: color 0.15s ease;
-          }
-          .nav-leaf:hover .nav-leaf-icon {
-            color: #ffffff !important;
           }
           .nav-leaf-label {
             line-height: 1.2;
           }
           .sidebar-footer {
-            padding: 12px 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.1);
-          }
-          .sidebar-user {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 12px;
           }
-          .sidebar-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--gold, #C8960C) !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 700;
-            color: #ffffff;
-            flex-shrink: 0;
-          }
-          .sidebar-user-name {
-            font-size: 13px;
-            font-weight: 600;
-            color: #ffffff;
-            line-height: 1.2;
-          }
-          .sidebar-user-role {
+          .sidebar-footer-text {
             font-size: 11px;
-            color: rgba(255, 255, 255, 0.45);
-            margin-top: 2px;
+            color: rgba(255, 255, 255, 0.4);
+            line-height: 1.4;
+            letter-spacing: 0.03em;
+            margin: 0;
           }
         `}} />
-  
+
         <div className="sidebar-logo">
           <div className="sidebar-logo-mark">
             <img src={logo} alt="PUP Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
-          <span className="sidebar-logo-text">PUP Caloocan</span>
+          <div>
+            <h1 className="sidebar-logo-title">PUP Caloocan</h1>
+            <p className="sidebar-logo-subtitle">OPCR System</p>
+          </div>
         </div>
-  
+
         <div className="sidebar-nav">
           {NAV_TREE.map((section) => (
             <div key={section.section} className="nav-section">
@@ -300,28 +284,33 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           ))}
         </div>
 
-        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(0, 0, 0, 0.1)' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)', marginBottom: 6, letterSpacing: '0.05em' }}>
-            CHANGE ROLE
+        <div className="sidebar-footer">
+          <p className="sidebar-footer-text">
+            Administrative & Records<br />Management System (ARMS)
+          </p>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255, 255, 255, 0.45)', marginBottom: 6, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Change Role
+            </div>
+            <select
+              value={useAppStore.getState().userRole}
+              onChange={(e) => useAppStore.getState().setUserRole(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: 6,
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+                fontSize: 13,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="Admin" style={{ background: '#580000', color: '#fff' }}>Admin</option>
+              <option value="Staff" style={{ background: '#580000', color: '#fff' }}>Staff</option>
+            </select>
           </div>
-          <select
-            value={useAppStore.getState().userRole}
-            onChange={(e) => useAppStore.getState().setUserRole(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '6px 8px',
-              borderRadius: 6,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#fff',
-              fontSize: 13,
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="Admin" style={{ background: '#1a1a2e', color: '#fff' }}>Admin</option>
-            <option value="Staff" style={{ background: '#1a1a2e', color: '#fff' }}>Staff</option>
-          </select>
         </div>
       </div>
     </>
