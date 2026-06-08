@@ -4,6 +4,7 @@ import {
     ConflictException,
     BadRequestException,
     ForbiddenException,
+    Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,6 +22,8 @@ import { AuditService } from './audit.service';
 
 @Injectable()
 export class CommitmentService {
+    private readonly logger = new Logger(CommitmentService.name);
+
     constructor(
         @InjectRepository(Commitment, 'commitment_db')
         private readonly commitmentRepo: Repository<Commitment>,
@@ -36,6 +39,10 @@ export class CommitmentService {
         private readonly auditService: AuditService,
     ) { }
 
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
     private async validatePeriodExists(period_id: string): Promise<void> {
         const baseUrl = this.config.get<string>('KPI_SLA_URL');
         try {
@@ -43,6 +50,33 @@ export class CommitmentService {
                 this.http.get(`${baseUrl}/api/periods/${period_id}`),
             );
         } catch {
+            throw new NotFoundException(`Period ${period_id} not found in kpi-sla service`);
+        }
+    }
+
+    /**
+     * Task 2: Fetch the period and throw 403 if it is Closed.
+     * Called before any update operation so locked/closed periods
+     * cannot have their drafts edited via the API.
+     */
+    private async validatePeriodIsOpen(period_id: string): Promise<void> {
+        const baseUrl = this.config.get<string>('KPI_SLA_URL');
+        try {
+            const { data: period } = await firstValueFrom(
+                this.http.get(`${baseUrl}/api/periods/${period_id}`),
+            );
+
+            // Accept whatever casing the kpi-sla service returns
+            const status: string = (period?.status ?? '').toLowerCase();
+
+            if (status === 'closed') {
+                throw new ForbiddenException(
+                    `Period ${period_id} is closed. Drafts cannot be edited for a closed period.`,
+                );
+            }
+        } catch (err) {
+            // Re-throw ForbiddenException as-is; treat anything else as not found
+            if (err instanceof ForbiddenException) throw err;
             throw new NotFoundException(`Period ${period_id} not found in kpi-sla service`);
         }
     }
@@ -69,9 +103,13 @@ export class CommitmentService {
                 }),
             );
         } catch {
-
+            // non-blocking — kpi validation is best-effort
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Public methods
+    // -------------------------------------------------------------------------
 
     async createCommitment(
         office: string,
@@ -180,6 +218,10 @@ export class CommitmentService {
         return commitment;
     }
 
+    /**
+     * Task 2: Check period status before allowing any edit.
+     * Throws 403 if the period is Closed.
+     */
     async updateCommitment(
         id: string,
         office: string,
@@ -187,6 +229,9 @@ export class CommitmentService {
         dto: UpdateCommitmentDto,
     ): Promise<Commitment> {
         const commitment = await this.findOneCommitment(id, office);
+
+        // ── Task 2: Block edits when the period is closed ──────────────────
+        await this.validatePeriodIsOpen(commitment.period_id);
 
         if (commitment.status === CommitmentStatus.LOCKED) {
             throw new ForbiddenException(
