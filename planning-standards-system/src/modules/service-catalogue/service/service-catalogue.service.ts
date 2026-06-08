@@ -52,22 +52,29 @@ export class ServiceCatalogueService {
             period_id?: string;
         },
         pagination: PaginationDto = new PaginationDto(),
+        role: string = 'Admin',
     ): Promise<{ data: Service[]; total: number; page: number; limit: number }> {
         const query = this.serviceRepo
             .createQueryBuilder('service')
             .leftJoinAndSelect('service.na_flags', 'na_flag', 'na_flag.removed_at IS NULL')
             .where('service.office = :office', { office });
 
-        if (!filters.include_archived) {
-            query.andWhere('service.status = :status', { status: ServiceStatus.ACTIVE });
-        }
+        // Task 2: Staff role auto-filters inactive and N/A services
+        if (role === 'Staff') {
+            query.andWhere('service.status = :activeStatus', { activeStatus: ServiceStatus.ACTIVE });
+            query.andWhere('NOT EXISTS (SELECT 1 FROM na_flag nf WHERE nf.service_id = service.id AND nf.removed_at IS NULL)');
+        } else {
+            if (!filters.include_archived) {
+                query.andWhere('service.status = :status', { status: ServiceStatus.ACTIVE });
+            }
 
-        if (filters.classification) {
-            query.andWhere('service.classification = :classification', { classification: filters.classification });
-        }
+            if (filters.classification) {
+                query.andWhere('service.classification = :classification', { classification: filters.classification });
+            }
 
-        if (filters.status && filters.include_archived) {
-            query.andWhere('service.status = :statusFilter', { statusFilter: filters.status });
+            if (filters.status && filters.include_archived) {
+                query.andWhere('service.status = :statusFilter', { statusFilter: filters.status });
+            }
         }
 
         if (filters.search) {
@@ -288,6 +295,26 @@ export class ServiceCatalogueService {
         flag.removed_at = new Date();
         await this.naFlagRepo.save(flag);
         return { message: `NA flag ${flag_id} lifted` };
+    }
+
+    // Task 3: Unflag endpoint — remove active N/A flag for a service for a given period
+    async unflagService(service_id: string, office: string, period_id: string): Promise<{ message: string }> {
+        await this.findOneOrFail(service_id, office);
+
+        if (!period_id) {
+            throw new BadRequestException('period_id query param is required');
+        }
+
+        const flag = await this.naFlagRepo.findOne({
+            where: { service_id, period_id, removed_at: IsNull() },
+        });
+
+        if (!flag) throw new NotFoundException(`No active N/A flag found for this service and period`);
+
+        flag.removed_at = new Date();
+        await this.naFlagRepo.save(flag);
+
+        return { message: `N/A flag removed for service ${service_id}` };
     }
 
     // Bulk remove all N/A flags for a period — called when a period is completed

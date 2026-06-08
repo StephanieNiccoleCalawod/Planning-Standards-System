@@ -12,6 +12,8 @@ import {
     HttpCode,
     HttpStatus,
     UseGuards,
+    UsePipes,
+    ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ServiceCatalogueService } from '../service/service-catalogue.service';
@@ -32,7 +34,7 @@ export class ServiceCatalogueController {
     constructor(private readonly svc: ServiceCatalogueService) { }
 
     @Get()
-    @ApiOperation({ summary: 'Get all services for the authenticated office (paginated)' })
+    @ApiOperation({ summary: 'Get all services for the authenticated office (paginated). Staff role auto-filters N/A and Inactive.' })
     @ApiQuery({ name: 'classification', required: false })
     @ApiQuery({ name: 'status', required: false })
     @ApiQuery({ name: 'search', required: false })
@@ -43,8 +45,9 @@ export class ServiceCatalogueController {
     @ApiQuery({ name: 'sort_order', required: false, enum: ['ASC', 'DESC'] })
     findAll(@Request() req, @Query() query: GetServicesQueryDto) {
         const office = req.user?.office ?? 'mock-office';
+        const role = req.user?.role ?? 'Admin';
         const { classification, status, search, include_archived, ...pagination } = query;
-        return this.svc.findAll(office, { classification, status, search, include_archived }, pagination);
+        return this.svc.findAll(office, { classification, status, search, include_archived }, pagination, role);
     }
 
     @Get('na-flags')
@@ -70,7 +73,8 @@ export class ServiceCatalogueController {
 
     @Post()
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Create a new service' })
+    @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
+    @ApiOperation({ summary: 'Create a new service — Admin only' })
     create(@Request() req, @Body() dto: CreateServiceDto) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
@@ -78,7 +82,8 @@ export class ServiceCatalogueController {
     }
 
     @Put(':id')
-    @ApiOperation({ summary: 'Update a service (with audit logging)' })
+    @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false, skipMissingProperties: true }))
+    @ApiOperation({ summary: 'Update a service (with audit logging) — Admin only' })
     update(@Request() req, @Param('id') id: string, @Body() dto: UpdateServiceDto) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
@@ -86,7 +91,7 @@ export class ServiceCatalogueController {
     }
 
     @Patch(':id/archive')
-    @ApiOperation({ summary: 'Archive a service' })
+    @ApiOperation({ summary: 'Archive a service — Admin only' })
     archive(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
@@ -94,7 +99,7 @@ export class ServiceCatalogueController {
     }
 
     @Patch(':id/activate')
-    @ApiOperation({ summary: 'Activate a service (set status to ACTIVE)' })
+    @ApiOperation({ summary: 'Activate a service — Admin only' })
     activate(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
@@ -102,7 +107,7 @@ export class ServiceCatalogueController {
     }
 
     @Patch(':id/deactivate')
-    @ApiOperation({ summary: 'Deactivate a service (set status to INACTIVE)' })
+    @ApiOperation({ summary: 'Deactivate a service — Admin only' })
     deactivate(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
@@ -118,21 +123,23 @@ export class ServiceCatalogueController {
 
     @Post(':id/intake-fields')
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Add an intake field to a service' })
+    @UsePipes(new ValidationPipe({ whitelist: true }))
+    @ApiOperation({ summary: 'Add an intake field to a service — Admin only' })
     createIntakeField(@Request() req, @Param('id') id: string, @Body() dto: CreateIntakeFieldDto) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.createIntakeField(id, office, dto);
     }
 
     @Put(':id/intake-fields/:fieldId')
-    @ApiOperation({ summary: 'Update an intake field' })
+    @UsePipes(new ValidationPipe({ whitelist: true, skipMissingProperties: true }))
+    @ApiOperation({ summary: 'Update an intake field — Admin only' })
     updateIntakeField(@Request() req, @Param('id') id: string, @Param('fieldId') fieldId: string, @Body() dto: UpdateIntakeFieldDto) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.updateIntakeField(id, office, fieldId, dto);
     }
 
     @Delete(':id/intake-fields/:fieldId')
-    @ApiOperation({ summary: 'Deactivate an intake field' })
+    @ApiOperation({ summary: 'Deactivate an intake field — Admin only' })
     removeIntakeField(@Request() req, @Param('id') id: string, @Param('fieldId') fieldId: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removeIntakeField(id, office, fieldId);
@@ -147,15 +154,23 @@ export class ServiceCatalogueController {
 
     @Post(':id/na-flags')
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Flag a service as Not Applicable for a period' })
+    @UsePipes(new ValidationPipe({ whitelist: true }))
+    @ApiOperation({ summary: 'Flag a service as Not Applicable for a period — Admin only' })
     createNaFlag(@Request() req, @Param('id') id: string, @Body() dto: CreateNaFlagDto) {
         const office = req.user?.office ?? 'mock-office';
         const actor = req.user?.sub ?? 'mock-actor';
         return this.svc.createNaFlag(id, office, dto, actor);
     }
 
+    @Patch(':id/unflag')
+    @ApiOperation({ summary: 'Remove N/A flag from a service for the active period — Admin only' })
+    unflagService(@Request() req, @Param('id') id: string, @Query('period_id') period_id: string) {
+        const office = req.user?.office ?? 'mock-office';
+        return this.svc.unflagService(id, office, period_id);
+    }
+
     @Delete(':id/na-flags/:flagId')
-    @ApiOperation({ summary: 'Lift a NA flag' })
+    @ApiOperation({ summary: 'Lift a specific NA flag by ID — Admin only' })
     removeNaFlag(@Request() req, @Param('id') id: string, @Param('flagId') flagId: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.removeNaFlag(id, office, flagId);
