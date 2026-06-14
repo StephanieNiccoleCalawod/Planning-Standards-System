@@ -7,6 +7,8 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
   ValidationArguments,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PeriodType } from '../enums';
@@ -29,6 +31,8 @@ export class CreatePeriodDto {
   @ApiProperty({ example: 'Q1 FY 2025' })
   @IsNotEmpty()
   @IsString()
+  @MinLength(3)
+  @MaxLength(100)
   name: string;
 
   @ApiProperty({ enum: PeriodType })
