@@ -83,8 +83,8 @@ export class CreateSlaRuleDto {
 
   @ApiProperty({ example: 75, description: 'Must be less than overdue_threshold_pct' })
   @IsInt()
-  @Min(0)
-  @Max(100)
+  @Min(1)
+  @Max(99)
   @Validate(WarnLessThanOverdueConstraint)
   warn_threshold_pct: number;
 
