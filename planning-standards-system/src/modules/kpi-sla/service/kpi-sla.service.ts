@@ -26,6 +26,21 @@ import { CreatePeriodDto } from '../dto/create-period.dto';
 import { UpdatePeriodDto } from '../dto/update-period.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 
+// ─── BE2-1: shared time-ordering guard ──────────────────────────────────────
+
+/**
+ * Throws BadRequestException when work_end_time <= work_start_time.
+ * Called from both createSlaRule and updateSlaRule so the check lives in
+ * exactly one place. Both callers must pass the *effective* (merged) times.
+ */
+function assertWorkEndAfterStart(start: string, end: string): void {
+    if (end <= start) {
+        throw new BadRequestException('work_end_time must be after work_start_time');
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class KpiSlaService {
     constructor(
@@ -158,6 +173,13 @@ export class KpiSlaService {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
+        // ── BE2-1: defensive time-ordering guard ──────────────────────────
+        // DTO validation catches this for well-behaved callers, but we guard
+        // here too so that any bypass path (direct service injection, future
+        // programmatic calls, etc.) is also covered.
+        assertWorkEndAfterStart(dto.work_start_time, dto.work_end_time);
+        // ─────────────────────────────────────────────────────────────────
+
         const existingActive = await this.slaRepo.findOne({ where: { office, is_active: true } });
         if (existingActive) {
             throw new ConflictException('An active SLA rule already exists for this office. Deactivate it first.');
@@ -179,22 +201,31 @@ export class KpiSlaService {
         const existing = await this.slaRepo.findOne({ where: { id, office } });
         if (!existing) throw new NotFoundException(`SLA Rule ${id} not found`);
 
-        const newType = dto.work_schedule_type ?? existing.work_schedule_type;
-        const newConfig = dto.work_schedule_config ?? existing.work_schedule_config;
+        const newType   = dto.work_schedule_type   ?? existing.work_schedule_type;
+        const newConfig = dto.work_schedule_config  ?? existing.work_schedule_config;
         if (newType === WorkScheduleType.CUSTOM && (!newConfig || !Array.isArray(newConfig) || newConfig.length === 0)) {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
+        // ── BE2-1: defensive time-ordering guard ──────────────────────────
+        // Merge incoming values with the persisted record so that a partial
+        // PATCH (e.g. only work_end_time) is still validated against the
+        // effective pair that will be stored.
+        const effectiveStart = dto.work_start_time ?? existing.work_start_time;
+        const effectiveEnd   = dto.work_end_time   ?? existing.work_end_time;
+        assertWorkEndAfterStart(effectiveStart, effectiveEnd);
+        // ─────────────────────────────────────────────────────────────────
+
         await this.slaVersionRepo.save(
             this.slaVersionRepo.create({
-                sla_rule_id: existing.id,
-                work_schedule_type: existing.work_schedule_type,
+                sla_rule_id:          existing.id,
+                work_schedule_type:   existing.work_schedule_type,
                 work_schedule_config: existing.work_schedule_config,
-                work_start_time: existing.work_start_time,
-                work_end_time: existing.work_end_time,
-                warn_threshold_pct: existing.warn_threshold_pct,
+                work_start_time:      existing.work_start_time,
+                work_end_time:        existing.work_end_time,
+                warn_threshold_pct:   existing.warn_threshold_pct,
                 overdue_threshold_pct: existing.overdue_threshold_pct,
-                changed_by: actor,
+                changed_by:           actor,
             }),
         );
 
@@ -223,22 +254,22 @@ export class KpiSlaService {
 
         await this.slaVersionRepo.save(
             this.slaVersionRepo.create({
-                sla_rule_id: rule.id,
-                work_schedule_type: rule.work_schedule_type,
+                sla_rule_id:          rule.id,
+                work_schedule_type:   rule.work_schedule_type,
                 work_schedule_config: rule.work_schedule_config,
-                work_start_time: rule.work_start_time,
-                work_end_time: rule.work_end_time,
-                warn_threshold_pct: rule.warn_threshold_pct,
+                work_start_time:      rule.work_start_time,
+                work_end_time:        rule.work_end_time,
+                warn_threshold_pct:   rule.warn_threshold_pct,
                 overdue_threshold_pct: rule.overdue_threshold_pct,
-                changed_by: actor,
+                changed_by:           actor,
             }),
         );
 
-        rule.work_schedule_type = version.work_schedule_type;
+        rule.work_schedule_type   = version.work_schedule_type;
         rule.work_schedule_config = version.work_schedule_config;
-        rule.work_start_time = version.work_start_time;
-        rule.work_end_time = version.work_end_time;
-        rule.warn_threshold_pct = version.warn_threshold_pct;
+        rule.work_start_time      = version.work_start_time;
+        rule.work_end_time        = version.work_end_time;
+        rule.warn_threshold_pct   = version.warn_threshold_pct;
         rule.overdue_threshold_pct = version.overdue_threshold_pct;
 
         return this.slaRepo.save(rule);
@@ -256,8 +287,8 @@ export class KpiSlaService {
         const query = this.holidayRepo.createQueryBuilder('h');
 
         if (filters.month) query.andWhere('h.month = :month', { month: filters.month });
-        if (filters.year) query.andWhere('(h.year = :year OR h.year IS NULL)', { year: filters.year });
-        if (filters.type) query.andWhere('h.type = :type', { type: filters.type });
+        if (filters.year)  query.andWhere('(h.year = :year OR h.year IS NULL)', { year: filters.year });
+        if (filters.type)  query.andWhere('h.type = :type', { type: filters.type });
 
         const [holidays, total] = await query
             .orderBy('h.month', 'ASC')

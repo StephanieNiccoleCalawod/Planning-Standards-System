@@ -15,6 +15,8 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkScheduleType } from '../enums';
 
+// ─── Existing constraint (unchanged) ────────────────────────────────────────
+
 @ValidatorConstraint({ name: 'warnLessThanOverdue', async: false })
 class WarnLessThanOverdueConstraint implements ValidatorConstraintInterface {
   validate(_value: any, args: ValidationArguments): boolean {
@@ -26,6 +28,43 @@ class WarnLessThanOverdueConstraint implements ValidatorConstraintInterface {
     return 'warn_threshold_pct must be less than overdue_threshold_pct';
   }
 }
+
+// ─── BE2-1: Time ordering constraint ────────────────────────────────────────
+
+/**
+ * WorkEndAfterStartConstraint
+ *
+ * Applied to `work_end_time`. Reads `work_start_time` from the same object
+ * and rejects the payload when end <= start.
+ *
+ * Skip behaviour: if either field is absent (undefined), this constraint
+ * returns true and defers to the service layer, which performs the same
+ * check against the merged (existing + dto) values. This is intentional so
+ * that partial PATCH payloads containing only one of the two time fields are
+ * not incorrectly rejected at the DTO layer.
+ */
+@ValidatorConstraint({ name: 'workEndAfterStart', async: false })
+export class WorkEndAfterStartConstraint implements ValidatorConstraintInterface {
+  validate(_value: any, args: ValidationArguments): boolean {
+    const obj = args.object as { work_start_time?: string; work_end_time?: string };
+
+    const start = obj.work_start_time;
+    const end   = obj.work_end_time;
+
+    // Skip when either field is absent — service layer handles the merged case.
+    if (start === undefined || end === undefined) return true;
+
+    // Both fields are present: enforce strict ordering.
+    // HH:MM strings compare lexicographically correctly for same-day times.
+    return end > start;
+  }
+
+  defaultMessage(): string {
+    return 'work_end_time must be after work_start_time';
+  }
+}
+
+// ─── DTO ────────────────────────────────────────────────────────────────────
 
 export class CreateSlaRuleDto {
   @ApiProperty({ enum: WorkScheduleType, example: WorkScheduleType.WEEKDAYS })
@@ -51,6 +90,7 @@ export class CreateSlaRuleDto {
   @ApiProperty({ example: '17:00' })
   @IsNotEmpty()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'work_end_time must be HH:MM format' })
+  @Validate(WorkEndAfterStartConstraint) // ← BE2-1 addition
   work_end_time: string;
 
   @ApiProperty({ example: 75, description: 'Must be less than overdue_threshold_pct' })
