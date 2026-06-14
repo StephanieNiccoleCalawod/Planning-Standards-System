@@ -17,11 +17,14 @@ import { CreateCommitmentDto } from '../dto/create-commitment.dto';
 import { UpdateCommitmentDto } from '../dto/update-commitment.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { GetCommitmentsQueryDto } from '../dto/get-commitments-query.dto';
-import { JwtAuthGuard } from '../guards/jwt.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Permission } from '../../common/rbac/permission.enum';
 
 @ApiTags('OPCR Commitments')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiHeader({
   name: 'x-mock-office',
   description: 'Mock office identifier (e.g. mock-office or mock-office-2)',
@@ -33,6 +36,7 @@ export class CommitmentController {
 
   @Post('commitments')
   @HttpCode(HttpStatus.CREATED)
+  @Roles(Permission.COMMITMENTS_WRITE)
   @ApiOperation({ summary: 'Create a new commitment draft' })
   createCommitment(@Request() req, @Body() dto: CreateCommitmentDto) {
     const office = req.user?.office ?? 'mock-office';
@@ -41,6 +45,7 @@ export class CommitmentController {
   }
 
   @Get('commitments')
+  @Roles(Permission.COMMITMENTS_READ)
   @ApiOperation({ summary: 'Get all commitments for the authenticated office (paginated)' })
   @ApiQuery({ name: 'period_id', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['Draft', 'Locked'] })
@@ -58,6 +63,7 @@ export class CommitmentController {
   }
 
   @Get('commitments/:id')
+  @Roles(Permission.COMMITMENTS_READ)
   @ApiOperation({ summary: 'Get a single commitment by ID (with items and versions)' })
   findOneCommitment(@Request() req, @Param('id') id: string) {
     const office = req.user?.office ?? 'mock-office';
@@ -65,6 +71,7 @@ export class CommitmentController {
   }
 
   @Patch('commitments/:id')
+  @Roles(Permission.COMMITMENTS_WRITE)
   @ApiOperation({ summary: 'Update a draft commitment (auto-save / manual save)' })
   updateCommitment(
     @Request() req,
@@ -77,6 +84,7 @@ export class CommitmentController {
   }
 
   @Patch('commitments/:id/lock')
+  @Roles(Permission.COMMITMENTS_LOCK)
   @ApiOperation({ summary: 'Lock and submit a commitment — makes it immutable' })
   lockCommitment(@Request() req, @Param('id') id: string) {
     const office = req.user?.office ?? 'mock-office';
@@ -85,6 +93,7 @@ export class CommitmentController {
   }
 
   @Get('opcr/commitments')
+  @Roles(Permission.COMMITMENTS_READ)
   @ApiOperation({ summary: 'Get all locked (submitted) commitments — OPCR data endpoint' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })

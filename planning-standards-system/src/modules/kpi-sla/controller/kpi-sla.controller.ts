@@ -26,17 +26,21 @@ import { UpdatePeriodDto } from '../dto/update-period.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { GetKpisQueryDto } from '../dto/get-kpis-query.dto';
 import { GetHolidaysQueryDto } from '../dto/get-holidays-query.dto';
-import { JwtAuthGuard } from '../guards/jwt.guard';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { Permission } from '../../../common/rbac/permission.enum';
 
 @ApiTags('KPI & SLA Standards')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('api')
 export class KpiSlaController {
     constructor(private readonly svc: KpiSlaService) { }
 
     @Post('kpis')
     @HttpCode(HttpStatus.CREATED)
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Create a KPI' })
     createKpi(@Request() req, @Body() dto: CreateKpiDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -45,6 +49,7 @@ export class KpiSlaController {
     }
 
     @Get('kpis')
+    @Roles(Permission.KPIS_READ)
     @ApiOperation({ summary: 'Get all KPIs for the authenticated office (paginated)' })
     @ApiQuery({ name: 'service_id', required: false })
     @ApiQuery({ name: 'category', required: false })
@@ -60,6 +65,7 @@ export class KpiSlaController {
     }
 
     @Put('kpis/:id')
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Update a KPI' })
     updateKpi(@Request() req, @Param('id') id: string, @Body() dto: UpdateKpiDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -67,6 +73,7 @@ export class KpiSlaController {
     }
 
     @Delete('kpis/:id')
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Soft-delete a KPI' })
     removeKpi(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
@@ -75,6 +82,7 @@ export class KpiSlaController {
 
     @Post('sla-rules')
     @HttpCode(HttpStatus.CREATED)
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Create an SLA rule' })
     createSlaRule(@Request() req, @Body() dto: CreateSlaRuleDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -83,6 +91,7 @@ export class KpiSlaController {
     }
 
     @Get('sla-rules')
+    @Roles(Permission.KPIS_READ)
     @ApiOperation({ summary: 'Get all SLA rules for the authenticated office' })
     findAllSlaRules(@Request() req) {
         const office = req.user?.office ?? 'mock-office';
@@ -90,6 +99,7 @@ export class KpiSlaController {
     }
 
     @Put('sla-rules/:id')
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Update SLA rule (saves version history)' })
     updateSlaRule(@Request() req, @Param('id') id: string, @Body() dto: UpdateSlaRuleDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -98,6 +108,7 @@ export class KpiSlaController {
     }
 
     @Get('sla-rules/:id/versions')
+    @Roles(Permission.KPIS_READ)
     @ApiOperation({ summary: 'Get all version history of an SLA rule' })
     getSlaRuleVersions(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
@@ -105,6 +116,7 @@ export class KpiSlaController {
     }
 
     @Patch('sla-rules/:id/versions/:versionId/restore')
+    @Roles(Permission.KPIS_WRITE)
     @ApiOperation({ summary: 'Restore a previous version of an SLA rule' })
     restoreSlaVersion(
         @Request() req,
@@ -118,12 +130,14 @@ export class KpiSlaController {
 
     @Post('holidays')
     @HttpCode(HttpStatus.CREATED)
+    @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Add a holiday' })
     createHoliday(@Body() dto: CreateHolidayDto) {
         return this.svc.createHoliday(dto);
     }
 
     @Get('holidays')
+    @Roles(Permission.HOLIDAYS_READ)
     @ApiOperation({ summary: 'Get all holidays (paginated)' })
     @ApiQuery({ name: 'month', required: false, type: Number })
     @ApiQuery({ name: 'year', required: false, type: Number })
@@ -136,12 +150,14 @@ export class KpiSlaController {
     }
 
     @Put('holidays/:id')
+    @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Update a holiday' })
     updateHoliday(@Param('id') id: string, @Body() dto: UpdateHolidayDto) {
         return this.svc.updateHoliday(id, dto);
     }
 
     @Delete('holidays/:id')
+    @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Delete a holiday' })
     removeHoliday(@Param('id') id: string) {
         return this.svc.removeHoliday(id);
@@ -149,6 +165,7 @@ export class KpiSlaController {
 
     @Post('periods')
     @HttpCode(HttpStatus.CREATED)
+    @Roles(Permission.PERIODS_WRITE)
     @ApiOperation({ summary: 'Create an evaluation period' })
     createPeriod(@Request() req, @Body() dto: CreatePeriodDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -157,6 +174,7 @@ export class KpiSlaController {
     }
 
     @Get('periods')
+    @Roles(Permission.PERIODS_READ)
     @ApiOperation({ summary: 'Get all evaluation periods for the authenticated office (paginated)' })
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -166,6 +184,7 @@ export class KpiSlaController {
     }
 
     @Get('periods/warnings')
+    @Roles(Permission.PERIODS_READ)
     @ApiOperation({ summary: 'Get OPEN periods with warning/due/overdue status for dashboard banner' })
     getPeriodWarnings(@Request() req) {
         const office = req.user?.office ?? 'mock-office';
@@ -173,12 +192,14 @@ export class KpiSlaController {
     }
 
     @Get('periods/:id')
+    @Roles(Permission.PERIODS_READ)
     @ApiOperation({ summary: 'Get a single evaluation period by ID' })
     findOnePeriod(@Param('id') id: string) {
         return this.svc.findOnePeriod(id);
     }
 
     @Put('periods/:id')
+    @Roles(Permission.PERIODS_WRITE)
     @ApiOperation({ summary: 'Update an evaluation period' })
     updatePeriod(@Request() req, @Param('id') id: string, @Body() dto: UpdatePeriodDto) {
         const office = req.user?.office ?? 'mock-office';
@@ -186,13 +207,14 @@ export class KpiSlaController {
     }
 
     @Patch('periods/:id/complete')
-    @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed — auto-activates next QUEUED period' })
+    @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed ï¿½ auto-activates next QUEUED period' })
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.completePeriod(id, office);
     }
 
     @Delete('periods/:id')
+    @Roles(Permission.PERIODS_WRITE)
     @ApiOperation({ summary: 'Delete a QUEUED evaluation period' })
     removePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';

@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
@@ -14,7 +14,6 @@ export class JwtAuthGuard implements CanActivate {
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
     const mockEnabled = this.config.get<string>('MOCK_JWT_ENABLED') === 'true';
 
-  
     if (!isProd && (mockEnabled || !secret)) {
       const role = this.config.get<string>('MOCK_JWT_ROLE') || req.headers['x-mock-role'] || 'Admin';
       req.user = {
@@ -23,7 +22,6 @@ export class JwtAuthGuard implements CanActivate {
         role,
       };
     } else {
-   
       if (!authHeader?.startsWith('Bearer ')) {
         throw new UnauthorizedException('Missing or invalid Authorization header');
       }
@@ -39,10 +37,6 @@ export class JwtAuthGuard implements CanActivate {
       } catch {
         throw new UnauthorizedException('Invalid or expired token');
       }
-    }
-
-    if (req.user.role === 'Staff' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-      throw new ForbiddenException('Staff members have read-only access');
     }
 
     return true;
