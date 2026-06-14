@@ -39,6 +39,22 @@ function assertWorkEndAfterStart(start: string, end: string): void {
     }
 }
 
+// ─── BE2-2: shared working-days non-empty guard ──────────────────────────────
+
+/**
+ * Throws BadRequestException when work_schedule_config is present but empty.
+ * Called from both createSlaRule and updateSlaRule.
+ *
+ * Only validates when the value is actually provided — absence is allowed
+ * (WEEKDAYS / MONDAY_TO_SATURDAY do not require it). The CUSTOM-type
+ * requirement check remains a separate guard in the service methods.
+ */
+function assertWorkScheduleConfigNotEmpty(config: object[] | null | undefined): void {
+    if (config !== undefined && config !== null && config.length === 0) {
+        throw new BadRequestException('At least one working day must be configured.');
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -173,10 +189,11 @@ export class KpiSlaService {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
+        // ── BE2-2: defensive working-days non-empty guard ─────────────────
+        assertWorkScheduleConfigNotEmpty(dto.work_schedule_config);
+        // ─────────────────────────────────────────────────────────────────
+
         // ── BE2-1: defensive time-ordering guard ──────────────────────────
-        // DTO validation catches this for well-behaved callers, but we guard
-        // here too so that any bypass path (direct service injection, future
-        // programmatic calls, etc.) is also covered.
         assertWorkEndAfterStart(dto.work_start_time, dto.work_end_time);
         // ─────────────────────────────────────────────────────────────────
 
@@ -207,10 +224,12 @@ export class KpiSlaService {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
+        // ── BE2-2: defensive working-days non-empty guard ─────────────────
+        // Only validates when dto.work_schedule_config is explicitly supplied.
+        assertWorkScheduleConfigNotEmpty(dto.work_schedule_config);
+        // ─────────────────────────────────────────────────────────────────
+
         // ── BE2-1: defensive time-ordering guard ──────────────────────────
-        // Merge incoming values with the persisted record so that a partial
-        // PATCH (e.g. only work_end_time) is still validated against the
-        // effective pair that will be stored.
         const effectiveStart = dto.work_start_time ?? existing.work_start_time;
         const effectiveEnd   = dto.work_end_time   ?? existing.work_end_time;
         assertWorkEndAfterStart(effectiveStart, effectiveEnd);
@@ -275,9 +294,35 @@ export class KpiSlaService {
         return this.slaRepo.save(rule);
     }
 
-    async createHoliday(dto: CreateHolidayDto): Promise<Holiday> {
+    async createHoliday(dto: CreateHolidayDto): Promise<{ data: Holiday; warning?: string }> {
         const holiday = this.holidayRepo.create({ ...dto });
-        return this.holidayRepo.save(holiday);
+        const savedHoliday = await this.holidayRepo.save(holiday);
+
+        let warning: string | undefined;
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // 1-12
+        const currentDay = now.getDate();
+
+        const checkYear = dto.year ?? currentYear;
+
+        let isPast = false;
+        if (checkYear < currentYear) {
+            isPast = true;
+        } else if (checkYear === currentYear) {
+            if (dto.month < currentMonth) {
+                isPast = true;
+            } else if (dto.month === currentMonth && dto.day < currentDay) {
+                isPast = true;
+            }
+        }
+
+        if (isPast) {
+            warning = "This holiday date is in the past";
+        }
+
+        return { data: savedHoliday, warning };
     }
 
     async findAllHolidays(

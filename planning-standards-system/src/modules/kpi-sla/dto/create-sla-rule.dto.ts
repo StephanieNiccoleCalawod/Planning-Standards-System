@@ -1,4 +1,6 @@
 import {
+  IsArray,
+  ArrayMinSize,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -31,31 +33,13 @@ class WarnLessThanOverdueConstraint implements ValidatorConstraintInterface {
 
 // ─── BE2-1: Time ordering constraint ────────────────────────────────────────
 
-/**
- * WorkEndAfterStartConstraint
- *
- * Applied to `work_end_time`. Reads `work_start_time` from the same object
- * and rejects the payload when end <= start.
- *
- * Skip behaviour: if either field is absent (undefined), this constraint
- * returns true and defers to the service layer, which performs the same
- * check against the merged (existing + dto) values. This is intentional so
- * that partial PATCH payloads containing only one of the two time fields are
- * not incorrectly rejected at the DTO layer.
- */
 @ValidatorConstraint({ name: 'workEndAfterStart', async: false })
 export class WorkEndAfterStartConstraint implements ValidatorConstraintInterface {
   validate(_value: any, args: ValidationArguments): boolean {
     const obj = args.object as { work_start_time?: string; work_end_time?: string };
-
     const start = obj.work_start_time;
     const end   = obj.work_end_time;
-
-    // Skip when either field is absent — service layer handles the merged case.
     if (start === undefined || end === undefined) return true;
-
-    // Both fields are present: enforce strict ordering.
-    // HH:MM strings compare lexicographically correctly for same-day times.
     return end > start;
   }
 
@@ -72,13 +56,17 @@ export class CreateSlaRuleDto {
   work_schedule_type: WorkScheduleType;
 
   @ApiPropertyOptional({
-    description: 'Required when work_schedule_type is CUSTOM. Array of day/hour config objects.',
+    description:
+      'Required when work_schedule_type is CUSTOM. ' +
+      'Array of day/hour config objects. Must contain at least one entry.',
     example: [
-      { day: 'Monday', is_working: true, start: '08:00', end: '17:00' },
+      { day: 'Monday',   is_working: true, start: '08:00', end: '17:00' },
       { day: 'Saturday', is_working: true, start: '08:00', end: '12:00' },
     ],
   })
   @IsOptional()
+  @IsArray()                                                           // BE2-2: reject non-arrays
+  @ArrayMinSize(1, { message: 'At least one working day must be configured.' }) // BE2-2
   @IsObject({ each: true })
   work_schedule_config?: object[];
 
@@ -90,7 +78,7 @@ export class CreateSlaRuleDto {
   @ApiProperty({ example: '17:00' })
   @IsNotEmpty()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'work_end_time must be HH:MM format' })
-  @Validate(WorkEndAfterStartConstraint) // ← BE2-1 addition
+  @Validate(WorkEndAfterStartConstraint) // BE2-1
   work_end_time: string;
 
   @ApiProperty({ example: 75, description: 'Must be less than overdue_threshold_pct' })
