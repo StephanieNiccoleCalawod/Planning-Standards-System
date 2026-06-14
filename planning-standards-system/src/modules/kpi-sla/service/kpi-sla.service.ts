@@ -170,15 +170,13 @@ export class KpiSlaService {
     }
 
     async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
-        const kpi = await this.kpiRepo.findOne({ where: { id, office } });
-        if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
+        const kpi = await this.findOneKpiOrFail(id, office);
         Object.assign(kpi, dto);
         return this.kpiRepo.save(kpi);
     }
 
     async removeKpi(id: string, office: string): Promise<{ message: string }> {
-        const kpi = await this.kpiRepo.findOne({ where: { id, office } });
-        if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
+        const kpi = await this.findOneKpiOrFail(id, office);
         kpi.is_active = false;
         await this.kpiRepo.save(kpi);
         return { message: `KPI ${id} deactivated` };
@@ -215,8 +213,7 @@ export class KpiSlaService {
     }
 
     async updateSlaRule(id: string, office: string, actor: string, dto: UpdateSlaRuleDto): Promise<SlaRule> {
-        const existing = await this.slaRepo.findOne({ where: { id, office } });
-        if (!existing) throw new NotFoundException(`SLA Rule ${id} not found`);
+        const existing = await this.findOneSlaRuleOrFail(id, office);
 
         const newType   = dto.work_schedule_type   ?? existing.work_schedule_type;
         const newConfig = dto.work_schedule_config  ?? existing.work_schedule_config;
@@ -253,8 +250,7 @@ export class KpiSlaService {
     }
 
     async getSlaRuleVersions(id: string, office: string): Promise<SlaRuleVersion[]> {
-        const rule = await this.slaRepo.findOne({ where: { id, office } });
-        if (!rule) throw new NotFoundException(`SLA Rule ${id} not found`);
+        const rule = await this.findOneSlaRuleOrFail(id, office);
 
         return this.slaVersionRepo.find({
             where: { sla_rule_id: id },
@@ -263,8 +259,7 @@ export class KpiSlaService {
     }
 
     async restoreSlaVersion(id: string, versionId: string, office: string, actor: string): Promise<SlaRule> {
-        const rule = await this.slaRepo.findOne({ where: { id, office } });
-        if (!rule) throw new NotFoundException(`SLA Rule ${id} not found`);
+        const rule = await this.findOneSlaRuleOrFail(id, office);
 
         const version = await this.slaVersionRepo.findOne({
             where: { id: versionId, sla_rule_id: id },
@@ -412,9 +407,8 @@ export class KpiSlaService {
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async findOnePeriod(id: string): Promise<any> {
-        const period = await this.periodRepo.findOne({ where: { id } });
-        if (!period) throw new NotFoundException(`Period ${id} not found`);
+    async findOnePeriod(id: string, office?: string): Promise<any> {
+        const period = await this.findOnePeriodOrFail(id, office);
         return {
             ...period,
             ...this.computeWarningLevel(period.end_date),
@@ -435,15 +429,13 @@ export class KpiSlaService {
     }
 
     async updatePeriod(id: string, office: string, dto: UpdatePeriodDto): Promise<EvaluationPeriod> {
-        const period = await this.periodRepo.findOne({ where: { id, office } });
-        if (!period) throw new NotFoundException(`Period ${id} not found`);
+        const period = await this.findOnePeriodOrFail(id, office);
         Object.assign(period, dto);
         return this.periodRepo.save(period);
     }
 
     async completePeriod(id: string, office: string): Promise<EvaluationPeriod> {
-        const period = await this.periodRepo.findOne({ where: { id, office } });
-        if (!period) throw new NotFoundException(`Period ${id} not found`);
+        const period = await this.findOnePeriodOrFail(id, office);
 
         if (period.status !== PeriodStatus.OPEN) {
             throw new ForbiddenException('Only OPEN periods can be marked as completed.');
@@ -474,8 +466,7 @@ export class KpiSlaService {
     }
 
     async removePeriod(id: string, office: string): Promise<{ message: string }> {
-        const period = await this.periodRepo.findOne({ where: { id, office } });
-        if (!period) throw new NotFoundException(`Period ${id} not found`);
+        const period = await this.findOnePeriodOrFail(id, office);
 
         if (period.status !== PeriodStatus.QUEUED) {
             throw new ForbiddenException('Only QUEUED periods can be deleted.');
@@ -484,5 +475,31 @@ export class KpiSlaService {
         period.is_active = false;
         await this.periodRepo.save(period);
         return { message: `Period ${id} deleted` };
+    }
+    private async findOneKpiOrFail(id: string, office: string): Promise<Kpi> {
+        const kpi = await this.kpiRepo.findOne({ where: { id } });
+        if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
+        if (kpi.office !== office) {
+            throw new ForbiddenException('You cannot access KPIs from another office');
+        }
+        return kpi;
+    }
+
+    private async findOneSlaRuleOrFail(id: string, office: string): Promise<SlaRule> {
+        const rule = await this.slaRepo.findOne({ where: { id } });
+        if (!rule) throw new NotFoundException(`SLA Rule ${id} not found`);
+        if (rule.office !== office) {
+            throw new ForbiddenException('You cannot access SLA Rules from another office');
+        }
+        return rule;
+    }
+
+    private async findOnePeriodOrFail(id: string, office?: string): Promise<EvaluationPeriod> {
+        const period = await this.periodRepo.findOne({ where: { id } });
+        if (!period) throw new NotFoundException(`Period ${id} not found`);
+        if (office && period.office !== office) {
+            throw new ForbiddenException('You cannot access Evaluation Periods from another office');
+        }
+        return period;
     }
 }

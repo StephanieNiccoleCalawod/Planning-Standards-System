@@ -194,8 +194,9 @@ export class KpiSlaController {
     @Get('periods/:id')
     @Roles(Permission.PERIODS_READ)
     @ApiOperation({ summary: 'Get a single evaluation period by ID' })
-    findOnePeriod(@Param('id') id: string) {
-        return this.svc.findOnePeriod(id);
+    findOnePeriod(@Request() req, @Param('id') id: string) {
+        const office = req.user?.office ?? 'mock-office';
+        return this.svc.findOnePeriod(id, office);
     }
 
     @Put('periods/:id')
@@ -207,7 +208,7 @@ export class KpiSlaController {
     }
 
     @Patch('periods/:id/complete')
-    @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed � auto-activates next QUEUED period' })
+    @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed - auto-activates next QUEUED period' })
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
         return this.svc.completePeriod(id, office);
