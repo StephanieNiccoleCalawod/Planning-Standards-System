@@ -22,6 +22,7 @@ import { CreateIntakeFieldDto } from '../dto/create-intake-field.dto';
 import { UpdateIntakeFieldDto } from '../dto/update-intake-field.dto';
 import { CreateNaFlagDto } from '../dto/create-na-flag.dto';
 import { PaginationDto } from '../dto/pagination.dto';
+import { RequestContext } from '../../../common/context/request-context';
 
 @Injectable()
 export class ServiceCatalogueService {
@@ -53,11 +54,19 @@ export class ServiceCatalogueService {
         },
         pagination: PaginationDto = new PaginationDto(),
         role: string = 'Admin',
+        isCrossOffice: boolean = false,
     ): Promise<{ data: Service[]; total: number; page: number; limit: number }> {
         const query = this.serviceRepo
             .createQueryBuilder('service')
-            .leftJoinAndSelect('service.na_flags', 'na_flag', 'na_flag.removed_at IS NULL')
-            .where('service.office = :office', { office });
+            .leftJoinAndSelect('service.na_flags', 'na_flag', 'na_flag.removed_at IS NULL');
+
+        // Cross-office roles (SUPER_ADMIN, OPCR_EVALUATOR) see services across
+        // all offices. Everyone else is scoped to their own office.
+        if (isCrossOffice) {
+            query.where('1=1');
+        } else {
+            query.where('service.office = :office', { office });
+        }
 
         // Task 2: Staff role auto-filters inactive and N/A services
         if (role === 'Staff') {
@@ -93,8 +102,8 @@ export class ServiceCatalogueService {
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async findOne(id: string, office: string): Promise<Service> {
-        return this.findOneOrFail(id, office);
+    async findOne(id: string, office: string, isCrossOffice: boolean = false): Promise<Service> {
+        return this.findOneOrFail(id, office, isCrossOffice);
     }
 
     async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
@@ -285,7 +294,7 @@ export class ServiceCatalogueService {
             const commitmentUrl = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
             const response = await firstValueFrom(
                 this.http.get(`${commitmentUrl}/api/commitments`, {
-                    headers: { 'x-mock-office': office },
+                    headers: { 'x-office': office },
                     params: { period_id: dto.period_id, status: 'Locked' },
                 }),
             );
@@ -381,10 +390,10 @@ export class ServiceCatalogueService {
         return { removed: flags.length };
     }
 
-    private async findOneOrFail(id: string, office: string): Promise<Service> {
+    private async findOneOrFail(id: string, office: string, isCrossOffice: boolean = false): Promise<Service> {
         const service = await this.serviceRepo.findOne({ where: { id } });
         if (!service) throw new NotFoundException(`Service ${id} not found`);
-        if (service.office !== office) {
+        if (!isCrossOffice && service.office !== office) {
             throw new ForbiddenException('You cannot access services from another office');
         }
         return service;
@@ -398,9 +407,16 @@ export class ServiceCatalogueService {
         target_id?: string;
         metadata?: any;
     }) {
-        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
-        this.http.post(`${url}/api/audit-events`, payload, {
-            headers: { 'x-mock-office': payload.office_id, 'x-mock-role': 'Admin' },
+        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:4002';
+        const ctx = RequestContext.get();
+        this.http.post(`${url}/api/audit-events`, {
+            ...payload,
+            actor_role: ctx?.actorRole,
+            actor_username: ctx?.actorUsername,
+            ip_address: ctx?.clientIp,
+            service_name: 'pss-service-catalogue',
+        }, {
+            headers: { 'x-office': payload.office_id, 'x-role': 'Admin' },
         }).subscribe({
             error: (err) => console.error('Failed to send audit log:', err.message),
         });

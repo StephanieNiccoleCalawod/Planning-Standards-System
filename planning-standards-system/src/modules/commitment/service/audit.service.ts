@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PendingAuditEvent } from '../database/pending-audit-event.entity';
+import { KafkaAuditProducer } from '../../../common/kafka/kafka-audit.producer';
 
 // --------------------------------------------------------------------------
 // Payload interface
@@ -22,6 +23,12 @@ export interface AuditEventPayload {
     metadata?: Record<string, any> | null;
     /** Optional: originating request IP */
     ip_address?: string | null;
+    /** Optional: ARMS role of the actor (SUPER_ADMIN/SUBSYSTEM_ADMIN/STAFF/OPCR_EVALUATOR) — required by ARMS Kafka contract */
+    actor_role?: string | null;
+    /** Optional: ARMS username of the actor — required by ARMS Kafka contract */
+    actor_username?: string | null;
+    /** Optional: which PSS module originated this event, e.g. "pss-service-catalogue" */
+    service_name?: string | null;
 }
 
 // --------------------------------------------------------------------------
@@ -35,6 +42,7 @@ export class AuditService {
     constructor(
         @InjectRepository(PendingAuditEvent, 'commitment_db')
         private readonly auditRepo: Repository<PendingAuditEvent>,
+        private readonly kafkaProducer: KafkaAuditProducer,
     ) {}
 
     /**
@@ -45,6 +53,9 @@ export class AuditService {
      * - Validates required fields before writing; skips silently when
      *   data is unusable.
      * - Accepts undefined / null / empty payloads gracefully.
+     * - After a successful local write, best-effort pushes the same event
+     *   to ARMS via Kafka (topic: arms.audit.events). If Kafka is down,
+     *   the local pending_audit_event row remains the source of truth.
      */
     async log(payload: AuditEventPayload | null | undefined): Promise<void> {
         try {
@@ -93,6 +104,22 @@ export class AuditService {
                     is_synced:     false,
                 }),
             );
+
+            // ── Best-effort push to ARMS via Kafka ─────────────────────────
+            // Never blocks / never throws back to the caller — local row above
+            // is already saved regardless of Kafka availability.
+            void this.kafkaProducer.emit({
+                serviceName: safeStr(payload.service_name, 100) ?? 'pss-commitment',
+                entityType:  safeStr(payload.target_entity, 100) ?? 'unknown',
+                entityId:    safeStr(payload.target_id, 100) ?? undefined,
+                userRole:    safeStr(payload.actor_role, 50) ?? 'STAFF',
+                userName:    safeStr(payload.actor_username, 100) ?? actor_id,
+                userId:      actor_id,
+                action:      event,
+                ipAddress:   safeStr(payload.ip_address, 100) ?? undefined,
+                office:      office_id,
+                metadata:    safeMetadata ?? undefined,
+            });
         } catch (err: unknown) {
             // Log but NEVER re-throw – audit must never crash the caller
             this.logger.error(

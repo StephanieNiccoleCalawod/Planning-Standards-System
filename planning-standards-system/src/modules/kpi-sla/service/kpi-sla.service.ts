@@ -25,6 +25,7 @@ import { UpdateHolidayDto } from '../dto/update-holiday.dto';
 import { CreatePeriodDto } from '../dto/create-period.dto';
 import { UpdatePeriodDto } from '../dto/update-period.dto';
 import { PaginationDto } from '../dto/pagination.dto';
+import { RequestContext } from '../../../common/context/request-context';
 
 // ─── BE2-1: shared time-ordering guard ──────────────────────────────────────
 
@@ -84,7 +85,7 @@ export class KpiSlaService {
         try {
             await firstValueFrom(
                 this.http.get(`${baseUrl}/api/services/${service_id}`, {
-                    headers: { 'x-mock-office': office },
+                    headers: { 'x-office': office },
                 }),
             );
         } catch {
@@ -153,10 +154,15 @@ export class KpiSlaService {
         office: string,
         filters: { service_id?: string; category?: string; include_inactive?: boolean },
         pagination: PaginationDto = new PaginationDto(),
+        isCrossOffice: boolean = false,
     ): Promise<{ data: Kpi[]; total: number; page: number; limit: number }> {
-        const query = this.kpiRepo
-            .createQueryBuilder('kpi')
-            .where('kpi.office = :office', { office });
+        const query = this.kpiRepo.createQueryBuilder('kpi');
+
+        if (isCrossOffice) {
+            query.where('1=1');
+        } else {
+            query.where('kpi.office = :office', { office });
+        }
 
         if (!filters.include_inactive) {
             query.andWhere('kpi.is_active = true');
@@ -219,9 +225,9 @@ export class KpiSlaService {
         return this.slaRepo.save(rule);
     }
 
-    async findAllSlaRules(office: string): Promise<SlaRule[]> {
+    async findAllSlaRules(office: string, isCrossOffice: boolean = false): Promise<SlaRule[]> {
         return this.slaRepo.find({
-            where: { office },
+            where: isCrossOffice ? {} : { office },
             relations: { versions: true },
             order: { created_at: 'DESC' },
         });
@@ -429,9 +435,10 @@ export class KpiSlaService {
     async findAllPeriods(
         office: string,
         pagination: PaginationDto = new PaginationDto(),
+        isCrossOffice: boolean = false,
     ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
         const [periods, total] = await this.periodRepo.findAndCount({
-            where: { office, is_active: true },
+            where: isCrossOffice ? { is_active: true } : { office, is_active: true },
             order: { start_date: pagination.sort_order === 'ASC' ? 'ASC' : 'DESC' },
             skip: (pagination.page - 1) * pagination.limit,
             take: pagination.limit,
@@ -445,17 +452,19 @@ export class KpiSlaService {
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async findOnePeriod(id: string, office?: string): Promise<any> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async findOnePeriod(id: string, office?: string, isCrossOffice: boolean = false): Promise<any> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
         return {
             ...period,
             ...this.computeWarningLevel(period.end_date),
         };
     }
 
-    async getPeriodWarnings(office: string): Promise<any[]> {
+    async getPeriodWarnings(office: string, isCrossOffice: boolean = false): Promise<any[]> {
         const periods = await this.periodRepo.find({
-            where: { office, status: PeriodStatus.OPEN, is_active: true },
+            where: isCrossOffice
+                ? { status: PeriodStatus.OPEN, is_active: true }
+                : { office, status: PeriodStatus.OPEN, is_active: true },
         });
 
         return periods
@@ -540,10 +549,10 @@ export class KpiSlaService {
         return rule;
     }
 
-    private async findOnePeriodOrFail(id: string, office?: string): Promise<EvaluationPeriod> {
+    private async findOnePeriodOrFail(id: string, office?: string, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
         const period = await this.periodRepo.findOne({ where: { id } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
-        if (office && period.office !== office) {
+        if (!isCrossOffice && office && period.office !== office) {
             throw new ForbiddenException('You cannot access Evaluation Periods from another office');
         }
         return period;
@@ -557,9 +566,16 @@ export class KpiSlaService {
         target_id?: string;
         metadata?: any;
     }) {
-        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
-        this.http.post(`${url}/api/audit-events`, payload, {
-            headers: { 'x-mock-office': payload.office_id, 'x-mock-role': 'Admin' },
+        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:4002';
+        const ctx = RequestContext.get();
+        this.http.post(`${url}/api/audit-events`, {
+            ...payload,
+            actor_role: ctx?.actorRole,
+            actor_username: ctx?.actorUsername,
+            ip_address: ctx?.clientIp,
+            service_name: 'pss-kpi-sla',
+        }, {
+            headers: { 'x-office': payload.office_id, 'x-role': 'Admin' },
         }).subscribe({
             error: (err) => console.error('Failed to send audit log:', err.message),
         });

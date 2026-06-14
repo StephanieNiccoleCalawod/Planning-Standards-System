@@ -20,6 +20,13 @@ import { UpdateCommitmentDto } from '../dto/update-commitment.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { AuditService } from './audit.service';
 
+/** Optional actor metadata used to enrich audit/Kafka events. */
+export interface ActorContext {
+    actor_role?: string;
+    actor_username?: string;
+    ip_address?: string;
+}
+
 @Injectable()
 export class CommitmentService {
     private readonly logger = new Logger(CommitmentService.name);
@@ -86,7 +93,7 @@ export class CommitmentService {
         try {
             await firstValueFrom(
                 this.http.get(`${baseUrl}/api/services/${service_id}`, {
-                    headers: { 'x-mock-office': office },
+                    headers: { 'x-office': office },
                 }),
             );
         } catch {
@@ -99,7 +106,7 @@ export class CommitmentService {
         try {
             await firstValueFrom(
                 this.http.get(`${baseUrl}/api/kpis?include_inactive=false`, {
-                    headers: { 'x-mock-office': office },
+                    headers: { 'x-office': office },
                 }),
             );
         } catch {
@@ -115,6 +122,7 @@ export class CommitmentService {
         office: string,
         actor: string,
         dto: CreateCommitmentDto,
+        ctx: ActorContext = {},
     ): Promise<Commitment> {
         await this.validatePeriodExists(dto.period_id);
 
@@ -172,6 +180,10 @@ export class CommitmentService {
             target_entity: 'commitment',
             target_id: saved.id,
             metadata: { period_id: dto.period_id, item_count: dto.items?.length ?? 0 },
+            actor_role: ctx.actor_role,
+            actor_username: ctx.actor_username,
+            ip_address: ctx.ip_address,
+            service_name: 'pss-commitment',
         });
 
         return this.findOneCommitment(saved.id, office);
@@ -181,11 +193,19 @@ export class CommitmentService {
         office: string,
         filters: { period_id?: string; status?: string },
         pagination: PaginationDto = new PaginationDto(),
+        isCrossOffice: boolean = false,
     ): Promise<{ data: Commitment[]; total: number; page: number; limit: number }> {
         const query = this.commitmentRepo
             .createQueryBuilder('commitment')
-            .leftJoinAndSelect('commitment.items', 'items')
-            .where('commitment.office = :office', { office });
+            .leftJoinAndSelect('commitment.items', 'items');
+
+        // Cross-office roles (SUPER_ADMIN, OPCR_EVALUATOR) see commitments
+        // across all offices. Everyone else is scoped to their own office.
+        if (isCrossOffice) {
+            query.where('1=1');
+        } else {
+            query.where('commitment.office = :office', { office });
+        }
 
         if (filters.period_id) {
             query.andWhere('commitment.period_id = :period_id', { period_id: filters.period_id });
@@ -206,13 +226,13 @@ export class CommitmentService {
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async findOneCommitment(id: string, office: string): Promise<Commitment> {
+    async findOneCommitment(id: string, office: string, isCrossOffice: boolean = false): Promise<Commitment> {
         const commitment = await this.commitmentRepo.findOne({
             where: { id },
             relations: { items: true, versions: true },
         });
         if (!commitment) throw new NotFoundException(`Commitment ${id} not found`);
-        if (commitment.office !== office) {
+        if (!isCrossOffice && commitment.office !== office) {
             throw new ForbiddenException('You cannot access commitments from another office');
         }
         return commitment;
@@ -275,7 +295,12 @@ export class CommitmentService {
         return this.findOneCommitment(id, office);
     }
 
-    async lockCommitment(id: string, office: string, actor: string): Promise<Commitment> {
+    async lockCommitment(
+        id: string,
+        office: string,
+        actor: string,
+        ctx: ActorContext = {},
+    ): Promise<Commitment> {
         const commitment = await this.findOneCommitment(id, office);
 
         if (commitment.status === CommitmentStatus.LOCKED) {
@@ -327,6 +352,10 @@ export class CommitmentService {
                 item_count: commitment.items.length,
                 source: 'PSS',
             },
+            actor_role: ctx.actor_role,
+            actor_username: ctx.actor_username,
+            ip_address: ctx.ip_address,
+            service_name: 'pss-commitment',
         });
 
         return this.findOneCommitment(id, office);
@@ -335,8 +364,9 @@ export class CommitmentService {
     async findLockedCommitments(
         office: string,
         pagination: PaginationDto = new PaginationDto(),
+        isCrossOffice: boolean = false,
     ): Promise<{ data: Commitment[]; total: number; page: number; limit: number }> {
-        return this.findAllCommitments(office, { status: CommitmentStatus.LOCKED }, pagination);
+        return this.findAllCommitments(office, { status: CommitmentStatus.LOCKED }, pagination, isCrossOffice);
     }
 
     private async createVersionSnapshot(

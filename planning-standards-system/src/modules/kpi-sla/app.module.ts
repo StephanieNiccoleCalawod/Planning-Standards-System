@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
@@ -11,6 +11,7 @@ import { KpiSlaController } from './controller/kpi-sla.controller';
 import { KpiSlaService } from './service/kpi-sla.service';
 import { PhHolidayService } from './service/ph-holiday.service';
 import { HolidaySeederService } from './service/holiday-seeder.service';
+import { RequestContextMiddleware } from '../../common/context/request-context';
 
 @Module({
     imports: [
@@ -37,4 +38,8 @@ import { HolidaySeederService } from './service/holiday-seeder.service';
     controllers: [KpiSlaController],
     providers: [KpiSlaService, PhHolidayService, HolidaySeederService],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer.apply(RequestContextMiddleware).forRoutes('*');
+    }
+}

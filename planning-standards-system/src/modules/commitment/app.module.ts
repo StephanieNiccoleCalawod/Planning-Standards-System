@@ -12,6 +12,7 @@ import { AuditController } from './controller/audit.controller';
 import { CommitmentService } from './service/commitment.service';
 import { DashboardService } from './service/dashboard-data.service';
 import { AuditService } from './service/audit.service';
+import { KafkaAuditProducer } from '../../common/kafka/kafka-audit.producer';
 
 @Module({
     imports: [
@@ -46,6 +47,6 @@ import { AuditService } from './service/audit.service';
         ),
     ],
     controllers: [CommitmentController, DashboardController, AuditController],
-    providers: [CommitmentService, DashboardService, AuditService],
+    providers: [CommitmentService, DashboardService, AuditService, KafkaAuditProducer],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
@@ -27,7 +27,27 @@ export class DashboardService {
         this.catalogueUrl = this.configService.get<string>('SERVICE_CATALOGUE_URL');
     }
 
-    async getSummary(office: string) {
+    /**
+     * @param office        The authenticated user's own office.
+     * @param isCrossOffice True for SUPER_ADMIN / OPCR_EVALUATOR (ARMS isCrossOffice=true, office=null).
+     * @param officeParam   Office to view, from ?office=. Required when isCrossOffice is true
+     *                       (since a cross-office user has no "own" office to default to).
+     *                       Ignored for office-scoped users (they always see their own office).
+     */
+    async getSummary(office: string, isCrossOffice: boolean = false, officeParam?: string) {
+        let targetOffice: string;
+
+        if (isCrossOffice) {
+            if (!officeParam) {
+                throw new BadRequestException(
+                    'Cross-office roles must specify ?office=<OFFICE> (e.g. ADMIN, ACADEME, OSAS) to view a dashboard.',
+                );
+            }
+            targetOffice = officeParam;
+        } else {
+            targetOffice = office;
+        }
+
         let activePeriod = null;
         let activeServices = [];
         let activeKpis = 0;
@@ -37,8 +57,8 @@ export class DashboardService {
             const { data: periods } = await lastValueFrom(
                 this.httpService.get(`${this.kpiSlaUrl}/api/periods`, {
                     headers: {
-                        Authorization: `Bearer mock-token`,
-                        'x-mock-office': office,
+                        Authorization: `Bearer service-token`,
+                        'x-office': targetOffice,
                     },
                 })
             );
@@ -53,8 +73,8 @@ export class DashboardService {
             const { data: services } = await lastValueFrom(
                 this.httpService.get(`${this.catalogueUrl}/api/services`, {
                     headers: {
-                        Authorization: `Bearer mock-token`,
-                        'x-mock-office': office,
+                        Authorization: `Bearer service-token`,
+                        'x-office': targetOffice,
                     },
                 })
             );
@@ -73,7 +93,7 @@ export class DashboardService {
             const dbKpiCount = await this.itemRepo
                 .createQueryBuilder('item')
                 .innerJoin('item.commitment', 'commitment')
-                .where('commitment.office = :office', { office })
+                .where('commitment.office = :office', { office: targetOffice })
                 .select('COUNT(DISTINCT item.kpi_id)', 'count')
                 .getRawOne<{ count: string }>();
 
@@ -87,8 +107,8 @@ export class DashboardService {
                 const { data: kpis } = await lastValueFrom(
                     this.httpService.get(`${this.kpiSlaUrl}/api/kpis?include_inactive=false`, {
                         headers: {
-                            Authorization: `Bearer mock-token`,
-                            'x-mock-office': office,
+                            Authorization: `Bearer service-token`,
+                            'x-office': targetOffice,
                         },
                     })
                 );
@@ -104,7 +124,7 @@ export class DashboardService {
         let commitment = null;
         if (activePeriod) {
             commitment = await this.commitmentRepo.findOne({
-                where: { office, period_id: activePeriod.id },
+                where: { office: targetOffice, period_id: activePeriod.id },
                 relations: { items: true },
             });
             if (commitment) {
@@ -131,6 +151,7 @@ export class DashboardService {
 
         // ── Task 3: Return kpi_count explicitly for the frontend ────────────
         return {
+            office: targetOffice,
             current_period: activePeriod || null,
             active_services_count: activeServices.length,
             active_kpis_count: activeKpis,   // renamed field kept for backward compat

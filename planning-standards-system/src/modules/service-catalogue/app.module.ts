@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Service } from './database/service.entity';
@@ -8,6 +8,8 @@ import { NaFlag } from './database/service-na-flag.entity';
 import { ServiceCatalogueController } from './controller/service-catalogue.controller';
 import { ServiceCatalogueService } from './service/service-catalogue.service';
 import { HttpModule } from '@nestjs/axios';
+import { RequestContextMiddleware } from '../../common/context/request-context';
+
 @Module({
   imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -34,4 +36,8 @@ import { HttpModule } from '@nestjs/axios';
   controllers: [ServiceCatalogueController],
   providers: [ServiceCatalogueService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}
