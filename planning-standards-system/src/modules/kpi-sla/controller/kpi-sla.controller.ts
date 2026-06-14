@@ -77,7 +77,8 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Soft-delete a KPI' })
     removeKpi(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
-        return this.svc.removeKpi(id, office);
+        const actor = req.user?.sub ?? 'mock-actor';
+        return this.svc.removeKpi(id, office, actor);
     }
 
     @Post('sla-rules')
@@ -132,8 +133,9 @@ export class KpiSlaController {
     @HttpCode(HttpStatus.CREATED)
     @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Add a holiday' })
-    createHoliday(@Body() dto: CreateHolidayDto) {
-        return this.svc.createHoliday(dto);
+    createHoliday(@Request() req, @Body() dto: CreateHolidayDto) {
+        const actor = req.user?.sub ?? 'mock-actor';
+        return this.svc.createHoliday(dto, actor);
     }
 
     @Get('holidays')
@@ -159,8 +161,9 @@ export class KpiSlaController {
     @Delete('holidays/:id')
     @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Delete a holiday' })
-    removeHoliday(@Param('id') id: string) {
-        return this.svc.removeHoliday(id);
+    removeHoliday(@Request() req, @Param('id') id: string) {
+        const actor = req.user?.sub ?? 'mock-actor';
+        return this.svc.removeHoliday(id, actor);
     }
 
     @Post('periods')
@@ -211,7 +214,8 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed - auto-activates next QUEUED period' })
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'mock-office';
-        return this.svc.completePeriod(id, office);
+        const actor = req.user?.sub ?? 'mock-actor';
+        return this.svc.completePeriod(id, office, actor);
     }
 
     @Delete('periods/:id')

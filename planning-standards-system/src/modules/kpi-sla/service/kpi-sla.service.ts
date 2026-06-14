@@ -138,7 +138,15 @@ export class KpiSlaService {
         }
 
         const kpi = this.kpiRepo.create({ ...dto, office, created_by: actor });
-        return this.kpiRepo.save(kpi);
+        const saved = await this.kpiRepo.save(kpi);
+        this.logAudit({
+            event: 'KPI_CREATED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'kpi',
+            target_id: saved.id,
+        });
+        return saved;
     }
 
     async findAllKpis(
@@ -175,10 +183,17 @@ export class KpiSlaService {
         return this.kpiRepo.save(kpi);
     }
 
-    async removeKpi(id: string, office: string): Promise<{ message: string }> {
+    async removeKpi(id: string, office: string, actor: string): Promise<{ message: string }> {
         const kpi = await this.findOneKpiOrFail(id, office);
         kpi.is_active = false;
-        await this.kpiRepo.save(kpi);
+        const saved = await this.kpiRepo.save(kpi);
+        this.logAudit({
+            event: 'KPI_REMOVED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'kpi',
+            target_id: saved.id,
+        });
         return { message: `KPI ${id} deactivated` };
     }
 
@@ -289,9 +304,17 @@ export class KpiSlaService {
         return this.slaRepo.save(rule);
     }
 
-    async createHoliday(dto: CreateHolidayDto): Promise<{ data: Holiday; warning?: string }> {
+    async createHoliday(dto: CreateHolidayDto, actor: string): Promise<{ data: Holiday; warning?: string }> {
         const holiday = this.holidayRepo.create({ ...dto });
         const savedHoliday = await this.holidayRepo.save(holiday);
+
+        this.logAudit({
+            event: 'HOLIDAY_CREATED',
+            actor_id: actor,
+            office_id: 'GLOBAL',
+            target_entity: 'holiday',
+            target_id: savedHoliday.id,
+        });
 
         let warning: string | undefined;
 
@@ -347,10 +370,17 @@ export class KpiSlaService {
         return this.holidayRepo.save(holiday);
     }
 
-    async removeHoliday(id: string): Promise<{ message: string }> {
+    async removeHoliday(id: string, actor: string): Promise<{ message: string }> {
         const holiday = await this.holidayRepo.findOne({ where: { id } });
         if (!holiday) throw new NotFoundException(`Holiday ${id} not found`);
         await this.holidayRepo.delete(id);
+        this.logAudit({
+            event: 'HOLIDAY_DELETED',
+            actor_id: actor,
+            office_id: 'GLOBAL',
+            target_entity: 'holiday',
+            target_id: id,
+        });
         return { message: `Holiday ${id} removed` };
     }
 
@@ -385,7 +415,15 @@ export class KpiSlaService {
             created_by: actor,
             status: newStatus,
         });
-        return this.periodRepo.save(period);
+        const saved = await this.periodRepo.save(period);
+        this.logAudit({
+            event: 'PERIOD_CREATED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'evaluation_period',
+            target_id: saved.id,
+        });
+        return saved;
     }
 
     async findAllPeriods(
@@ -434,7 +472,7 @@ export class KpiSlaService {
         return this.periodRepo.save(period);
     }
 
-    async completePeriod(id: string, office: string): Promise<EvaluationPeriod> {
+    async completePeriod(id: string, office: string, actor: string): Promise<EvaluationPeriod> {
         const period = await this.findOnePeriodOrFail(id, office);
 
         if (period.status !== PeriodStatus.OPEN) {
@@ -442,7 +480,15 @@ export class KpiSlaService {
         }
 
         period.status = PeriodStatus.CLOSED;
-        await this.periodRepo.save(period);
+        const saved = await this.periodRepo.save(period);
+
+        this.logAudit({
+            event: 'PERIOD_CLOSED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'evaluation_period',
+            target_id: saved.id,
+        });
 
         const nextQueued = await this.periodRepo.findOne({
             where: { office, status: PeriodStatus.QUEUED, is_active: true },
@@ -501,5 +547,21 @@ export class KpiSlaService {
             throw new ForbiddenException('You cannot access Evaluation Periods from another office');
         }
         return period;
+    }
+
+    private logAudit(payload: {
+        event: string;
+        actor_id: string;
+        office_id: string;
+        target_entity?: string;
+        target_id?: string;
+        metadata?: any;
+    }) {
+        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
+        this.http.post(`${url}/api/audit-events`, payload, {
+            headers: { 'x-mock-office': payload.office_id, 'x-mock-role': 'Admin' },
+        }).subscribe({
+            error: (err) => console.error('Failed to send audit log:', err.message),
+        });
     }
 }

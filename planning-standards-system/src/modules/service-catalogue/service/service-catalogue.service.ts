@@ -1,4 +1,4 @@
-﻿import {
+import {
     Injectable,
     NotFoundException,
     ConflictException,
@@ -107,7 +107,15 @@ export class ServiceCatalogueService {
             );
         }
         const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
-        return this.serviceRepo.save(service);
+        const saved = await this.serviceRepo.save(service);
+        this.logAudit({
+            event: 'SERVICE_CREATED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'service',
+            target_id: saved.id,
+        });
+        return saved;
     }
 
     async update(id: string, office: string, dto: UpdateServiceDto, actor: string): Promise<Service> {
@@ -139,8 +147,30 @@ export class ServiceCatalogueService {
             await this.versionRepo.save(versionRows.map((row) => this.versionRepo.create(row)));
         }
 
+        const slaChanged = dto.sla_target_value !== undefined && service.sla_target_value !== dto.sla_target_value;
+
         Object.assign(service, dto);
-        return this.serviceRepo.save(service);
+        const saved = await this.serviceRepo.save(service);
+
+        this.logAudit({
+            event: 'SERVICE_UPDATED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'service',
+            target_id: saved.id,
+        });
+
+        if (slaChanged) {
+            this.logAudit({
+                event: 'SERVICE_SLA_UPDATED',
+                actor_id: actor,
+                office_id: office,
+                target_entity: 'service',
+                target_id: saved.id,
+                metadata: { new_sla: dto.sla_target_value },
+            });
+        }
+        return saved;
     }
 
     async archive(id: string, office: string, actor: string): Promise<Service> {
@@ -151,7 +181,15 @@ export class ServiceCatalogueService {
         service.status = ServiceStatus.ARCHIVED;
         service.archived_at = new Date();
         service.archived_by = actor;
-        return this.serviceRepo.save(service);
+        const saved = await this.serviceRepo.save(service);
+        this.logAudit({
+            event: 'SERVICE_ARCHIVED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'service',
+            target_id: saved.id,
+        });
+        return saved;
     }
 
     async activate(id: string, office: string, actor: string): Promise<Service> {
@@ -270,7 +308,16 @@ export class ServiceCatalogueService {
         if (exists) throw new ConflictException('NA flag already exists for this period');
 
         const flag = this.naFlagRepo.create({ ...dto, service_id, flagged_by: actor });
-        return this.naFlagRepo.save(flag);
+        const saved = await this.naFlagRepo.save(flag);
+        this.logAudit({
+            event: 'SERVICE_NA_FLAGGED',
+            actor_id: actor,
+            office_id: office,
+            target_entity: 'na_flag',
+            target_id: saved.id,
+            metadata: { service_id, reason: dto.reason },
+        });
+        return saved;
     }
 
     async getNaFlags(service_id: string, office: string): Promise<NaFlag[]> {
@@ -341,5 +388,21 @@ export class ServiceCatalogueService {
             throw new ForbiddenException('You cannot access services from another office');
         }
         return service;
+    }
+
+    private logAudit(payload: {
+        event: string;
+        actor_id: string;
+        office_id: string;
+        target_entity?: string;
+        target_id?: string;
+        metadata?: any;
+    }) {
+        const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:3002';
+        this.http.post(`${url}/api/audit-events`, payload, {
+            headers: { 'x-mock-office': payload.office_id, 'x-mock-role': 'Admin' },
+        }).subscribe({
+            error: (err) => console.error('Failed to send audit log:', err.message),
+        });
     }
 }

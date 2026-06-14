@@ -1,7 +1,9 @@
 import {
     Controller,
     Get,
+    Post,
     Patch,
+    Body,
     Param,
     Query,
     UseGuards,
@@ -40,5 +42,12 @@ export class AuditController {
     @ApiOperation({ summary: 'Mark an audit event as synced' })
     markSynced(@Param('id') id: string) {
         return this.auditSvc.markSynced(id);
+    }
+
+    @Post()
+    @ApiOperation({ summary: 'Log a new audit event (used by other microservices)' })
+    async createEvent(@Body() payload: any) {
+        await this.auditSvc.log(payload);
+        return { success: true };
     }
 }
