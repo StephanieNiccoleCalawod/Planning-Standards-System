@@ -124,6 +124,18 @@ export class KpiSlaService {
     }
 
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
+        // BE1-10: prevent duplicate KPI names per office (case-insensitive, trimmed)
+        const trimmedName = dto.name.trim();
+        const duplicateName = await this.kpiRepo
+            .createQueryBuilder('kpi')
+            .where('kpi.office = :office', { office })
+            .andWhere('kpi.is_active = true')
+            .andWhere('LOWER(kpi.name) = LOWER(:name)', { name: trimmedName })
+            .getOne();
+        if (duplicateName) {
+            throw new ConflictException('A KPI with this name already exists for your office.');
+        }
+
         const existing = await this.kpiRepo.findOne({
             where: {
                 office,
@@ -138,7 +150,7 @@ export class KpiSlaService {
             );
         }
 
-        const kpi = this.kpiRepo.create({ ...dto, office, created_by: actor });
+        const kpi = this.kpiRepo.create({ ...dto, name: trimmedName, office, created_by: actor });
         const saved = await this.kpiRepo.save(kpi);
         this.logAudit({
             event: 'KPI_CREATED',
@@ -185,6 +197,24 @@ export class KpiSlaService {
 
     async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
         const kpi = await this.findOneKpiOrFail(id, office);
+
+        // BE1-10: if renaming, ensure no other active KPI in the same office
+        // has the same name (case-insensitive, trimmed).
+        if (dto.name !== undefined) {
+            const trimmedName = dto.name.trim();
+            const duplicateName = await this.kpiRepo
+                .createQueryBuilder('kpi')
+                .where('kpi.office = :office', { office })
+                .andWhere('kpi.is_active = true')
+                .andWhere('kpi.id != :id', { id })
+                .andWhere('LOWER(kpi.name) = LOWER(:name)', { name: trimmedName })
+                .getOne();
+            if (duplicateName) {
+                throw new ConflictException('A KPI with this name already exists for your office.');
+            }
+            dto.name = trimmedName;
+        }
+
         Object.assign(kpi, dto);
         return this.kpiRepo.save(kpi);
     }
@@ -236,8 +266,8 @@ export class KpiSlaService {
     async updateSlaRule(id: string, office: string, actor: string, dto: UpdateSlaRuleDto): Promise<SlaRule> {
         const existing = await this.findOneSlaRuleOrFail(id, office);
 
-        const newType   = dto.work_schedule_type   ?? existing.work_schedule_type;
-        const newConfig = dto.work_schedule_config  ?? existing.work_schedule_config;
+        const newType = dto.work_schedule_type ?? existing.work_schedule_type;
+        const newConfig = dto.work_schedule_config ?? existing.work_schedule_config;
         if (newType === WorkScheduleType.CUSTOM && (!newConfig || !Array.isArray(newConfig) || newConfig.length === 0)) {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
@@ -249,20 +279,20 @@ export class KpiSlaService {
 
         // ── BE2-1: defensive time-ordering guard ──────────────────────────
         const effectiveStart = dto.work_start_time ?? existing.work_start_time;
-        const effectiveEnd   = dto.work_end_time   ?? existing.work_end_time;
+        const effectiveEnd = dto.work_end_time ?? existing.work_end_time;
         assertWorkEndAfterStart(effectiveStart, effectiveEnd);
         // ─────────────────────────────────────────────────────────────────
 
         await this.slaVersionRepo.save(
             this.slaVersionRepo.create({
-                sla_rule_id:          existing.id,
-                work_schedule_type:   existing.work_schedule_type,
+                sla_rule_id: existing.id,
+                work_schedule_type: existing.work_schedule_type,
                 work_schedule_config: existing.work_schedule_config,
-                work_start_time:      existing.work_start_time,
-                work_end_time:        existing.work_end_time,
-                warn_threshold_pct:   existing.warn_threshold_pct,
+                work_start_time: existing.work_start_time,
+                work_end_time: existing.work_end_time,
+                warn_threshold_pct: existing.warn_threshold_pct,
                 overdue_threshold_pct: existing.overdue_threshold_pct,
-                changed_by:           actor,
+                changed_by: actor,
             }),
         );
 
@@ -289,22 +319,22 @@ export class KpiSlaService {
 
         await this.slaVersionRepo.save(
             this.slaVersionRepo.create({
-                sla_rule_id:          rule.id,
-                work_schedule_type:   rule.work_schedule_type,
+                sla_rule_id: rule.id,
+                work_schedule_type: rule.work_schedule_type,
                 work_schedule_config: rule.work_schedule_config,
-                work_start_time:      rule.work_start_time,
-                work_end_time:        rule.work_end_time,
-                warn_threshold_pct:   rule.warn_threshold_pct,
+                work_start_time: rule.work_start_time,
+                work_end_time: rule.work_end_time,
+                warn_threshold_pct: rule.warn_threshold_pct,
                 overdue_threshold_pct: rule.overdue_threshold_pct,
-                changed_by:           actor,
+                changed_by: actor,
             }),
         );
 
-        rule.work_schedule_type   = version.work_schedule_type;
+        rule.work_schedule_type = version.work_schedule_type;
         rule.work_schedule_config = version.work_schedule_config;
-        rule.work_start_time      = version.work_start_time;
-        rule.work_end_time        = version.work_end_time;
-        rule.warn_threshold_pct   = version.warn_threshold_pct;
+        rule.work_start_time = version.work_start_time;
+        rule.work_end_time = version.work_end_time;
+        rule.warn_threshold_pct = version.warn_threshold_pct;
         rule.overdue_threshold_pct = version.overdue_threshold_pct;
 
         return this.slaRepo.save(rule);
@@ -356,8 +386,8 @@ export class KpiSlaService {
         const query = this.holidayRepo.createQueryBuilder('h');
 
         if (filters.month) query.andWhere('h.month = :month', { month: filters.month });
-        if (filters.year)  query.andWhere('(h.year = :year OR h.year IS NULL)', { year: filters.year });
-        if (filters.type)  query.andWhere('h.type = :type', { type: filters.type });
+        if (filters.year) query.andWhere('(h.year = :year OR h.year IS NULL)', { year: filters.year });
+        if (filters.type) query.andWhere('h.type = :type', { type: filters.type });
 
         const [holidays, total] = await query
             .orderBy('h.month', 'ASC')

@@ -4,5 +4,6 @@
   "sourceRoot": ".",
   "compilerOptions": {
     "deleteOutDir": true
-  }
+  },
+  "entryFile": "modules/kpi-sla/main"
 }

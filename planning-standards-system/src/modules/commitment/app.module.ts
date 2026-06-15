@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
@@ -13,6 +13,7 @@ import { CommitmentService } from './service/commitment.service';
 import { DashboardService } from './service/dashboard-data.service';
 import { AuditService } from './service/audit.service';
 import { KafkaAuditProducer } from '../../common/kafka/kafka-audit.producer';
+import { RequestContextMiddleware } from '../../common/context/request-context';
 
 @Module({
     imports: [
@@ -49,4 +50,10 @@ import { KafkaAuditProducer } from '../../common/kafka/kafka-audit.producer';
     controllers: [CommitmentController, DashboardController, AuditController],
     providers: [CommitmentService, DashboardService, AuditService, KafkaAuditProducer],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer
+            .apply(RequestContextMiddleware)
+            .forRoutes({ path: '*', method: RequestMethod.ALL });
+    }
+}

@@ -9,6 +9,10 @@ export interface RequestContextData {
     actorUsername?: string;
     /** Real client IP — from x-client-ip (set by gateway's ForwardedIpInterceptor) */
     clientIp?: string;
+    /** Requesting user's office — from x-office */
+    office?: string;
+    /** Whether the user has cross-office access (SUPER_ADMIN/OPCR_EVALUATOR) — from x-is-cross-office */
+    isCrossOffice?: boolean;
 }
 
 const storage = new AsyncLocalStorage<RequestContextData>();
@@ -16,8 +20,9 @@ const storage = new AsyncLocalStorage<RequestContextData>();
 /**
  * Request-scoped context, populated by RequestContextMiddleware on every
  * incoming request. Lets deeply-nested service methods (e.g. logAudit
- * helpers) read actor role/username/IP for Kafka audit events WITHOUT
- * threading these values through every method signature.
+ * helpers, cross-service HTTP calls) read actor role/username/IP/office
+ * for Kafka audit events and downstream service calls WITHOUT threading
+ * these values through every method signature.
  */
 export const RequestContext = {
     run<T>(data: RequestContextData, fn: () => T): T {
@@ -36,6 +41,8 @@ export class RequestContextMiddleware implements NestMiddleware {
                 actorRole: (req.headers['x-arms-role'] as string) || undefined,
                 actorUsername: (req.headers['x-actor-username'] as string) || undefined,
                 clientIp: (req.headers['x-client-ip'] as string) || undefined,
+                office: (req.headers['x-office'] as string) || undefined,
+                isCrossOffice: req.headers['x-is-cross-office'] === 'true',
             },
             () => next(),
         );

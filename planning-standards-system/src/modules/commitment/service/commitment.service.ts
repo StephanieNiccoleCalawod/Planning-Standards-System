@@ -19,6 +19,7 @@ import { CreateCommitmentDto } from '../dto/create-commitment.dto';
 import { UpdateCommitmentDto } from '../dto/update-commitment.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { AuditService } from './audit.service';
+import { RequestContext } from '../../../common/context/request-context';
 
 /** Optional actor metadata used to enrich audit/Kafka events. */
 export interface ActorContext {
@@ -50,11 +51,27 @@ export class CommitmentService {
     // Private helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Builds the headers needed for service-to-service calls to kpi-sla /
+     * service-catalogue so their JwtAuthGuard can authenticate the request
+     * and apply correct office-scoping, mirroring the original caller's
+     * identity (office + cross-office flag) from RequestContext.
+     */
+    private downstreamHeaders(): Record<string, string> {
+        const ctx = RequestContext.get();
+        return {
+            'x-office': ctx?.office ?? 'unknown-office',
+            'x-is-cross-office': ctx?.isCrossOffice ? 'true' : 'false',
+        };
+    }
+
     private async validatePeriodExists(period_id: string): Promise<void> {
         const baseUrl = this.config.get<string>('KPI_SLA_URL');
         try {
             await firstValueFrom(
-                this.http.get(`${baseUrl}/api/periods/${period_id}`),
+                this.http.get(`${baseUrl}/api/periods/${period_id}`, {
+                    headers: this.downstreamHeaders(),
+                }),
             );
         } catch {
             throw new NotFoundException(`Period ${period_id} not found in kpi-sla service`);
@@ -70,7 +87,9 @@ export class CommitmentService {
         const baseUrl = this.config.get<string>('KPI_SLA_URL');
         try {
             const { data: period } = await firstValueFrom(
-                this.http.get(`${baseUrl}/api/periods/${period_id}`),
+                this.http.get(`${baseUrl}/api/periods/${period_id}`, {
+                    headers: this.downstreamHeaders(),
+                }),
             );
 
             // Accept whatever casing the kpi-sla service returns
@@ -93,7 +112,7 @@ export class CommitmentService {
         try {
             await firstValueFrom(
                 this.http.get(`${baseUrl}/api/services/${service_id}`, {
-                    headers: { 'x-office': office },
+                    headers: { 'x-office': office, ...this.downstreamHeaders() },
                 }),
             );
         } catch {
@@ -106,7 +125,7 @@ export class CommitmentService {
         try {
             await firstValueFrom(
                 this.http.get(`${baseUrl}/api/kpis?include_inactive=false`, {
-                    headers: { 'x-office': office },
+                    headers: { 'x-office': office, ...this.downstreamHeaders() },
                 }),
             );
         } catch {

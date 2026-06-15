@@ -4,6 +4,7 @@ import {
     ExecutionContext,
     UnauthorizedException,
     ServiceUnavailableException,
+    Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
@@ -23,6 +24,8 @@ const ARMS_ROLE_MAP: Record<string, string> = {
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+    private readonly logger = new Logger(JwtAuthGuard.name);
+
     constructor(
         private readonly config: ConfigService,
         private readonly http: HttpService,
@@ -41,16 +44,34 @@ export class JwtAuthGuard implements CanActivate {
 
         let response;
         try {
+            // validateStatus: accept ANY status code as a "response" — we want
+            // to distinguish "ARMS responded but rejected the token" (401/400)
+            // from "ARMS is truly unreachable" (network error, ECONNREFUSED, etc).
             response = await firstValueFrom(
-                this.http.post(`${armsAuthUrl}/auth/validate`, { token }),
+                this.http.post(`${armsAuthUrl}/auth/validate`, { token }, {
+                    validateStatus: () => true,
+                }),
             );
-        } catch (err) {
-            // Contract A1: if ARMS is unreachable, PSS returns 503 — never fall back silently
+        } catch (err: any) {
+            // Only TRUE network-level failures land here now.
+            this.logger.error(`ARMS unreachable at ${armsAuthUrl}/auth/validate: ${err.message}`);
             throw new ServiceUnavailableException('ARMS auth service is unreachable');
         }
 
+        // Log the actual response so we can see exactly what ARMS returned.
+        this.logger.debug(`ARMS /auth/validate -> status=${response.status} body=${JSON.stringify(response.data)}`);
+
         const result = response.data;
-        if (!result?.valid) {
+
+        if (!result || typeof result.valid !== 'boolean') {
+            // ARMS returned something we don't recognise (not a connection
+            // error, since axios got a response — but the shape is wrong).
+            throw new UnauthorizedException(
+                `Unexpected response from ARMS auth service (HTTP ${response.status}): ${JSON.stringify(response.data)}`,
+            );
+        }
+
+        if (!result.valid) {
             throw new UnauthorizedException('Invalid or expired token');
         }
 
