@@ -10,24 +10,24 @@ import { KafkaAuditProducer } from '../../../common/kafka/kafka-audit.producer';
 
 export interface AuditEventPayload {
     /** Required: short action label, e.g. COMMITMENT_SUBMITTED */
-    event: string;
+    event_type: string;
     /** Required: user / service that performed the action */
     actor_id: string;
     /** Required: office that owns the affected record */
     office_id: string;
-    /** Optional: TypeORM entity name, e.g. "Commitment" */
-    target_entity?: string;
     /** Optional: PK of the affected row */
-    target_id?: string;
+    resource_id?: string;
     /** Optional: any extra structured data */
-    metadata?: Record<string, any> | null;
+    details?: Record<string, any> | null;
+    /** Optional: event timestamp */
+    timestamp?: string;
     /** Optional: originating request IP */
     ip_address?: string | null;
-    /** Optional: ARMS role of the actor (SUPER_ADMIN/SUBSYSTEM_ADMIN/STAFF/OPCR_EVALUATOR) — required by ARMS Kafka contract */
+    /** Optional: ARMS role of the actor */
     actor_role?: string | null;
-    /** Optional: ARMS username of the actor — required by ARMS Kafka contract */
+    /** Optional: ARMS username of the actor */
     actor_username?: string | null;
-    /** Optional: which PSS module originated this event, e.g. "pss-service-catalogue" */
+    /** Optional: which PSS module originated this event */
     service_name?: string | null;
 }
 
@@ -66,14 +66,14 @@ export class AuditService {
             }
 
             // ── Guard: normalise & trim required string fields ────────────
-            const event     = typeof payload.event     === 'string' ? payload.event.trim()     : '';
+            const event_type     = typeof payload.event_type     === 'string' ? payload.event_type.trim()     : '';
             const actor_id  = typeof payload.actor_id  === 'string' ? payload.actor_id.trim()  : '';
             const office_id = typeof payload.office_id === 'string' ? payload.office_id.trim() : '';
 
-            if (!event || !actor_id || !office_id) {
+            if (!event_type || !actor_id || !office_id) {
                 this.logger.warn(
                     'AuditService.log: missing required field(s) ' +
-                    `[event="${event}" actor_id="${actor_id}" office_id="${office_id}"], skipping insert`,
+                    `[event_type="${event_type}" actor_id="${actor_id}" office_id="${office_id}"], skipping insert`,
                 );
                 return;
             }
@@ -84,24 +84,27 @@ export class AuditService {
 
             // ── Guard: validate metadata is a plain object or null ────────
             let safeMetadata: Record<string, any> | null = null;
-            if (payload.metadata !== null && payload.metadata !== undefined) {
-                if (typeof payload.metadata === 'object' && !Array.isArray(payload.metadata)) {
-                    safeMetadata = payload.metadata;
+            if (payload.details !== null && payload.details !== undefined) {
+                if (typeof payload.details === 'object' && !Array.isArray(payload.details)) {
+                    safeMetadata = payload.details;
                 } else {
-                    this.logger.warn('AuditService.log: metadata is not a plain object, storing null');
+                    this.logger.warn('AuditService.log: details is not a plain object, storing null');
                 }
             }
 
+            const timestamp = payload.timestamp ? new Date(payload.timestamp) : new Date();
+
             await this.auditRepo.save(
                 this.auditRepo.create({
-                    event:         event.substring(0, 100),
+                    event:         event_type.substring(0, 100),
                     actor_id:      actor_id.substring(0, 100),
                     office_id:     office_id.substring(0, 100),
-                    target_entity: safeStr(payload.target_entity, 100) ?? undefined,
-                    target_id:     safeStr(payload.target_id, 100)     ?? undefined,
+                    target_entity: undefined,
+                    target_id:     safeStr(payload.resource_id, 100)     ?? undefined,
                     metadata:      safeMetadata,
                     ip_address:    safeStr(payload.ip_address, 100),
                     is_synced:     false,
+                    timestamp,
                 }),
             );
 
@@ -110,12 +113,12 @@ export class AuditService {
             // is already saved regardless of Kafka availability.
             void this.kafkaProducer.emit({
                 serviceName: safeStr(payload.service_name, 100) ?? 'pss-commitment',
-                entityType:  safeStr(payload.target_entity, 100) ?? 'unknown',
-                entityId:    safeStr(payload.target_id, 100) ?? undefined,
+                entityType:  'unknown',
+                entityId:    safeStr(payload.resource_id, 100) ?? undefined,
                 userRole:    safeStr(payload.actor_role, 50) ?? 'STAFF',
                 userName:    safeStr(payload.actor_username, 100) ?? actor_id,
                 userId:      actor_id,
-                action:      event,
+                action:      event_type,
                 ipAddress:   safeStr(payload.ip_address, 100) ?? undefined,
                 office:      office_id,
                 metadata:    safeMetadata ?? undefined,

@@ -193,12 +193,12 @@ export class CommitmentService {
         }
 
         this.auditService.log({
-            event: 'COMMITMENT_CREATED',
+            event_type: 'COMMITMENT_CREATED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'commitment',
-            target_id: saved.id,
-            metadata: { period_id: dto.period_id, item_count: dto.items?.length ?? 0 },
+            resource_id: saved.id,
+            details: { period_id: dto.period_id, item_count: dto.items?.length ?? 0 },
+            timestamp: new Date().toISOString(),
             actor_role: ctx.actor_role,
             actor_username: ctx.actor_username,
             ip_address: ctx.ip_address,
@@ -360,17 +360,17 @@ export class CommitmentService {
         await this.commitmentRepo.save(commitment);
 
         this.auditService.log({
-            event: 'COMMITMENT_LOCKED',
+            event_type: 'COMMITMENT_LOCKED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'commitment',
-            target_id: commitment.id,
-            metadata: {
+            resource_id: commitment.id,
+            details: {
                 period_id: commitment.period_id,
                 locked_at: commitment.locked_at,
                 item_count: commitment.items.length,
                 source: 'PSS',
             },
+            timestamp: new Date().toISOString(),
             actor_role: ctx.actor_role,
             actor_username: ctx.actor_username,
             ip_address: ctx.ip_address,

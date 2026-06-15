@@ -118,11 +118,11 @@ export class ServiceCatalogueService {
         const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
         const saved = await this.serviceRepo.save(service);
         this.logAudit({
-            event: 'SERVICE_CREATED',
+            event_type: 'SERVICE_CREATED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'service',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
         return saved;
     }
@@ -162,21 +162,21 @@ export class ServiceCatalogueService {
         const saved = await this.serviceRepo.save(service);
 
         this.logAudit({
-            event: 'SERVICE_UPDATED',
+            event_type: 'SERVICE_UPDATED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'service',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
 
         if (slaChanged) {
             this.logAudit({
-                event: 'SERVICE_SLA_UPDATED',
+                event_type: 'SERVICE_SLA_UPDATED',
                 actor_id: actor,
                 office_id: office,
-                target_entity: 'service',
-                target_id: saved.id,
-                metadata: { new_sla: dto.sla_target_value },
+                resource_id: saved.id,
+                details: { new_sla: dto.sla_target_value },
+                timestamp: new Date().toISOString(),
             });
         }
         return saved;
@@ -192,11 +192,11 @@ export class ServiceCatalogueService {
         service.archived_by = actor;
         const saved = await this.serviceRepo.save(service);
         this.logAudit({
-            event: 'SERVICE_ARCHIVED',
+            event_type: 'SERVICE_ARCHIVED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'service',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
         return saved;
     }
@@ -319,12 +319,12 @@ export class ServiceCatalogueService {
         const flag = this.naFlagRepo.create({ ...dto, service_id, flagged_by: actor });
         const saved = await this.naFlagRepo.save(flag);
         this.logAudit({
-            event: 'SERVICE_NA_FLAGGED',
+            event_type: 'SERVICE_NA_FLAGGED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'na_flag',
-            target_id: saved.id,
-            metadata: { service_id, reason: dto.reason },
+            resource_id: saved.id,
+            details: { service_id, reason: dto.reason },
+            timestamp: new Date().toISOString(),
         });
         return saved;
     }
@@ -400,12 +400,12 @@ export class ServiceCatalogueService {
     }
 
     private logAudit(payload: {
-        event: string;
+        event_type: string;
         actor_id: string;
         office_id: string;
-        target_entity?: string;
-        target_id?: string;
-        metadata?: any;
+        resource_id?: string;
+        details?: any;
+        timestamp?: string;
     }) {
         const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:4002';
         const ctx = RequestContext.get();

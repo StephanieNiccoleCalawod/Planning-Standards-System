@@ -153,11 +153,11 @@ export class KpiSlaService {
         const kpi = this.kpiRepo.create({ ...dto, name: trimmedName, office, created_by: actor });
         const saved = await this.kpiRepo.save(kpi);
         this.logAudit({
-            event: 'KPI_CREATED',
+            event_type: 'KPI_CREATED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'kpi',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
         return saved;
     }
@@ -224,11 +224,11 @@ export class KpiSlaService {
         kpi.is_active = false;
         const saved = await this.kpiRepo.save(kpi);
         this.logAudit({
-            event: 'KPI_REMOVED',
+            event_type: 'KPI_REMOVED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'kpi',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
         return { message: `KPI ${id} deactivated` };
     }
@@ -340,18 +340,7 @@ export class KpiSlaService {
         return this.slaRepo.save(rule);
     }
 
-    async createHoliday(dto: CreateHolidayDto, actor: string): Promise<{ data: Holiday; warning?: string }> {
-        const holiday = this.holidayRepo.create({ ...dto });
-        const savedHoliday = await this.holidayRepo.save(holiday);
-
-        this.logAudit({
-            event: 'HOLIDAY_CREATED',
-            actor_id: actor,
-            office_id: 'GLOBAL',
-            target_entity: 'holiday',
-            target_id: savedHoliday.id,
-        });
-
+    async createHoliday(dto: CreateHolidayDto, actor: string): Promise<{ data: Holiday | Holiday[]; warning?: string }> {
         let warning: string | undefined;
 
         const now = new Date();
@@ -359,24 +348,44 @@ export class KpiSlaService {
         const currentMonth = now.getMonth() + 1; // 1-12
         const currentDay = now.getDate();
 
-        const checkYear = dto.year ?? currentYear;
-
+        const holidaysToSave: Holiday[] = [];
         let isPast = false;
-        if (checkYear < currentYear) {
-            isPast = true;
-        } else if (checkYear === currentYear) {
-            if (dto.month < currentMonth) {
-                isPast = true;
-            } else if (dto.month === currentMonth && dto.day < currentDay) {
-                isPast = true;
+
+        if (dto.is_recurring) {
+            for (let i = 0; i < 5; i++) {
+                const year = currentYear + i;
+                holidaysToSave.push(this.holidayRepo.create({ ...dto, year }));
             }
+        } else {
+            const checkYear = dto.year ?? currentYear;
+            if (checkYear < currentYear) {
+                isPast = true;
+            } else if (checkYear === currentYear) {
+                if (dto.month < currentMonth) {
+                    isPast = true;
+                } else if (dto.month === currentMonth && dto.day < currentDay) {
+                    isPast = true;
+                }
+            }
+            holidaysToSave.push(this.holidayRepo.create({ ...dto, year: checkYear }));
         }
+
+        const savedHolidays = await this.holidayRepo.save(holidaysToSave);
+
+        this.logAudit({
+            event_type: 'HOLIDAY_CREATED',
+            actor_id: actor,
+            office_id: 'GLOBAL',
+            resource_id: savedHolidays[0].id,
+            details: { is_recurring: dto.is_recurring, count: savedHolidays.length },
+            timestamp: new Date().toISOString(),
+        });
 
         if (isPast) {
             warning = "This holiday date is in the past";
         }
 
-        return { data: savedHoliday, warning };
+        return { data: dto.is_recurring ? savedHolidays : savedHolidays[0], warning };
     }
 
     async findAllHolidays(
@@ -411,11 +420,11 @@ export class KpiSlaService {
         if (!holiday) throw new NotFoundException(`Holiday ${id} not found`);
         await this.holidayRepo.delete(id);
         this.logAudit({
-            event: 'HOLIDAY_DELETED',
+            event_type: 'HOLIDAY_DELETED',
             actor_id: actor,
             office_id: 'GLOBAL',
-            target_entity: 'holiday',
-            target_id: id,
+            resource_id: id,
+            timestamp: new Date().toISOString(),
         });
         return { message: `Holiday ${id} removed` };
     }
@@ -453,11 +462,11 @@ export class KpiSlaService {
         });
         const saved = await this.periodRepo.save(period);
         this.logAudit({
-            event: 'PERIOD_CREATED',
+            event_type: 'PERIOD_CREATED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'evaluation_period',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
         return saved;
     }
@@ -522,11 +531,11 @@ export class KpiSlaService {
         const saved = await this.periodRepo.save(period);
 
         this.logAudit({
-            event: 'PERIOD_CLOSED',
+            event_type: 'PERIOD_CLOSED',
             actor_id: actor,
             office_id: office,
-            target_entity: 'evaluation_period',
-            target_id: saved.id,
+            resource_id: saved.id,
+            timestamp: new Date().toISOString(),
         });
 
         const nextQueued = await this.periodRepo.findOne({
@@ -589,12 +598,12 @@ export class KpiSlaService {
     }
 
     private logAudit(payload: {
-        event: string;
+        event_type: string;
         actor_id: string;
         office_id: string;
-        target_entity?: string;
-        target_id?: string;
-        metadata?: any;
+        resource_id?: string;
+        details?: any;
+        timestamp?: string;
     }) {
         const url = this.config.get<string>('COMMITMENT_URL') || 'http://localhost:4002';
         const ctx = RequestContext.get();
