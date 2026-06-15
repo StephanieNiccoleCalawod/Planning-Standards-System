@@ -34,6 +34,9 @@ export class Kpi {
   @Column({ type: 'enum', enum: KpiUnit })
   unit: KpiUnit;
 
+  @Column({ type: 'text', nullable: true })
+  measurement_basis: string;
+
   @Column({ default: true })
   is_active: boolean;
 

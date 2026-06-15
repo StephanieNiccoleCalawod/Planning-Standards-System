@@ -39,6 +39,15 @@ export class SlaRuleVersion {
   @Column({ type: 'int' })
   overdue_threshold_pct: number;
 
+  @Column({ type: 'int', default: 1 })
+  version_number: number;
+
+  @Column({ length: 50, default: 'UPDATE' })
+  change_type: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  restored_from_version: string | null;
+
   @Column({ length: 100 })
   changed_by: string;
 

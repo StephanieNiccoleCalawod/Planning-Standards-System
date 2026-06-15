@@ -35,6 +35,12 @@ export class EvaluationPeriod {
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  completed_at: Date;
+
+  @Column({ length: 100, nullable: true })
+  completed_by: string;
+
   @Column({ default: true })
   is_active: boolean;
 }
