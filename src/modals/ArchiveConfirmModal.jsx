@@ -30,7 +30,11 @@ export default function ArchiveConfirmModal({
   return (
     <Dialog 
       open={open} 
-      onClose={onCancel} 
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onCancel(e, reason);
+        }
+      }} 
       sx={{ 
         '& .MuiDialog-paper': { 
           maxWidth: '480px', 

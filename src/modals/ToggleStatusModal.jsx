@@ -34,14 +34,18 @@ export default function ToggleStatusModal({
     ? `Activate ${entityLabel}?`
     : `Deactivate ${entityLabel}?`;
 
-  const themeColor = isActivate ? '#10B981' : '#DC2626';
-  const hoverColor = isActivate ? '#059669' : '#B91C1C';
-  const nameColor  = isActivate ? '#10B981' : '#0F172A';
+  const themeColor = isActivate ? '#15803D' : '#DC2626';
+  const hoverColor = isActivate ? '#166534' : '#B91C1C';
+  const nameColor  = isActivate ? '#15803D' : '#0F172A';
 
   return (
     <Dialog 
       open={open} 
-      onClose={onCancel} 
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onCancel(e, reason);
+        }
+      }} 
       sx={{ 
         '& .MuiDialog-paper': { 
           maxWidth: '500px', 
@@ -64,8 +68,8 @@ export default function ToggleStatusModal({
             alignItems: 'center', 
             justifyContent: 'center', 
             mb: '20px',
-            bgcolor: isActivate ? '#ECFDF5' : '#FFFBEB',
-            color: isActivate ? '#10B981' : '#D97706',
+            bgcolor: isActivate ? '#F0FDF4' : '#FFFBEB',
+            color: isActivate ? '#15803D' : '#D97706',
           }}
         >
           {isActivate ? (
@@ -94,7 +98,7 @@ export default function ToggleStatusModal({
         {bodyExtra && (
           <Box 
             sx={{
-              border: isActivate ? '1px dashed rgba(16, 185, 129, 0.3)' : '1px dashed rgba(217, 119, 6, 0.3)',
+              border: isActivate ? '1px dashed rgba(21, 128, 61, 0.3)' : '1px dashed rgba(217, 119, 6, 0.3)',
               bgcolor: isActivate ? '#F0FDF4' : '#FFFDF9',
               borderRadius: '8px',
               p: '12px',
@@ -105,7 +109,7 @@ export default function ToggleStatusModal({
             }}
           >
             {isActivate ? (
-              <CheckCircleRoundedIcon sx={{ color: '#10B981', fontSize: 18, flexShrink: 0, mt: '2px' }} />
+              <CheckCircleRoundedIcon sx={{ color: '#15803D', fontSize: 18, flexShrink: 0, mt: '2px' }} />
             ) : (
               <WarningAmberRoundedIcon sx={{ color: '#D97706', fontSize: 18, flexShrink: 0, mt: '2px' }} />
             )}

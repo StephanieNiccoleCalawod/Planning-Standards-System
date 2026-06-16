@@ -80,7 +80,7 @@ export default function PageHeader({ breadcrumb, title, action }) {
   const handleLogout = () => {
     setProfileOpen(false);
     clearToken();
-    window.location.href = import.meta.env.VITE_ARMS_URL || "http://localhost:5175";
+    window.location.href = import.meta.env.VITE_ARMS_URL || "http://localhost:5173";
   };
 
   return (

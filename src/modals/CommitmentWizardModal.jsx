@@ -52,7 +52,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
   const [selectedServices, setSelectedServices] = useState([]);
   const [kpiTargets, setKpiTargets] = useState({}); // { kpiId: value or duration object }
   const [targetErrors, setTargetErrors] = useState({});
-  
+
   const [draftId, setDraftId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [autoSaveStatus, setAutoSaveStatus] = useState("");
@@ -75,7 +75,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   const loadTargets = (items) => {
     const targets = {};
-    
+
     // First, populate all default values from KPI standards for any active KPIs
     kpis.forEach(k => {
       if (k.category === "Timeliness" || k.category === "Efficiency") {
@@ -99,7 +99,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         }
       }
     });
-    
+
     return targets;
   };
 
@@ -128,7 +128,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       return;
     }
     if (hasLoadedDraft.current || loading) return;
-    
+
     if (commitmentId) {
       if (activeCommitment && String(activeCommitment.id) === String(commitmentId)) {
         hasLoadedDraft.current = true;
@@ -136,7 +136,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         setSelectedPeriod(activeCommitment.period_id);
         const sIds = [...new Set(activeCommitment.items?.map(i => i.service_id) || [])];
         setSelectedServices(sIds);
-        
+
         const targets = loadTargets(activeCommitment.items);
         setKpiTargets(targets);
       }
@@ -149,7 +149,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         setSelectedPeriod(draft.period_id);
         const sIds = [...new Set(draft.items?.map(i => i.service_id) || [])];
         setSelectedServices(sIds);
-        
+
         const targets = loadTargets(draft.items);
         setKpiTargets(targets);
       } else {
@@ -191,7 +191,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   const saveDraftSilent = async () => {
     if (!selectedPeriod) return;
-    
+
     // Build items array based on selected services and their kpis
     const items = [];
     selectedServices.forEach(sId => {
@@ -199,7 +199,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       serviceKpis.forEach(k => {
         let finalVal = 0;
         const targetObj = kpiTargets[k.id];
-        
+
         if (k.category === "Timeliness" || k.category === "Efficiency") {
           const d = Number(targetObj?.days) || 0;
           const h = Number(targetObj?.hours) || 0;
@@ -208,7 +208,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
         } else {
           finalVal = Number(targetObj) || 0;
         }
-        
+
         items.push({
           service_id: sId,
           kpi_id: k.id,
@@ -231,7 +231,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   const saveDraft = async () => {
     if (!selectedPeriod) return;
-    
+
     setAutoSaveStatus("Saving Draft...");
     try {
       await saveDraftSilent();
@@ -279,7 +279,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   const handlePeriodChange = (periodId) => {
     setSelectedPeriod(periodId);
-    
+
     // Check if there is an existing draft commitment for this period
     const existing = commitments.find(c => String(c.period_id) === String(periodId));
     if (existing) {
@@ -313,7 +313,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
   };
 
   const handleToggleService = (serviceId) => {
-    setSelectedServices(prev => 
+    setSelectedServices(prev =>
       prev.some(id => String(id) === String(serviceId))
         ? prev.filter(id => String(id) !== String(serviceId))
         : [...prev, serviceId]
@@ -346,15 +346,15 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
       const dStr = targetObj?.days?.toString().trim() || "";
       const hStr = targetObj?.hours?.toString().trim() || "";
       const mStr = targetObj?.mins?.toString().trim() || "";
-      
+
       if (!dStr && !hStr && !mStr) {
         return "Duration is required.";
       }
-      
+
       const d = Number(targetObj?.days) || 0;
       const h = Number(targetObj?.hours) || 0;
       const m = Number(targetObj?.mins) || 0;
-      
+
       if (d < 0 || h < 0 || m < 0) {
         return "Negative values not allowed.";
       }
@@ -446,11 +446,11 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
   // (but allow editing that exact locked commitment if it's opened by commitmentId)
   const lockedForSelectedPeriod = selectedPeriod
     ? commitments.find(
-        c =>
-          String(c.period_id) === String(selectedPeriod) &&
-          c.status === 'Locked' &&
-          String(c.id) !== String(commitmentId)
-      )
+      c =>
+        String(c.period_id) === String(selectedPeriod) &&
+        c.status === 'Locked' &&
+        String(c.id) !== String(commitmentId)
+    )
     : null;
   const isBlockedByLockedCommitment = !!lockedForSelectedPeriod && !commitmentId;
   const displayPeriods = periods.filter(p => p.status === "Active" || p.status === "Open" || p.id === selectedPeriod);
@@ -466,16 +466,20 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={onClose} 
-        fullWidth 
-        sx={{ 
-          '& .MuiDialog-paper': { 
-            maxWidth: '750px', 
-            borderRadius: 3, 
-            minHeight: '600px' 
-          } 
+      <Dialog
+        open={open}
+        onClose={(e, reason) => {
+          if (reason !== "backdropClick") {
+            onClose(e, reason);
+          }
+        }}
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            maxWidth: '750px',
+            borderRadius: 3,
+            minHeight: '600px'
+          }
         }}
       >
         <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 2 }}>
@@ -511,7 +515,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
               <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
                 You can only create commitments for an currently Active evaluation period.
               </Typography>
-              
+
               <TextField
                 select
                 fullWidth
@@ -577,7 +581,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
               <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
                 Select the services your office will commit to for this period. Services flagged as N/A are hidden.
               </Typography>
-              
+
               <Box sx={{ maxHeight: 350, overflow: 'auto', pr: 0.5 }}>
                 {availableServices.length === 0 ? (
                   <Paper sx={{ p: 3, textAlign: 'center', border: '1px solid #E2E8F0', boxShadow: 'none' }}>
@@ -587,7 +591,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                   availableServices.map((svc) => {
                     const isSelected = selectedServices.some(id => String(id) === String(svc.id));
                     const labelId = `checkbox-list-label-${svc.id}`;
-                    
+
                     const serviceKpis = kpis.filter(k => String(k.service_id) === String(svc.id) && k.active);
                     const hasActiveKpis = serviceKpis.length > 0;
 
@@ -667,7 +671,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                           <Chip
                             label={
                               svc.withReferral === 'without' ? "Without Referral" :
-                              svc.withReferral === 'n/a' ? "Not Applicable" : "With Referral"
+                                svc.withReferral === 'n/a' ? "Not Applicable" : "With Referral"
                             }
                             size="small"
                             sx={{
@@ -677,18 +681,18 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                               letterSpacing: "0.02em",
                               borderRadius: "12px",
                               px: 0.5,
-                              ...(svc.withReferral === "without" ? { 
-                                bgcolor: '#F0F9FF', 
-                                color: '#0284C7', 
-                                border: '1px solid rgba(2, 132, 199, 0.15)' 
-                              } : svc.withReferral === "n/a" ? { 
-                                bgcolor: '#F1F5F9', 
-                                color: '#64748B', 
-                                border: '1px solid rgba(100, 116, 139, 0.15)' 
-                              } : { 
-                                bgcolor: '#FEF2F2', 
-                                color: '#9B1C1C', 
-                                border: '1px solid rgba(155, 28, 28, 0.15)' 
+                              ...(svc.withReferral === "without" ? {
+                                bgcolor: '#F0F9FF',
+                                color: '#0284C7',
+                                border: '1px solid rgba(2, 132, 199, 0.15)'
+                              } : svc.withReferral === "n/a" ? {
+                                bgcolor: '#F1F5F9',
+                                color: '#64748B',
+                                border: '1px solid rgba(100, 116, 139, 0.15)'
+                              } : {
+                                bgcolor: '#FEF2F2',
+                                color: '#9B1C1C',
+                                border: '1px solid rgba(155, 28, 28, 0.15)'
                               })
                             }}
                           />
@@ -720,7 +724,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
               <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
                 Set the target values for each KPI. All targets must be greater than 0 before locking. Drafts are auto-saved.
               </Typography>
-              
+
               {selectedServices.length === 0 ? (
                 <Typography color="error">No services selected. Go back to Step 2.</Typography>
               ) : (
@@ -728,9 +732,9 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                   {selectedServices.map(sId => {
                     const svc = services.find(s => String(s.id) === String(sId));
                     const serviceKpis = kpis.filter(k => String(k.service_id) === String(sId) && k.active);
-                    
+
                     if (serviceKpis.length === 0) return null;
-                    
+
                     return (
                       <Paper key={sId} sx={{ p: 3, mb: 3, border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: 'none' }}>
                         <Typography sx={{ fontWeight: 700, color: '#0F172A', fontSize: '1.05rem', mb: 2.5, borderBottom: '1px solid #F1F5F9', pb: 1.5 }}>
@@ -739,15 +743,15 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                         {serviceKpis.map((kpi, idx) => {
                           const isDuration = kpi.category === "Timeliness" || kpi.category === "Efficiency";
                           return (
-                            <Box 
-                              key={kpi.id} 
-                              sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                py: 2, 
+                            <Box
+                              key={kpi.id}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                py: 2,
                                 borderBottom: idx === serviceKpis.length - 1 ? 'none' : '1px solid #F8FAFC',
-                                justifyContent: 'space-between', 
-                                gap: 3 
+                                justifyContent: 'space-between',
+                                gap: 3
                               }}
                             >
                               <Box sx={{ flex: 1 }}>
@@ -775,7 +779,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         }}
                                         disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
-                                        sx={{ 
+                                        sx={{
                                           width: 75,
                                           '& .MuiOutlinedInput-root': {
                                             bgcolor: '#F8FAFC',
@@ -788,7 +792,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         inputProps={{ style: { textAlign: 'center', fontWeight: 700, color: '#1E293B' } }}
                                       />
                                     </Box>
-                                    
+
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
                                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.725rem' }}>Hours</Typography>
                                       <TextField
@@ -802,7 +806,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         }}
                                         disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
-                                        sx={{ 
+                                        sx={{
                                           width: 75,
                                           '& .MuiOutlinedInput-root': {
                                             bgcolor: '#F8FAFC',
@@ -815,7 +819,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         inputProps={{ style: { textAlign: 'center', fontWeight: 700, color: '#1E293B' } }}
                                       />
                                     </Box>
-                                    
+
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
                                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.725rem' }}>Mins</Typography>
                                       <TextField
@@ -829,7 +833,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                         }}
                                         disabled={isReadOnly}
                                         error={!!targetErrors[kpi.id]}
-                                        sx={{ 
+                                        sx={{
                                           width: 75,
                                           '& .MuiOutlinedInput-root': {
                                             bgcolor: '#F8FAFC',
@@ -866,7 +870,7 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
                                       }}
                                       disabled={isReadOnly}
                                       error={!!targetErrors[kpi.id]}
-                                      sx={{ 
+                                      sx={{
                                         width: 140,
                                         '& .MuiOutlinedInput-root': {
                                           bgcolor: '#F8FAFC',
@@ -900,19 +904,19 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
 
         <DialogActions sx={{ p: 3, borderTop: '1px solid #E2E8F0', gap: 1 }}>
           <Box sx={{ flexGrow: 1 }} />
-          
+
           {activeStep > 0 && (
             <Button
               variant="outlined"
               onClick={saveDraft}
               disabled={isReadOnly}
               sx={{
-                color: '#800000',
-                borderColor: '#800000',
+                color: '#15803D',
+                borderColor: '#15803D',
                 '&:hover': {
-                  bgcolor: 'rgba(128, 0, 0, 0.04)',
-                  borderColor: '#990000',
-                  color: '#990000'
+                  bgcolor: 'rgba(21, 128, 61, 0.04)',
+                  borderColor: '#166534',
+                  color: '#166534'
                 },
                 fontWeight: 600
               }}
@@ -920,37 +924,37 @@ export default function CommitmentWizardModal({ open, onClose, commitmentId, rea
               Save as Draft
             </Button>
           )}
-          
+
           {activeStep === 0 ? (
-            <Button 
-              onClick={onClose} 
+            <Button
+              onClick={onClose}
               variant="outlined"
               sx={{ color: 'text.secondary', borderColor: '#CBD5E1', '&:hover': { bgcolor: '#F8FAFC', borderColor: '#94A3B8' } }}
             >
               Close
             </Button>
           ) : (
-            <Button 
-              onClick={handleBack} 
+            <Button
+              onClick={handleBack}
               variant="outlined"
             >
               Back
             </Button>
           )}
-          
+
           {activeStep < steps.length - 1 ? (
-            <Button 
-              variant="contained" 
-              onClick={handleNext} 
+            <Button
+              variant="contained"
+              onClick={handleNext}
               disabled={activeStep === 0 && (!selectedPeriod || isBlockedByLockedCommitment)}
               sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
             >
               Next
             </Button>
           ) : (
-            <Button 
-              variant="contained" 
-              color="success" 
+            <Button
+              variant="contained"
+              color="success"
               onClick={handleLockSubmitClick}
               disabled={selectedServices.length === 0 || isReadOnly}
             >

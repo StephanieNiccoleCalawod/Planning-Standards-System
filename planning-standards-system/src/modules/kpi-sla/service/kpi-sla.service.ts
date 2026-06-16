@@ -317,18 +317,12 @@ export class KpiSlaService {
         });
         if (!version) throw new NotFoundException(`Version ${versionId} not found`);
 
-        await this.slaVersionRepo.save(
-            this.slaVersionRepo.create({
-                sla_rule_id: rule.id,
-                work_schedule_type: rule.work_schedule_type,
-                work_schedule_config: rule.work_schedule_config,
-                work_start_time: rule.work_start_time,
-                work_end_time: rule.work_end_time,
-                warn_threshold_pct: rule.warn_threshold_pct,
-                overdue_threshold_pct: rule.overdue_threshold_pct,
-                changed_by: actor,
-            }),
-        );
+        const currentType = rule.work_schedule_type;
+        const currentConfig = rule.work_schedule_config;
+        const currentStart = rule.work_start_time;
+        const currentEnd = rule.work_end_time;
+        const currentWarn = rule.warn_threshold_pct;
+        const currentOverdue = rule.overdue_threshold_pct;
 
         rule.work_schedule_type = version.work_schedule_type;
         rule.work_schedule_config = version.work_schedule_config;
@@ -336,8 +330,18 @@ export class KpiSlaService {
         rule.work_end_time = version.work_end_time;
         rule.warn_threshold_pct = version.warn_threshold_pct;
         rule.overdue_threshold_pct = version.overdue_threshold_pct;
+        const savedRule = await this.slaRepo.save(rule);
 
-        return this.slaRepo.save(rule);
+        version.work_schedule_type = currentType;
+        version.work_schedule_config = currentConfig;
+        version.work_start_time = currentStart;
+        version.work_end_time = currentEnd;
+        version.warn_threshold_pct = currentWarn;
+        version.overdue_threshold_pct = currentOverdue;
+        version.changed_by = actor;
+        await this.slaVersionRepo.save(version);
+
+        return savedRule;
     }
 
     async createHoliday(dto: CreateHolidayDto, actor: string): Promise<{ data: Holiday | Holiday[]; warning?: string }> {

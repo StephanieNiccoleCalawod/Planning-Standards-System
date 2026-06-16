@@ -227,7 +227,15 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
   };
 
   return (
-    <Dialog open onClose={onClose} sx={{ '& .MuiDialog-paper': { maxWidth: '500px', width: '100%', borderRadius: 2.5 } }}>
+    <Dialog
+      open
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onClose(e, reason);
+        }
+      }}
+      sx={{ '& .MuiDialog-paper': { maxWidth: '500px', width: '100%', borderRadius: 2.5 } }}
+    >
       {showSlaWarning ? (
         <Box sx={{ p: 4 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
@@ -297,7 +305,10 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
             </Button>
             <Button
               variant="contained"
-              color="primary"
+              sx={{
+                bgcolor: '#15803D',
+                '&:hover': { bgcolor: '#166534' }
+              }}
               onClick={() => {
                 if (onEdit && pendingServiceData) {
                   onEdit(pendingServiceData);
@@ -507,7 +518,13 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
             </Button>
             <Button
               variant="contained"
-              color="primary"
+              sx={isEditing ? {
+                bgcolor: '#15803D',
+                '&:hover': { bgcolor: '#166534' }
+              } : {
+                bgcolor: '#800000',
+                '&:hover': { bgcolor: '#990000' }
+              }}
               onClick={handleSave}
             >
               {isEditing ? "Save Changes" : "Next"}

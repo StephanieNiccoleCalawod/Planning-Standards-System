@@ -74,6 +74,14 @@ export default function EvaluationPeriods() {
     const [closingPeriod, setClosingPeriod] = useState(null);
     const [deletingPeriod, setDeletingPeriod] = useState(null);
     const [editingPeriod, setEditingPeriod] = useState(null);
+    const [menuAnchor, setMenuAnchor] = useState(null);
+
+    const handleMenuOpen = (event, period) => {
+        setMenuAnchor({ el: event.currentTarget, period });
+    };
+    const handleMenuClose = () => {
+        setMenuAnchor(null);
+    };
 
     // Edit Form states
     const [editName, setEditName] = useState("");
@@ -465,36 +473,18 @@ export default function EvaluationPeriods() {
                                                         </Button>
                                                     )}
                                                     {isQueued && (
-                                                        <>
-                                                            <Tooltip title="Edit Period">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={(e) => { e.stopPropagation(); handleOpenEdit(p); }}
-                                                                    sx={{
-                                                                        border: '1px solid #CBD5E1',
-                                                                        borderRadius: 1.5,
-                                                                        color: '#3B82F6',
-                                                                        '&:hover': { bgcolor: '#EFF6FF', borderColor: '#3B82F6' }
-                                                                    }}
-                                                                >
-                                                                    <EditIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                            <Tooltip title="Delete Period">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={(e) => { e.stopPropagation(); setDeletingPeriod(p); }}
-                                                                    sx={{
-                                                                        border: '1px solid #CBD5E1',
-                                                                        borderRadius: 1.5,
-                                                                        color: '#EF4444',
-                                                                        '&:hover': { bgcolor: '#FEF2F2', borderColor: '#EF4444' }
-                                                                    }}
-                                                                >
-                                                                    <DeleteIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        </>
+                                                        <Tooltip title="Actions">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={(e) => { e.stopPropagation(); handleMenuOpen(e, p); }}
+                                                                sx={{
+                                                                    color: 'text.secondary',
+                                                                    '&:hover': { bgcolor: '#F1F5F9' }
+                                                                }}
+                                                            >
+                                                                <MoreVertIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
                                                     )}
                                                     {isClosed && (
                                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', py: 0.5, px: 1 }}>
@@ -528,7 +518,11 @@ export default function EvaluationPeriods() {
             {/* Add Period Modal Dialog */}
             <Dialog
                 open={showAdd}
-                onClose={() => setShowAdd(false)}
+                onClose={(e, reason) => {
+                    if (reason !== "backdropClick") {
+                        setShowAdd(false);
+                    }
+                }}
                 sx={{ '& .MuiDialog-paper': { maxWidth: '440px', width: '100%', borderRadius: 3, p: 2 } }}
             >
                 <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
@@ -623,7 +617,7 @@ export default function EvaluationPeriods() {
                     <Button
                         onClick={handleSave}
                         variant="contained"
-                        sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' }, fontWeight: 600 }}
+                        sx={{ bgcolor: '#15803D', '&:hover': { bgcolor: '#166534' }, fontWeight: 600 }}
                     >
                         Create Period
                     </Button>
@@ -633,7 +627,11 @@ export default function EvaluationPeriods() {
             {/* Close Period Confirmation Modal */}
             <Dialog
                 open={Boolean(closingPeriod)}
-                onClose={() => setClosingPeriod(null)}
+                onClose={(e, reason) => {
+                    if (reason !== "backdropClick") {
+                        setClosingPeriod(null);
+                    }
+                }}
                 sx={{ '& .MuiDialog-paper': { maxWidth: '420px', width: '100%', borderRadius: 3, p: 2 } }}
             >
                 <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
@@ -665,7 +663,11 @@ export default function EvaluationPeriods() {
             {/* Edit Period Modal */}
             <Dialog
                 open={Boolean(editingPeriod)}
-                onClose={() => setEditingPeriod(null)}
+                onClose={(e, reason) => {
+                    if (reason !== "backdropClick") {
+                        setEditingPeriod(null);
+                    }
+                }}
                 sx={{ '& .MuiDialog-paper': { maxWidth: '440px', width: '100%', borderRadius: 3, p: 2 } }}
             >
                 <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
@@ -741,7 +743,7 @@ export default function EvaluationPeriods() {
                     <Button
                         onClick={handleEditSave}
                         variant="contained"
-                        sx={{ bgcolor: '#800000', '&:hover': { bgcolor: '#990000' }, fontWeight: 600 }}
+                        sx={{ bgcolor: '#15803D', '&:hover': { bgcolor: '#166534' }, fontWeight: 600 }}
                     >
                         Save Changes
                     </Button>
@@ -751,7 +753,11 @@ export default function EvaluationPeriods() {
             {/* Delete Confirmation Modal */}
             <Dialog
                 open={Boolean(deletingPeriod)}
-                onClose={() => setDeletingPeriod(null)}
+                onClose={(e, reason) => {
+                    if (reason !== "backdropClick") {
+                        setDeletingPeriod(null);
+                    }
+                }}
                 fullWidth
                 maxWidth="xs"
                 PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
@@ -781,6 +787,68 @@ export default function EvaluationPeriods() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Actions Dropdown Menu */}
+            <Menu
+                anchorEl={menuAnchor?.el}
+                open={Boolean(menuAnchor)}
+                onClose={handleMenuClose}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            borderRadius: 2,
+                            boxShadow: '0 4px 20px 0 rgba(0,0,0,0.08)',
+                            border: '1px solid #E2E8F0',
+                            minWidth: 150
+                        }
+                    }
+                }}
+            >
+                <MenuItem
+                    onClick={() => {
+                        if (menuAnchor?.period) {
+                            handleOpenEdit(menuAnchor.period);
+                        }
+                        handleMenuClose();
+                    }}
+                    sx={{
+                        py: 1,
+                        px: 2,
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        color: '#1E293B',
+                        '&:hover': { bgcolor: '#F8FAFC' }
+                    }}
+                >
+                    <EditIcon fontSize="small" sx={{ color: '#800000' }} />
+                    Edit Period
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        if (menuAnchor?.period) {
+                            setDeletingPeriod(menuAnchor.period);
+                        }
+                        handleMenuClose();
+                    }}
+                    sx={{
+                        py: 1,
+                        px: 2,
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        color: '#EF4444',
+                        '&:hover': { bgcolor: '#FEF2F2' }
+                    }}
+                >
+                    <DeleteIcon fontSize="small" sx={{ color: '#EF4444' }} />
+                    Delete Period
+                </MenuItem>
+            </Menu>
 
             {/* Result Modal for Success/Error */}
             {resultModal && (

@@ -39,7 +39,16 @@ export default function ConfirmModal({
   cancelLabel = 'Cancel',
 }) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
+    <Dialog
+      open={open}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onCancel(e, reason);
+        }
+      }}
+      maxWidth="xs"
+      fullWidth
+    >
       <DialogContent sx={{ pt: 3 }}>
         {/* Icon + heading row */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', mb: 3 }}>
@@ -95,7 +104,14 @@ export default function ConfirmModal({
         <Button variant="outlined" color="inherit" onClick={onCancel}>
           {cancelLabel}
         </Button>
-        <Button variant="contained" color="primary" onClick={onConfirm}>
+        <Button
+          variant="contained"
+          sx={{
+            bgcolor: '#15803D',
+            '&:hover': { bgcolor: '#166534' }
+          }}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
       </DialogActions>

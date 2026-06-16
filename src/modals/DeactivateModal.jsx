@@ -14,7 +14,11 @@ export default function DeactivateModal({ service, onConfirm, onCancel }) {
   return (
     <Dialog 
       open 
-      onClose={onCancel} 
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onCancel(e, reason);
+        }
+      }} 
       sx={{ 
         '& .MuiDialog-paper': { 
           maxWidth: '500px', 

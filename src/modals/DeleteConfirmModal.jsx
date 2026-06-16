@@ -29,7 +29,11 @@ export default function DeleteConfirmModal({
   return (
     <Dialog
       open={open}
-      onClose={onCancel}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onCancel(e, reason);
+        }
+      }}
       fullWidth
       maxWidth="xs"
       PaperProps={{ sx: { borderRadius: 3, p: 1 } }}

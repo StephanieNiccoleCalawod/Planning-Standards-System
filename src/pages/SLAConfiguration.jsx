@@ -24,7 +24,9 @@ import {
   Error as ErrorIcon,
   History as HistoryIcon,
   CalendarMonth as CalendarMonthIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -54,6 +56,14 @@ export default function SLAConfiguration() {
   const [activeRuleId, setActiveRuleId] = useState(null);
   const [activePeriodName, setActivePeriodName] = useState("Jan — Jun 2026 Period");
   const [history, setHistory] = useState([]);
+  const [expandedVersions, setExpandedVersions] = useState({});
+
+  const toggleVersionExpand = (versionId) => {
+    setExpandedVersions(prev => ({
+      ...prev,
+      [versionId]: !prev[versionId]
+    }));
+  };
 
   const triggerSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -132,7 +142,13 @@ export default function SLAConfiguration() {
             working_hours: `${format12Hour(activeRule.work_start_time)} - ${format12Hour(activeRule.work_end_time)}`,
             warn_threshold: "80%",
             overdue_threshold: "100%",
-            is_active_rule: true
+            is_active_rule: true,
+            work_schedule_type: activeRule.work_schedule_type,
+            work_schedule_config: activeRule.work_schedule_config,
+            work_start_time: activeRule.work_start_time,
+            work_end_time: activeRule.work_end_time,
+            warn_threshold_pct: activeRule.warn_threshold_pct ?? 80,
+            overdue_threshold_pct: activeRule.overdue_threshold_pct ?? 100
           });
 
           sortedVersions.forEach((v, vIndex) => {
@@ -159,17 +175,75 @@ export default function SLAConfiguration() {
               working_hours: `${format12Hour(v.work_start_time)} - ${format12Hour(v.work_end_time)}`,
               warn_threshold: "80%",
               overdue_threshold: "100%",
-              is_active_rule: false
+              is_active_rule: false,
+              work_schedule_type: v.work_schedule_type,
+              work_schedule_config: v.work_schedule_config,
+              work_start_time: v.work_start_time,
+              work_end_time: v.work_end_time,
+              warn_threshold_pct: v.warn_threshold_pct ?? 80,
+              overdue_threshold_pct: v.overdue_threshold_pct ?? 100
             });
           });
 
-          setHistory(list);
+          const chronoList = [...list].reverse();
+
+          const configsEqual = (a, b) => {
+            if (a.work_schedule_type !== b.work_schedule_type) return false;
+            if (a.work_start_time !== b.work_start_time) return false;
+            if (a.work_end_time !== b.work_end_time) return false;
+            if (a.warn_threshold_pct !== b.warn_threshold_pct) return false;
+            if (a.overdue_threshold_pct !== b.overdue_threshold_pct) return false;
+            
+            const configA = a.work_schedule_config;
+            const configB = b.work_schedule_config;
+            if (!configA && !configB) return true;
+            if (!configA || !configB) return false;
+            return JSON.stringify(configA) === JSON.stringify(configB);
+          };
+
+          const versionNames = [];
+          let nextMajor = 1;
+
+          for (let i = 0; i < chronoList.length; i++) {
+            const current = chronoList[i];
+            let matchIndex = -1;
+
+            for (let j = 0; j < i; j++) {
+              if (configsEqual(current, chronoList[j])) {
+                matchIndex = j;
+                break;
+              }
+            }
+
+            if (matchIndex === -1) {
+              const name = `${nextMajor}`;
+              versionNames.push(name);
+              nextMajor++;
+            } else {
+              const rootName = versionNames[matchIndex];
+              let subVersionCount = 0;
+              for (let k = 0; k < i; k++) {
+                if (versionNames[k] === rootName || versionNames[k].startsWith(`${rootName}.`)) {
+                  subVersionCount++;
+                }
+              }
+              const name = `${rootName}.${subVersionCount}`;
+              versionNames.push(name);
+            }
+          }
+
+          for (let i = 0; i < chronoList.length; i++) {
+            chronoList[i].version_name = versionNames[i];
+          }
+
+          setHistory(chronoList.reverse());
         }
       }
     } catch (err) {
       console.error("Failed to load SLA configuration details:", err);
-      setErrorModal({
+      setResultModal({
         show: true,
+        type: "error",
         title: "Connection Error",
         message: "Unable to establish a connection to the backend database service. Please ensure that the services are online and try again."
       });
@@ -184,8 +258,9 @@ export default function SLAConfiguration() {
   const handleSave = (e) => {
     e.preventDefault();
     if (workingDays.length === 0) {
-      setErrorModal({
+      setResultModal({
         show: true,
+        type: "error",
         title: "No Working Days Selected",
         message: "Please select at least one working day (Calendar Schedule) before publishing these SLA configuration rules. You must configure at least one working day for the active period."
       });
@@ -198,8 +273,9 @@ export default function SLAConfiguration() {
     const endMinutes = endH * 60 + endM;
 
     if (endMinutes <= startMinutes) {
-      setErrorModal({
+      setResultModal({
         show: true,
+        type: "error",
         title: "Invalid Daily Shift Hours",
         message: "The Daily Shift Time End must be strictly after the Daily Shift Time Start. Please adjust your hours so that the end time occurs after the start time before publishing these SLA rules."
       });
@@ -493,10 +569,15 @@ export default function SLAConfiguration() {
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                   variant="contained"
-                  color="primary"
                   type="submit"
                   size="large"
-                  sx={{ px: 4, py: 1.2, fontWeight: 700 }}
+                  sx={{
+                    bgcolor: '#15803D',
+                    '&:hover': { bgcolor: '#166534' },
+                    px: 4,
+                    py: 1.2,
+                    fontWeight: 700
+                  }}
                 >
                   Save &amp; publish SLA rules version
                 </Button>
@@ -516,12 +597,35 @@ export default function SLAConfiguration() {
             </Box>
 
             {history.length > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, position: 'relative', pl: 3.5 }}>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 3, 
+                position: 'relative', 
+                pl: 3.5,
+                maxHeight: '520px',
+                overflowY: 'auto',
+                pr: 1.5,
+                '&::-webkit-scrollbar': {
+                  width: '6px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: '#F1F5F9',
+                  borderRadius: '10px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: '#CBD5E1',
+                  borderRadius: '10px',
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: '#94A3B8',
+                }
+              }}>
                 {/* Timeline vertical line */}
                 <Box sx={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, bgcolor: '#E2E8F0', zIndex: 1 }} />
 
                 {history.map((item, index) => {
-                  const versionNumber = history.length - index;
+                  const versionNumber = item.version_name;
 
                   const formatDateStr = (dateVal) => {
                     if (!dateVal) return "N/A";
@@ -537,6 +641,10 @@ export default function SLAConfiguration() {
                   const startDateStr = formatDateStr(item.start_date);
                   const endDateStr = formatDateStr(item.end_date);
                   const dateRangeStr = `${startDateStr} — ${endDateStr}`;
+
+                  const isExpanded = expandedVersions[item.id] !== undefined
+                    ? expandedVersions[item.id]
+                    : item.is_active_rule;
 
                   return (
                     <Box key={item.id} sx={{ position: 'relative' }}>
@@ -556,12 +664,27 @@ export default function SLAConfiguration() {
 
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box 
+                            onClick={() => toggleVersionExpand(item.id)}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5, 
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              '&:hover': { opacity: 0.8 } 
+                            }}
+                          >
+                            {isExpanded ? (
+                              <ExpandLessIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                            ) : (
+                              <ExpandMoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                            )}
                             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                               Version {versionNumber}
                             </Typography>
                             {item.is_active_rule && (
-                              <Chip label="Active" size="small" color="success" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase' }} />
+                              <Chip label="Active" size="small" color="success" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', ml: 0.5 }} />
                             )}
                           </Box>
                           {!item.is_active_rule && (
@@ -595,44 +718,46 @@ export default function SLAConfiguration() {
                         </Typography>
 
                         {/* Nested detail card */}
-                        <Paper variant="outlined" sx={{ mt: 1, borderRadius: 1.5, overflow: 'hidden' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <CalendarMonthIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-                              Working days
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
-                              {item.working_days}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <AccessTimeIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-                              Daily shift
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
-                              {item.working_hours}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <WarningAmberRoundedIcon sx={{ fontSize: 13, color: '#D97706' }} />
-                              Warning trigger
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#D97706' }}>
-                              {item.warn_threshold}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1 }}>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ErrorIcon sx={{ fontSize: 13, color: '#EF4444' }} />
-                              Overdue / violation
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#EF4444' }}>
-                              {item.overdue_threshold}
-                            </Typography>
-                          </Box>
-                        </Paper>
+                        {isExpanded && (
+                          <Paper variant="outlined" sx={{ mt: 1, borderRadius: 1.5, overflow: 'hidden' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CalendarMonthIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                                Working days
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
+                                {item.working_days}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <AccessTimeIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                                Daily shift
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
+                                {item.working_hours}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1, borderBottom: '1px solid #E2E8F0' }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <WarningAmberRoundedIcon sx={{ fontSize: 13, color: '#D97706' }} />
+                                Warning trigger
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#D97706' }}>
+                                {item.warn_threshold}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1.8, py: 1 }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ErrorIcon sx={{ fontSize: 13, color: '#EF4444' }} />
+                                Overdue / violation
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#EF4444' }}>
+                                {item.overdue_threshold}
+                              </Typography>
+                            </Box>
+                          </Paper>
+                        )}
                       </Box>
                     </Box>
                   );
@@ -675,12 +800,12 @@ export default function SLAConfiguration() {
       {/* ── Restore Confirmation Modal ── */}
       <ConfirmModal
         open={Boolean(restoringVersion)}
-        title={`Restore Version ${restoringVersion ? history.length - history.indexOf(restoringVersion) : ""}?`}
+        title={`Restore Version ${restoringVersion ? restoringVersion.version_name : ""}?`}
         subtitle="This action will restore a previous configuration version"
         body={
           <>
             Are you sure you want to restore{" "}
-            <span style={{ color: '#0F172A', fontWeight: '700' }}>Version {restoringVersion ? history.length - history.indexOf(restoringVersion) : ""}</span>{" "}
+            <span style={{ color: '#0F172A', fontWeight: '700' }}>Version {restoringVersion ? restoringVersion.version_name : ""}</span>{" "}
             of the SLA compliance rules?
           </>
         }

@@ -24,7 +24,17 @@ export default function NaFlagModal({ service, activePeriod, onClose, onConfirm 
   if (!service || !activePeriod) return null;
 
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth sx={{ '& .MuiDialog-paper': { borderRadius: 3 } }}>
+    <Dialog
+      open={true}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onClose(e, reason);
+        }
+      }}
+      maxWidth="sm"
+      fullWidth
+      sx={{ '& .MuiDialog-paper': { borderRadius: 3 } }}
+    >
       <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
         Flag Service as N/A
       </DialogTitle>

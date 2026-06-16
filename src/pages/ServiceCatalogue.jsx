@@ -34,7 +34,7 @@ import DynamicFormIcon from '@mui/icons-material/DynamicForm';
 import FlagIcon from '@mui/icons-material/Flag';
 import FlagOffIcon from '@mui/icons-material/FlagOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ArchiveIcon from '@mui/icons-material/Archive';
+
 
 import PageHeader from "../components/PageHeader";
 import AddServiceModal from "../modals/AddServiceModal";
@@ -42,7 +42,7 @@ import IntakeFieldBuilderModal from "../modals/IntakeFieldBuilderModal";
 import ResultModal from "../modals/ResultModal";
 import NaFlagModal from "../modals/NaFlagModal";
 import ToggleStatusModal from "../modals/ToggleStatusModal";
-import ArchiveConfirmModal from "../modals/ArchiveConfirmModal";
+
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
 
@@ -80,7 +80,7 @@ export default function ServiceCatalogue() {
   const [activating, setActivating] = useState(null);
   const [fieldsService, setFieldsService] = useState(null);
   const [flaggingService, setFlaggingService] = useState(null);
-  const [archivingService, setArchivingService] = useState(null);
+
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [resultModal, setResultModal] = useState(null); // { type, title, message }
@@ -155,12 +155,7 @@ export default function ServiceCatalogue() {
     handleMenuClose();
   };
 
-  const handleArchiveClick = () => {
-    if (selectedService) {
-      setArchivingService(selectedService);
-    }
-    handleMenuClose();
-  };
+
 
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -246,23 +241,7 @@ export default function ServiceCatalogue() {
     }
   };
 
-  const confirmArchive = async () => {
-    if (!archivingService) return;
-    const name = archivingService.name;
-    try {
-      await archiveService(archivingService.id);
-      setArchivingService(null);
-      triggerSnackbar(`Service '${name}' archived successfully!`, "success");
-    } catch (err) {
-      console.error(err);
-      setArchivingService(null);
-      setResultModal({
-        type: "error",
-        title: "Archive Failed",
-        message: err.message || `Failed to archive the service "${name}".`
-      });
-    }
-  };
+
 
   const handleUnflag = async (svc) => {
     const flagId = svc.naFlags?.[0]?.id;
@@ -551,60 +530,31 @@ export default function ServiceCatalogue() {
       {showAdd && (
         <AddServiceModal
           onClose={() => setShowAdd(false)}
-          onNext={async (newSvc) => {
-            try {
-              if (!newSvc.serviceName || !newSvc.serviceName.trim()) {
-                throw new Error("Service name is required.");
-              }
-              const { days, hours, minutes } = parseSlaTarget(newSvc.slaTarget);
-              let slaValue = 0;
-              let slaUnit = "Days";
-              if (hours === 0 && minutes === 0) {
-                slaValue = days;
-                slaUnit = "Days";
-              } else {
-                slaValue = days * 1440 + hours * 60 + minutes;
-                slaUnit = "Minutes";
-              }
-
-              // Map frontend referral values to backend enum values
-              const referralMap = { 'with': 'With', 'without': 'Without', 'n/a': 'N/A' };
-
-              const payload = {
-                name: newSvc.serviceName,
-                classification: newSvc.classification,
-                sla_target_value: slaValue,
-                sla_target_unit: slaUnit,
-                responsible_unit: newSvc.responsibleUnit,
-                with_referral: referralMap[newSvc.withReferral] || 'With',
-                required_documents: newSvc.intakeDocuments ? newSvc.intakeDocuments.split("\n").filter(Boolean) : [],
-                processing_steps: newSvc.stepsTimeline ? newSvc.stepsTimeline.split("\n").filter(Boolean) : [],
-                expected_output: newSvc.expectedOutput,
-              };
-
-              const createdSvc = await createService(payload);
-
-              // Close the Add form then immediately open Intake Field Builder
-              setShowAdd(false);
-              // Use the fresh service returned from the store (or build a local stub)
-              const freshServices = useAppStore.getState().services;
-              const justCreated = freshServices.find(s => s.name === newSvc.serviceName) || {
-                id: createdSvc?.id,
-                name: newSvc.serviceName,
-                intakeFields: [],
-              };
-              setFieldsService(justCreated);
-            } catch (err) {
-              console.error(err);
-              const isDuplicate = err.message && (err.message.includes("exists") || err.message.includes("Conflict") || err.message.includes("unique") || err.message.includes("duplicate"));
+          onNext={(newSvc) => {
+            if (!newSvc.serviceName || !newSvc.serviceName.trim()) {
               setResultModal({
                 type: "error",
                 title: "Failed to Add Service",
-                message: isDuplicate 
-                  ? "Failed to save. A service with this name already exists in your office." 
-                  : (err.message || "An unexpected error occurred. Please try again."),
+                message: "Service name is required.",
               });
+              return;
             }
+
+            // Close the Add form and open Intake Field Builder with local unsaved service metadata
+            setShowAdd(false);
+            setFieldsService({
+              isNew: true,
+              name: newSvc.serviceName,
+              classification: newSvc.classification,
+              slaTarget: newSvc.slaTarget,
+              responsibleUnit: newSvc.responsibleUnit,
+              active: newSvc.active,
+              withReferral: newSvc.withReferral,
+              intakeDocuments: newSvc.intakeDocuments,
+              stepsTimeline: newSvc.stepsTimeline,
+              expectedOutput: newSvc.expectedOutput,
+              intakeFields: []
+            });
           }}
         />
       )}
@@ -687,14 +637,55 @@ export default function ServiceCatalogue() {
           onClose={() => setFieldsService(null)}
           onSave={async (updatedSvc) => {
             try {
-              const oldFields = fieldsService.intakeFields || [];
+              let targetServiceId = updatedSvc.id;
+              let finalServiceData = updatedSvc;
+
+              if (updatedSvc.isNew) {
+                // First, create the service catalogue record
+                const { days, hours, minutes } = parseSlaTarget(updatedSvc.slaTarget);
+                let slaValue = 0;
+                let slaUnit = "Days";
+                if (hours === 0 && minutes === 0) {
+                  slaValue = days;
+                  slaUnit = "Days";
+                } else {
+                  slaValue = days * 1440 + hours * 60 + minutes;
+                  slaUnit = "Minutes";
+                }
+
+                const referralMap = { 'with': 'With', 'without': 'Without', 'n/a': 'N/A' };
+
+                const servicePayload = {
+                  name: updatedSvc.name || updatedSvc.serviceName,
+                  classification: updatedSvc.classification,
+                  sla_target_value: slaValue,
+                  sla_target_unit: slaUnit,
+                  responsible_unit: updatedSvc.responsibleUnit,
+                  with_referral: referralMap[updatedSvc.withReferral] || 'With',
+                  required_documents: updatedSvc.intakeDocuments ? updatedSvc.intakeDocuments.split("\n").filter(Boolean) : [],
+                  processing_steps: updatedSvc.stepsTimeline ? updatedSvc.stepsTimeline.split("\n").filter(Boolean) : [],
+                  expected_output: updatedSvc.expectedOutput,
+                };
+
+                const createdSvc = await createService(servicePayload);
+                targetServiceId = createdSvc.id;
+                finalServiceData = {
+                  ...updatedSvc,
+                  id: createdSvc.id,
+                  name: createdSvc.name,
+                };
+              }
+
+              const oldFields = updatedSvc.isNew ? [] : (fieldsService.intakeFields || []);
               const newFields = updatedSvc.intakeFields || [];
               const isNew = (id) => typeof id === 'number' || (typeof id === 'string' && id.length < 36 && !id.includes('-'));
 
-              // 1. Delete removed fields
-              const toDelete = oldFields.filter(of => !newFields.some(nf => nf.id === of.id));
-              for (const f of toDelete) {
-                await api.deleteIntakeField(updatedSvc.id, f.id);
+              // 1. Delete removed fields (only for existing services)
+              if (!updatedSvc.isNew) {
+                const toDelete = oldFields.filter(of => !newFields.some(nf => nf.id === of.id));
+                for (const f of toDelete) {
+                  await api.deleteIntakeField(targetServiceId, f.id);
+                }
               }
 
               // 2. Create or Update fields
@@ -707,25 +698,28 @@ export default function ServiceCatalogue() {
                   dropdown_options: f.options || []
                 };
 
-                if (isNew(f.id)) {
-                  await api.createIntakeField(updatedSvc.id, dto);
+                if (updatedSvc.isNew || isNew(f.id)) {
+                  await api.createIntakeField(targetServiceId, dto);
                 } else {
-                  await api.updateIntakeField(updatedSvc.id, f.id, dto);
+                  await api.updateIntakeField(targetServiceId, f.id, dto);
                 }
               }
 
-              updateServiceIntakeFieldsLocal(updatedSvc);
+              updateServiceIntakeFieldsLocal(finalServiceData);
               setResultModal({
                 type: "success",
                 title: "Success!",
-                message: "Intake fields saved successfully to the database."
+                message: updatedSvc.isNew ? "Service catalogue and intake fields saved successfully!" : "Intake fields saved successfully to the database."
               });
             } catch (err) {
               console.error(err);
+              const isDuplicate = err.message && (err.message.includes("exists") || err.message.includes("Conflict") || err.message.includes("unique") || err.message.includes("duplicate"));
               setResultModal({
                 type: "error",
-                title: "Intake Fields Save Failed",
-                message: err.message || "Failed to save intake fields to the database."
+                title: updatedSvc.isNew ? "Failed to Create Service" : "Intake Fields Save Failed",
+                message: isDuplicate 
+                  ? "Failed to save. A service with this name already exists in your office." 
+                  : (err.message || "Failed to save to the database.")
               });
             }
           }}
@@ -758,18 +752,7 @@ export default function ServiceCatalogue() {
         />
       )}
 
-      {archivingService && (
-        <ArchiveConfirmModal
-          open={Boolean(archivingService)}
-          itemName={archivingService.name}
-          hasDownstreamImpact={
-            kpis.some(k => String(k.service_id) === String(archivingService.id) && k.active) ||
-            commitments.some(c => c.status === "Draft" && Array.isArray(c.items) && c.items.some(item => String(item.service_id) === String(archivingService.id)))
-          }
-          onConfirm={confirmArchive}
-          onCancel={() => setArchivingService(null)}
-        />
-      )}
+
 
       {resultModal && (
         <ResultModal
@@ -845,12 +828,7 @@ export default function ServiceCatalogue() {
           </MenuItem>
         )}
 
-        {!selectedService?.archived && (
-          <MenuItem onClick={handleArchiveClick}>
-            <ArchiveIcon sx={{ mr: 1.5, color: '#d32f2f', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Archive Service</Typography>
-          </MenuItem>
-        )}
+
       </Menu>
 
       {/* Snackbar notification */}

@@ -15,9 +15,9 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     success: {
-      main: '#10B981',
-      light: '#ECFDF5',
-      dark: '#047857',
+      main: '#15803D',
+      light: '#F0FDF4',
+      dark: '#166534',
     },
     error: {
       main: '#EF4444',

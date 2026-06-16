@@ -16,9 +16,22 @@ import {
   Tooltip,
   Menu,
   MenuItem,
-  Divider
+  Divider,
+  TextField,
+  InputAdornment
 } from "@mui/material";
-import { Add as AddIcon, Edit as EditIcon, Visibility as VisibilityIcon, MoreVert as MoreVertIcon } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Visibility as VisibilityIcon,
+  MoreVert as MoreVertIcon,
+  Lock as LockIcon,
+  EditNote as DraftIcon,
+  CalendarToday as CalendarIcon,
+  AccessTime as TimeIcon,
+  AssignmentTurnedIn as RegistryIcon,
+  Search as SearchIcon
+} from "@mui/icons-material";
 import { useAppStore } from "../store/useAppStore";
 import PageHeader from "../components/PageHeader";
 import CommitmentWizardModal from "../modals/CommitmentWizardModal";
@@ -40,6 +53,7 @@ export default function OPCRCommitments() {
   const [showViewDetails, setShowViewDetails] = useState(false);
   const [viewCommitmentId, setViewCommitmentId] = useState(null);
   const [resultModal, setResultModal] = useState({ show: false, type: "success", title: "", message: "" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCommitment, setSelectedCommitment] = useState(null);
@@ -89,6 +103,12 @@ export default function OPCRCommitments() {
     return p ? p.name : "Unknown Period";
   };
 
+  const filteredCommitments = commitments.filter(c => {
+    const periodName = getPeriodName(c.period_id).toLowerCase();
+    const status = c.status.toLowerCase();
+    return periodName.includes(searchQuery.toLowerCase()) || status.includes(searchQuery.toLowerCase());
+  });
+
   if (showViewDetails && viewCommitmentId) {
     return (
       <ViewCommitmentDetail
@@ -105,11 +125,31 @@ export default function OPCRCommitments() {
     <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
       <PageHeader breadcrumb="Commitments" title="OPCR Commitments" />
 
-      <Card sx={{ borderRadius: 2, border: '1px solid #E2E8F0', mb: 3 }}>
-        <Box sx={{ p: 3, borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Office Commitments Registry
-          </Typography>
+      {/* Search Card */}
+      <Card sx={{ p: 2, mb: 3, borderRadius: 2, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <TextField
+            placeholder="Search period..."
+            size="small"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="disabled" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{
+              width: 240,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                bgcolor: '#ffffff',
+              }
+            }}
+          />
           {!isStaff && (
             <Tooltip
               title={
@@ -131,7 +171,7 @@ export default function OPCRCommitments() {
                     setWizardReadOnly(false);
                     setShowWizard(true);
                   }}
-                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' } }}
+                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' }, borderRadius: 2, py: 1, px: 2.5, fontWeight: 600, textTransform: 'none' }}
                 >
                   Create / Edit Commitment
                 </Button>
@@ -139,65 +179,139 @@ export default function OPCRCommitments() {
             </Tooltip>
           )}
         </Box>
+      </Card>
 
+      {/* Main Table Card */}
+      <Card sx={{ borderRadius: 2, border: '1px solid #E2E8F0', mb: 3, boxShadow: 'none' }}>
         <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#F8FAFC', '& .MuiTableCell-root': { py: 1.5, whiteSpace: 'nowrap' } }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>PERIOD</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', pl: 3 }}>PERIOD</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>STATUS</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>LAST UPDATED</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary', width: 140 }}>ACTIONS</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {commitments.length === 0 ? (
+              {filteredCommitments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    No commitments found. Click "Create / Edit Commitment" to get started.
+                  <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    {searchQuery ? "No commitments match your search query." : "No commitments found. Click \"Create / Edit Commitment\" to get started."}
                   </TableCell>
                 </TableRow>
               ) : (
-                commitments.map((c) => {
-                  const updatedFmt = new Date(c.updated_at || c.created_at).toLocaleString("en-US", { 
+                filteredCommitments.map((c) => {
+                  const updatedFmt = new Date(c.updated_at || c.created_at).toLocaleString("en-US", {
                     month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit"
                   });
                   const isLocked = c.status === "Locked";
+                  const period = periods.find(p => p.id === c.period_id);
+                  const periodName = period ? period.name : "Unknown Period";
+                  const periodDates = period
+                    ? `${new Date(period.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(period.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                    : "";
+                  const cycleType = period ? period.type : "";
 
                   return (
-                    <TableRow 
+                    <TableRow
                       key={c.id}
                       hover
                       sx={{
+                        borderLeft: `4px solid ${isLocked ? '#10B981' : '#F59E0B'}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: 'rgba(248, 250, 252, 0.8)',
+                          transform: 'translateX(2px)'
+                        },
                         '& .MuiTableCell-root': {
-                          py: 1.5,
+                          py: 2,
                           borderBottom: '1px solid #CBD5E1',
-                          boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.04)'
+                          boxShadow: 'inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.02)'
                         }
                       }}
                     >
-                      <TableCell sx={{ fontWeight: 700, color: '#1E293B' }}>{getPeriodName(c.period_id)}</TableCell>
+                      <TableCell sx={{ pl: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '8px',
+                            bgcolor: isLocked ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: isLocked ? '#10B981' : '#F59E0B'
+                          }}>
+                            <CalendarIcon sx={{ fontSize: 18 }} />
+                          </Box>
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography sx={{ fontWeight: 700, color: '#1E293B', fontSize: '0.9rem' }}>
+                                {periodName}
+                              </Typography>
+                              {cycleType && (
+                                <Chip
+                                  label={cycleType}
+                                  size="small"
+                                  sx={{
+                                    height: 18,
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    bgcolor: '#F1F5F9',
+                                    color: '#475569',
+                                    borderRadius: '4px'
+                                  }}
+                                />
+                              )}
+                            </Box>
+                            {periodDates && (
+                              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                                {periodDates}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </TableCell>
                       <TableCell>
                         <Chip
                           label={c.status}
                           size="small"
+                          icon={
+                            isLocked
+                              ? <LockIcon sx={{ fontSize: '0.85rem !important', color: 'inherit' }} />
+                              : <DraftIcon sx={{ fontSize: '0.85rem !important', color: 'inherit' }} />
+                          }
                           sx={{
                             bgcolor: isLocked ? '#ECFDF5' : '#FFFBEB',
                             color: isLocked ? '#059669' : '#D97706',
                             border: isLocked ? '1px solid rgba(5, 150, 105, 0.15)' : '1px solid rgba(217, 119, 6, 0.15)',
-                            fontWeight: 600,
+                            fontWeight: 700,
+                            px: 1,
+                            '& .MuiChip-icon': {
+                              color: 'inherit'
+                            }
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 500, color: 'text.secondary', fontSize: '0.85rem' }}>{updatedFmt}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                          <TimeIcon sx={{ fontSize: 16, opacity: 0.7 }} />
+                          <Typography sx={{ fontWeight: 500, fontSize: '0.85rem' }}>
+                            {updatedFmt}
+                          </Typography>
+                        </Box>
+                      </TableCell>
                       <TableCell align="center">
                         <Tooltip title="Actions" arrow>
                           <IconButton
                             size="small"
                             onClick={(e) => handleMenuOpen(e, c)}
                             sx={{
+                              color: 'text.secondary',
                               '&:hover': {
-                                bgcolor: 'rgba(0, 0, 0, 0.04)',
+                                bgcolor: '#F1F5F9',
                               },
                               width: 32,
                               height: 32

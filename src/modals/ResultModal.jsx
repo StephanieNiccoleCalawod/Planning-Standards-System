@@ -77,8 +77,8 @@ export default function ResultModal({ type = "success", title, message, onClose 
         <div
           className="result-icon-circle"
           style={{
-          background: isNext ? "#FAEEDA" : (isSuccess ? "#FFF5F5" : "#FEF2F2"),
-            border: isNext ? "1.5px solid rgba(200,150,12,0.25)" : (isSuccess ? "1.5px solid rgba(128,0,0,0.12)" : "1.5px solid rgba(239,68,68,0.15)"),
+          background: isNext ? "#FAEEDA" : (isSuccess ? "rgba(21, 128, 61, 0.08)" : "#FEF2F2"),
+            border: isNext ? "1.5px solid rgba(200,150,12,0.25)" : (isSuccess ? "1.5px solid rgba(21, 128, 61, 0.15)" : "1.5px solid rgba(239,68,68,0.15)"),
           }}
         >
           {isNext ? (
@@ -92,7 +92,7 @@ export default function ResultModal({ type = "success", title, message, onClose 
             </svg>
           ) : isSuccess ? (
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
-              stroke="#800000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
@@ -125,11 +125,11 @@ export default function ResultModal({ type = "success", title, message, onClose 
         <button
           className="result-modal-btn"
           style={{
-          background: isNext ? "#800000" : (isSuccess ? "#800000" : "#EF4444"),
+          background: isNext ? "#800000" : (isSuccess ? "#15803D" : "#EF4444"),
             boxShadow: isNext
               ? "0 2px 8px rgba(128,0,0,0.22)"
               : isSuccess
-              ? "0 2px 8px rgba(128,0,0,0.2)"
+              ? "0 2px 8px rgba(21, 128, 61, 0.2)"
               : "0 2px 8px rgba(239,68,68,0.2)",
           }}
           onClick={onClose}

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import ServiceCatalogue from "./pages/ServiceCatalogue";
@@ -10,7 +10,7 @@ import OPCRCommitments from "./pages/OPCRCommitments";
 import { isAuthenticated } from "./services/auth";
 import { useAppStore } from "./store/useAppStore";
 
-const ARMS_URL = import.meta.env.VITE_ARMS_URL || 'http://localhost:5175';
+const ARMS_URL = import.meta.env.VITE_ARMS_URL || 'http://localhost:5173';
 
 const PAGES = {
     dashboard: <Dashboard />,

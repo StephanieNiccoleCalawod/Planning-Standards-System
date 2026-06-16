@@ -51,7 +51,11 @@ export default function HolidayRegistryModal({ open, onClose, registryGroups = [
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onClose(e, reason);
+        }
+      }}
       fullWidth
       maxWidth="sm"
       PaperProps={{ sx: { borderRadius: 3, p: 1 } }}

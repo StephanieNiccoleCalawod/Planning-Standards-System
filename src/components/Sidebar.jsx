@@ -1,4 +1,4 @@
-﻿import { useAppStore } from "../store/useAppStore";
+import { useAppStore } from "../store/useAppStore";
 import logo from "../logo/image 2.svg";
 import { Tooltip } from "@mui/material";
 
@@ -95,12 +95,12 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           }}
         />
       )}
-      <div className={`sidebar ${isOpen ? "open" : ""}`}>
+      <div className={`sidebar ${sidebarCollapsed ? "collapsed" : ""} ${isOpen ? "open" : ""}`}>
         {/* Dynamic override style tag to fully bypass default layout lines */}
         <style dangerouslySetInnerHTML={{
           __html: `
           .sidebar {
-            width: ${sidebarCollapsed ? '64px' : '256px'};
+            width: 256px;
             background: var(--maroon, #580000) !important;
             color: #ffffff;
             display: flex;
@@ -115,7 +115,10 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             font-family: "DM Sans", sans-serif;
             z-index: 1000;
             overflow: hidden;
-            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed {
+            width: 64px;
           }
           @media (max-width: 960px) {
             .sidebar {
@@ -127,8 +130,8 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             }
           }
           .sidebar-logo {
-            padding: ${sidebarCollapsed ? '0' : '0 24px'};
-            justify-content: ${sidebarCollapsed ? 'center' : 'flex-start'};
+            padding: 0 24px;
+            justify-content: flex-start;
             height: 61px;
             display: flex;
             align-items: center;
@@ -136,6 +139,10 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.1);
             flex-shrink: 0;
+            transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .sidebar-logo {
+            padding: 0 14px;
           }
           .sidebar-logo-mark {
             width: 36px;
@@ -147,6 +154,21 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             justify-content: center;
             overflow: hidden;
             flex-shrink: 0;
+          }
+          .sidebar-logo-text {
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+            width: auto;
+            visibility: visible;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: opacity 0.2s ease, width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .sidebar-logo-text {
+            opacity: 0;
+            width: 0px;
+            visibility: hidden;
           }
           .sidebar-logo-title {
             font-size: 12px;
@@ -188,21 +210,48 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             padding: 16px 24px 8px 24px;
             opacity: 0.8;
             margin: 0;
+            height: auto;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .nav-section-title {
+            opacity: 0;
+            height: 0px;
+            padding: 0px;
+          }
+          .nav-section-divider {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0px 12px;
+            height: 0px;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .nav-section-divider {
+            margin: 8px 12px;
+            height: 1px;
+            opacity: 1;
           }
           .nav-leaf {
             display: flex;
             align-items: center;
-            gap: ${sidebarCollapsed ? '0' : '16px'};
+            gap: 16px;
             border-radius: 6px;
-            padding: ${sidebarCollapsed ? '10px 0' : '10px 16px'};
-            margin: ${sidebarCollapsed ? '2px 8px' : '2px 12px'};
-            justify-content: ${sidebarCollapsed ? 'center' : 'flex-start'};
+            padding: 10px 16px;
+            margin: 2px 12px;
+            justify-content: flex-start;
             font-size: 14px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.7) !important;
-            transition: background 0.15s ease, color 0.15s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease, color 0.15s ease;
             cursor: pointer;
             border-left: 4px solid transparent;
+          }
+          .sidebar.collapsed .nav-leaf {
+            gap: 0;
+            padding: 10px 15px;
+            margin: 2px 8px;
           }
           .nav-leaf:hover {
             color: #ffffff !important;
@@ -230,6 +279,17 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           }
           .nav-leaf-label {
             line-height: 1.2;
+            opacity: 1;
+            width: auto;
+            visibility: visible;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: opacity 0.2s ease, width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .nav-leaf-label {
+            opacity: 0;
+            width: 0px;
+            visibility: hidden;
           }
           .sidebar-footer {
             padding: 16px 20px;
@@ -238,6 +298,16 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             display: flex;
             flex-direction: column;
             gap: 12px;
+            opacity: 1;
+            height: auto;
+            overflow: hidden;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .sidebar.collapsed .sidebar-footer {
+            opacity: 0;
+            height: 0px;
+            padding: 0px;
           }
           .sidebar-footer-text {
             font-size: 11px;
@@ -252,22 +322,17 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           <div className="sidebar-logo-mark">
             <img src={logo} alt="PUP Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
-          {!sidebarCollapsed && (
-            <div>
-              <h1 className="sidebar-logo-title">PUP Caloocan</h1>
-              <p className="sidebar-logo-subtitle">OPCR System</p>
-            </div>
-          )}
+          <div className="sidebar-logo-text">
+            <h1 className="sidebar-logo-title">PUP Caloocan</h1>
+            <p className="sidebar-logo-subtitle">OPCR System</p>
+          </div>
         </div>
 
         <div className="sidebar-nav">
           {NAV_TREE.map((section) => (
             <div key={section.section} className="nav-section">
-              {!sidebarCollapsed ? (
-                <div className="nav-section-title">{section.section.toUpperCase()}</div>
-              ) : (
-                <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)", margin: "8px 12px" }} />
-              )}
+              <div className="nav-section-title">{section.section.toUpperCase()}</div>
+              <div className="nav-section-divider" />
               <div className="nav-branch">
                 {section.items.map((item) => (
                   <Tooltip key={item.key} title={sidebarCollapsed ? item.label : ""} placement="right" arrow>
@@ -276,7 +341,7 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
                       className={`nav-leaf ${active === item.routeKey ? "active" : ""}`}
                     >
                       <span className="nav-leaf-icon">{ICONS[item.icon]}</span>
-                      {!sidebarCollapsed && <span className="nav-leaf-label">{item.label}</span>}
+                      <span className="nav-leaf-label">{item.label}</span>
                     </div>
                   </Tooltip>
                 ))}
@@ -285,13 +350,11 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           ))}
         </div>
 
-        {!sidebarCollapsed && (
-          <div className="sidebar-footer">
-            <p className="sidebar-footer-text">
-              Planning & Standards System
-            </p>
-          </div>
-        )}
+        <div className="sidebar-footer">
+          <p className="sidebar-footer-text">
+            Planning & Standards System
+          </p>
+        </div>
       </div>
     </>
   );

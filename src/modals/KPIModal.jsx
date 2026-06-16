@@ -51,7 +51,11 @@ export default function KPIModal({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onClose(e, reason);
+        }
+      }}
       sx={{ '& .MuiDialog-paper': { maxWidth: '480px', width: '100%', borderRadius: 2.5 } }}
     >
       <DialogTitle sx={{ fontWeight: 500, fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '1.35rem', pb: 1 }}>
@@ -232,7 +236,7 @@ export default function KPIModal({
             {services.filter(s => s.active || String(s.id) === String(serviceId)).map(s => {
               const withRef = s.withReferral?.toLowerCase();
               const refLabel = withRef === 'without' ? '(Without Referral)' :
-                               withRef === 'n/a' ? '(Not Applicable)' : '(With Referral)';
+                withRef === 'n/a' ? '(Not Applicable)' : '(With Referral)';
               return (
                 <MenuItem key={s.id} value={s.id}>
                   {s.name} {refLabel}
@@ -248,10 +252,13 @@ export default function KPIModal({
           <Button variant="outlined" color="inherit" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
+          <Button
+            type="submit"
+            variant="contained"
+            sx={{
+              bgcolor: '#15803D',
+              '&:hover': { bgcolor: '#166534' }
+            }}
           >
             {editingKpi ? 'Save Changes' : 'Define KPI'}
           </Button>

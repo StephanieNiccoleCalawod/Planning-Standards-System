@@ -46,7 +46,11 @@ export default function HolidayModal({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={(e, reason) => {
+        if (reason !== "backdropClick") {
+          onClose(e, reason);
+        }
+      }}
       fullWidth
       maxWidth="xs"
       PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
@@ -155,7 +159,14 @@ export default function HolidayModal({
           <Button variant="outlined" color="inherit" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" color="primary">
+          <Button
+            type="submit"
+            variant="contained"
+            sx={{
+              bgcolor: '#15803D',
+              '&:hover': { bgcolor: '#166534' }
+            }}
+          >
             {editingHoliday ? 'Save Changes' : 'Encode Holiday'}
           </Button>
         </DialogActions>
