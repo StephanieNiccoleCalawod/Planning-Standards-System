@@ -13,6 +13,9 @@ export enum PeriodType {
   MONTHLY = 'Monthly',
   QUARTERLY = 'Quarterly',
   YEARLY = 'Yearly',
+  // Task 6: Government OPCR cycles run in 6-month semesters. "Semi-Annual" is
+  // the strict CSC term. Frontend dropdown sends value 'SEMI_ANNUAL'.
+  SEMI_ANNUAL = 'SEMI_ANNUAL',
   /** @deprecated Use YEARLY instead */
   ANNUAL = 'Annual',
   /** @deprecated Use QUARTERLY or YEARLY instead */

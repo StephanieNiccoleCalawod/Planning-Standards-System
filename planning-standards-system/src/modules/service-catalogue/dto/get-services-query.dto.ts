@@ -1,13 +1,15 @@
-import { IsOptional, IsString, IsBoolean, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { PaginationDto } from './pagination.dto';
-import { ServiceClassification } from '../enums';
 
 export class GetServicesQueryDto extends PaginationDto {
-  @ApiPropertyOptional({ enum: ServiceClassification })
+  // Task 4: classification is now free text, not an enum — was
+  // `@IsEnum(ServiceClassification)`. Filtering by classification now
+  // does a plain string match against whatever the office entered.
+  @ApiPropertyOptional({ description: 'Filter by classification (free text, exact match)' })
   @IsOptional()
-  @IsEnum(ServiceClassification)
+  @IsString()
   classification?: string;
 
   @ApiPropertyOptional()

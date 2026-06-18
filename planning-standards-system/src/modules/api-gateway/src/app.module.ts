@@ -5,6 +5,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CatalogueProxyController } from './controller/catalogue.proxy.controller';
 import { KpiSlaProxyController } from './controller/kpi-sla.proxy.controller';
 import { CommitmentProxyController } from './controller/commitment.proxy.controller';
+import { AnalyticsController } from './controller/analytics.controller';
 import { ProxyService } from './service/proxy.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ForwardedIpInterceptor } from './interceptors/forwarded-ip.interceptor';
@@ -15,6 +16,7 @@ import { ForwardedIpInterceptor } from './interceptors/forwarded-ip.interceptor'
     HttpModule,
   ],
   controllers: [
+    AnalyticsController,
     CatalogueProxyController,
     KpiSlaProxyController,
     CommitmentProxyController,

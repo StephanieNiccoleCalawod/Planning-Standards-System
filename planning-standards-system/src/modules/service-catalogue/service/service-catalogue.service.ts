@@ -106,6 +106,18 @@ export class ServiceCatalogueService {
         return this.findOneOrFail(id, office, isCrossOffice);
     }
 
+    /**
+     * Task 8 — services half of the overall-performance analytics.
+     * Institutional (all offices) count of ACTIVE services. Called by the
+     * API gateway's analytics aggregator.
+     */
+    async getAnalyticsSummary(): Promise<{ total_active_services: number }> {
+        const total_active_services = await this.serviceRepo.count({
+            where: { status: ServiceStatus.ACTIVE },
+        });
+        return { total_active_services };
+    }
+
     async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
         const exists = await this.serviceRepo.findOne({
             where: { office, name: dto.name, with_referral: dto.with_referral ?? ReferralStatus.WITH },

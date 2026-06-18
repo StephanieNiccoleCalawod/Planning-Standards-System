@@ -1,10 +1,10 @@
 
-export enum ServiceClassification {
-  SIMPLE = 'Simple',
-  COMPLEX = 'Complex',
-  HIGHLY_TECHNICAL = 'Highly Technical',
-}
-
+// Task 4: ServiceClassification enum removed. `classification` on the
+// Service entity is now a free-text string so non-medical offices
+// (Registrar, OSAS, etc.) can enter their own labels (e.g. "Walk-in",
+// "With Billing Statement") instead of being forced into the CSC
+// Simple/Complex/Highly Technical values. See service.entity.ts and
+// create-service.dto.ts for the corresponding column/validation change.
 
 export enum ServiceStatus {
   ACTIVE = 'Active',

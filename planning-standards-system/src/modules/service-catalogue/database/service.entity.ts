@@ -10,7 +10,7 @@ import {
 import { ServiceVersion } from './service-version.entity';
 import { IntakeField } from './service-intake-field.entity';
 import { NaFlag } from './service-na-flag.entity';
-import { ServiceClassification, ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
+import { ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
 
 @Entity('service')
 export class Service {
@@ -27,9 +27,13 @@ export class Service {
   @Column({ length: 300 })
   name: string;
 
+  // Task 4: was `@Column({ type: 'enum', enum: ServiceClassification })`.
+  // Converted to free text so offices outside Medical (Registrar, OSAS,
+  // etc.) aren't forced into Simple/Complex/Highly Technical — they can
+  // enter their own variant label, e.g. "Walk-in" or "With Billing Statement".
   @Index('idx_service_classification')
-  @Column({ type: 'enum', enum: ServiceClassification })
-    classification: ServiceClassification;
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  classification: string | null;
 
   @Column({ type: 'int' })
     sla_target_value: number;

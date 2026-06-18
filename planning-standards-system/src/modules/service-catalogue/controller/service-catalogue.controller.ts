@@ -70,6 +70,13 @@ export class ServiceCatalogueController {
         return this.svc.removeNaFlagsByPeriod(period_id);
     }
 
+    @Get('analytics/summary')
+    @Roles(Permission.SERVICES_READ)
+    @ApiOperation({ summary: 'Task 8 — institutional count of active services (for dashboard)' })
+    getAnalyticsSummary() {
+        return this.svc.getAnalyticsSummary();
+    }
+
     @Get(':id')
     @Roles(Permission.SERVICES_READ)
     @ApiOperation({ summary: 'Get a service by ID. Cross-office roles can view services from other offices.' })
