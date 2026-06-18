@@ -3,8 +3,8 @@ services:
   # ── service-catalogue ──────────────────────────────────────────────────────
   service-catalogue:
     build:
-      context: ./src/modules/service-catalogue
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/modules/service-catalogue/Dockerfile
     container_name: pss-service-catalogue
     ports:
       - '3010:3000'
@@ -41,8 +41,8 @@ services:
   # ── kpi-sla ────────────────────────────────────────────────────────────────
   kpi-sla:
     build:
-      context: ./src/modules/kpi-sla
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/modules/kpi-sla/Dockerfile
     container_name: pss-kpi-sla
     ports:
       - '3011:3001'
@@ -82,8 +82,8 @@ services:
   # ── commitment ──────────────────────────────────────────────────────────────
   commitment:
     build:
-      context: ./src/modules/commitment
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/modules/commitment/Dockerfile
     container_name: pss-commitment
     ports:
       - '3012:3002'
