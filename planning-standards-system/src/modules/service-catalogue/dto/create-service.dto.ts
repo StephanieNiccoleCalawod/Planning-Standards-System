@@ -13,7 +13,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceClassification, SlaUnit, ReferralStatus } from '../enums';
+import { SlaUnit, ReferralStatus } from '../enums';
 
 export class CreateServiceDto {
     @ApiProperty({ example: 'Request for Transcript of Records' })
@@ -34,9 +34,15 @@ export class CreateServiceDto {
     @IsString()
     sub_office?: string;
 
-    @ApiProperty({ enum: ServiceClassification })
-    @IsEnum(ServiceClassification)
-    classification: ServiceClassification;
+    // Task 4: classification is now free-text so non-medical offices
+    // (Registrar, OSAS, etc.) can enter their own labels (e.g. "Walk-in",
+    // "With Billing Statement") instead of being forced into the CSC
+    // Simple/Complex/Highly Technical values.
+    @ApiProperty({ example: 'Simple', description: 'Free-text classification label (e.g. "Simple", "Walk-in")' })
+    @IsNotEmpty()
+    @IsString()
+    @MaxLength(100, { message: 'Classification must not exceed 100 characters.' })
+    classification: string;
 
     // BE1-3: SLA target must be a positive whole number (>= 1 working day).
     @ApiProperty({ example: 3, description: 'SLA target numeric value (interpreted with sla_target_unit)' })

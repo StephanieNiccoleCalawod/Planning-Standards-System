@@ -7,8 +7,14 @@ import { SlaRule } from './database/sla-rule.entity';
 import { SlaRuleVersion } from './database/sla-rule-version.entity';
 import { Holiday } from './database/holiday.entity';
 import { EvaluationPeriod } from './database/evaluation-period.entity';
+import { SlaComputationLog } from './database/sla-computation-log.entity';
+import { ServiceUtilization } from './database/service-utilization.entity';
 import { KpiSlaController } from './controller/kpi-sla.controller';
+import { MonitorController } from './controller/monitor.controller';
+import { SlaComputationController } from './controller/sla-computation.controller';
 import { KpiSlaService } from './service/kpi-sla.service';
+import { MonitorService } from './service/monitor.service';
+import { SlaComputationService } from './service/sla-computation.service';
 import { PhHolidayService } from './service/ph-holiday.service';
 import { HolidaySeederService } from './service/holiday-seeder.service';
 import { RequestContextMiddleware } from '../../common/context/request-context';
@@ -28,15 +34,18 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
                 username: config.get('DB_USERNAME'),
                 password: config.get('DB_PASSWORD'),
                 database: config.get('DB_NAME'),
-                entities: [Kpi, SlaRule, SlaRuleVersion, Holiday, EvaluationPeriod],
+                entities: [Kpi, SlaRule, SlaRuleVersion, Holiday, EvaluationPeriod, SlaComputationLog, ServiceUtilization],
                 synchronize: true,
             }),
             inject: [ConfigService],
         }),
-        TypeOrmModule.forFeature([Kpi, SlaRule, SlaRuleVersion, Holiday, EvaluationPeriod], 'kpi_sla_db'),
+        TypeOrmModule.forFeature(
+            [Kpi, SlaRule, SlaRuleVersion, Holiday, EvaluationPeriod, SlaComputationLog, ServiceUtilization],
+            'kpi_sla_db',
+        ),
     ],
-    controllers: [KpiSlaController],
-    providers: [KpiSlaService, PhHolidayService, HolidaySeederService],
+    controllers: [KpiSlaController, MonitorController, SlaComputationController],
+    providers: [KpiSlaService, MonitorService, SlaComputationService, PhHolidayService, HolidaySeederService],
 })
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {

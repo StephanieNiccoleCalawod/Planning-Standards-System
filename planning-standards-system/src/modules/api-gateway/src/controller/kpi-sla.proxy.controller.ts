@@ -63,15 +63,17 @@ export class KpiSlaProxyController {
         return this.proxy.forward(req, res, this.target);
     }
 
-    // ── Task 9: SLA Computation Monitor (read-only log + utilization) ──────
-    @All('sla-computation-logs')
-    @ApiOperation({ summary: 'Proxies to kpi-sla: /api/sla-computation-logs' })
-    slaComputationLogs(@Req() req: Request, @Res() res: Response) {
+    // ── SLA Computation Engine (PS022, BE1) — /api/sla/compute ──────────
+    @All('sla/*')
+    @ApiOperation({ summary: 'Proxies to kpi-sla: /api/sla/* (SLA Computation Engine write endpoint)' })
+    slaComputationWildcard(@Req() req: Request, @Res() res: Response) {
         return this.proxy.forward(req, res, this.target);
     }
 
-    @All('sla-computation-logs/*')
-    slaComputationLogsWildcard(@Req() req: Request, @Res() res: Response) {
+    // ── SLA Computation Monitor & Analytics (BE2) ────────────────────────
+    @All('sla-computation-logs')
+    @ApiOperation({ summary: 'Proxies to kpi-sla: /api/sla-computation-logs' })
+    slaComputationLogs(@Req() req: Request, @Res() res: Response) {
         return this.proxy.forward(req, res, this.target);
     }
 
@@ -81,8 +83,9 @@ export class KpiSlaProxyController {
         return this.proxy.forward(req, res, this.target);
     }
 
-    @All('service-utilization/*')
-    serviceUtilizationWildcard(@Req() req: Request, @Res() res: Response) {
+    @All('analytics/kpi-summary')
+    @ApiOperation({ summary: 'Proxies to kpi-sla: /api/analytics/kpi-summary' })
+    analyticsKpiSummary(@Req() req: Request, @Res() res: Response) {
         return this.proxy.forward(req, res, this.target);
     }
 }

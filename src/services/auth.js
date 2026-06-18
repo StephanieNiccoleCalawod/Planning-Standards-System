@@ -14,7 +14,7 @@
 const PSS_TOKEN_KEY = 'pss_token';
 
 export function getToken() {
-  return localStorage.getItem(PSS_TOKEN_KEY) || 'mock-token';
+  return localStorage.getItem(PSS_TOKEN_KEY);
 }
 
 export function setToken(token) {
