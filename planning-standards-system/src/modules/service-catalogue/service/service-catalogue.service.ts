@@ -24,6 +24,15 @@ import { CreateNaFlagDto } from '../dto/create-na-flag.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { RequestContext } from '../../../common/context/request-context';
 
+function normalizeClassification(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/-/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 @Injectable()
 export class ServiceCatalogueService {
     constructor(
@@ -119,12 +128,25 @@ export class ServiceCatalogueService {
     }
 
     async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
-        const exists = await this.serviceRepo.findOne({
-            where: { office, name: dto.name, with_referral: dto.with_referral ?? ReferralStatus.WITH },
-        });
+        if (dto.classification) {
+            dto.classification = normalizeClassification(dto.classification);
+        }
+
+        const existsQuery = this.serviceRepo.createQueryBuilder('service')
+            .where('service.office = :office', { office })
+            .andWhere('LOWER(service.name) = LOWER(:name)', { name: dto.name });
+
+        if (dto.classification) {
+            existsQuery.andWhere('service.classification = :classification', { classification: dto.classification });
+        } else {
+            existsQuery.andWhere('service.classification IS NULL');
+        }
+
+        const exists = await existsQuery.getOne();
+
         if (exists) {
             throw new ConflictException(
-                `Service "${dto.name}" with the same referral status already exists in this office`,
+                `A service with this name and classification already exists in your office's catalogue.`,
             );
         }
         const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
@@ -141,6 +163,34 @@ export class ServiceCatalogueService {
 
     async update(id: string, office: string, dto: UpdateServiceDto, actor: string): Promise<Service> {
         const service = await this.findOneOrFail(id, office);
+
+        if (dto.classification) {
+            dto.classification = normalizeClassification(dto.classification);
+        }
+
+        if (dto.name !== undefined || dto.classification !== undefined) {
+            const checkName = dto.name !== undefined ? dto.name : service.name;
+            const checkClassification = dto.classification !== undefined ? dto.classification : service.classification;
+
+            const existsQuery = this.serviceRepo.createQueryBuilder('service')
+                .where('service.office = :office', { office })
+                .andWhere('LOWER(service.name) = LOWER(:name)', { name: checkName })
+                .andWhere('service.id != :id', { id: service.id });
+
+            if (checkClassification) {
+                existsQuery.andWhere('service.classification = :classification', { classification: checkClassification });
+            } else {
+                existsQuery.andWhere('service.classification IS NULL');
+            }
+
+            const exists = await existsQuery.getOne();
+
+            if (exists) {
+                throw new ConflictException(
+                    `A service with this name and classification already exists in your office's catalogue.`,
+                );
+            }
+        }
 
         const trackedFields = [
             'name', 'classification', 'sla_target_value', 'sla_target_unit',

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
+  Unique,
 } from 'typeorm';
 import { ServiceVersion } from './service-version.entity';
 import { IntakeField } from './service-intake-field.entity';
@@ -13,6 +14,7 @@ import { NaFlag } from './service-na-flag.entity';
 import { ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
 
 @Entity('service')
+@Unique('uq_service_office_name_classification', ['office', 'name', 'classification'])
 export class Service {
   @PrimaryGeneratedColumn('uuid')
   id: string;
