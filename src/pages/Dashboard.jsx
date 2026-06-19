@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Typography, Chip, Alert } from "@mui/material";
+import { Box, Typography, Chip, Alert, TextField, MenuItem } from "@mui/material";
 import PageHeader from "../components/PageHeader";
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
@@ -206,12 +206,24 @@ function HolidayRow({ holiday }) {
   );
 }
 
+const getCategoryName = (responsibleUnit) => {
+  if (!responsibleUnit) return "OTHER SYSTEM";
+  const upper = responsibleUnit.toUpperCase();
+  if (upper.includes("ADMIN")) return "ADMIN SYSTEM";
+  if (upper.includes("ACAD") || upper.includes("ACADEMIC")) return "ACADEMIC SYSTEM";
+  if (upper.includes("OSAS") || upper.includes("STUDENT")) return "STUDENT SYSTEM";
+  return `${responsibleUnit.toUpperCase()} SYSTEM`;
+};
+
 // ── Main Dashboard Page ─────────────────────────────────────────────────────
 const EMS_UTILIZATION_DATA = [];
 
 export default function Dashboard() {
-  const { services, fetchServices, kpis, fetchKpis, periods, fetchPeriods, holidays, fetchHolidays } = useAppStore();
+  const { services, fetchServices, kpis, fetchKpis, periods, fetchPeriods, holidays, fetchHolidays, permissions } = useAppStore();
   const [summaryData, setSummaryData] = useState(null);
+  const [slaLogs, setSlaLogs] = useState([]);
+  const [utilizationData, setUtilizationData] = useState([]);
+  const [selectedOffice, setSelectedOffice] = useState("ADMIN");
 
   useEffect(() => {
     // Run each call independently so one failure doesn't prevent the others from loading
@@ -219,10 +231,21 @@ export default function Dashboard() {
     fetchKpis().catch(err => console.error('Dashboard: fetchKpis failed', err));
     fetchPeriods().catch(err => console.error('Dashboard: fetchPeriods failed', err));
     fetchHolidays().catch(err => console.error('Dashboard: fetchHolidays failed', err));
-    api.getDashboardSummary()
+
+    api.getSlaComputationLogs({ limit: 100 })
+      .then(res => setSlaLogs(res?.data || []))
+      .catch(err => console.error('Dashboard: getSlaComputationLogs failed', err));
+
+    api.getServiceUtilization()
+      .then(res => setUtilizationData(res || []))
+      .catch(err => console.error('Dashboard: getServiceUtilization failed', err));
+  }, []);
+
+  useEffect(() => {
+    api.getDashboardSummary({ office: permissions?.canSeeOtherOffices ? selectedOffice : undefined })
       .then(setSummaryData)
       .catch(err => console.error('Dashboard: getDashboardSummary failed', err));
-  }, []);
+  }, [selectedOffice, permissions?.canSeeOtherOffices]);
 
   // ── Computed metrics ──────────────────────────────────────────────────────
   const totalServices = services.filter(s => !s.archived).length;
@@ -260,6 +283,68 @@ export default function Dashboard() {
   const periodDateRange = currentPeriod.start_date && currentPeriod.end_date
     ? `${new Date(currentPeriod.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(currentPeriod.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
     : "Semestral";
+
+  // Compute SLA Compliance from actual SlaComputationLogs
+  const serviceComplianceList = services
+    .map(service => {
+      const serviceLogs = slaLogs.filter(log => log.service_id === service.id || log.service_name === service.name);
+      if (serviceLogs.length === 0) return null;
+
+      const compliantLogs = serviceLogs.filter(log => {
+        const duration = Number(log.computed_duration_days);
+        const target = Number(log.sla_target_days);
+        return duration <= target;
+      });
+
+      const complianceRate = Math.round((compliantLogs.length / serviceLogs.length) * 100);
+      
+      let color = "#580000"; // default maroon
+      if (complianceRate >= 95) color = "#10B981"; // green
+      else if (complianceRate < 80) color = "#D97706"; // amber
+
+      return {
+        id: service.id,
+        name: service.name,
+        responsibleUnit: service.responsibleUnit,
+        value: complianceRate,
+        color
+      };
+    })
+    .filter(Boolean);
+
+  // Group compliance by category
+  const complianceByCategory = {};
+  serviceComplianceList.forEach(item => {
+    const cat = getCategoryName(item.responsibleUnit);
+    if (!complianceByCategory[cat]) {
+      complianceByCategory[cat] = [];
+    }
+    complianceByCategory[cat].push(item);
+  });
+
+  // Generate actual vs target data for the bar chart
+  const chartData = (summaryData?.services || services)
+    .map(service => {
+      const util = utilizationData.find(u => u.service_id === service.id || u.service_name === service.name);
+      const actual = util ? util.transaction_count : 0;
+      const target = service.commitment_target; // from commitments
+
+      // If no target and no actual transactions, skip showing in chart
+      if (target === null && actual === 0) return null;
+
+      return {
+        id: service.id,
+        name: service.name,
+        actual,
+        target: target || 0
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 5); // Limit to top 5 to fit in the chart
+
+  const chartMaxVal = chartData.length > 0 ? Math.max(...chartData.map(d => Math.max(d.actual, d.target)), 10) : 10;
+  const chartN = chartData.length;
+  const chartXSpacing = chartN > 0 ? 400 / chartN : 80;
 
   // KPI counts by category for donut chart
   const activeKpisList = kpis.filter(k => k.active);
@@ -315,6 +400,38 @@ export default function Dashboard() {
       >
         Notice: Some commitments or services have exceeded the warning levels. Please review performance targets to ensure timely resolution.
       </Alert>
+
+      {/* Office Selector for Campus Director */}
+      {permissions?.canSeeOtherOffices && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 3 }}>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Select Office Scope
+          </Typography>
+          <TextField
+            select
+            size="small"
+            value={selectedOffice}
+            onChange={(e) => setSelectedOffice(e.target.value)}
+            sx={{
+              width: 220,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '6px',
+                backgroundColor: '#FFFFFF',
+                height: '38px',
+                fontSize: '0.875rem',
+                color: '#1E293B',
+                '& fieldset': { borderColor: '#CBD5E1' },
+                '&:hover fieldset': { borderColor: '#94A3B8' },
+                '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+              }
+            }}
+          >
+            <MenuItem value="ADMIN">Administration (ADMIN)</MenuItem>
+            <MenuItem value="ACAD">Academic Affairs (ACAD)</MenuItem>
+            <MenuItem value="OSAS">Student Affairs (OSAS)</MenuItem>
+          </TextField>
+        </Box>
+      )}
 
       {/* ── Top Summary Cards ── */}
       <Box sx={{
@@ -444,77 +561,61 @@ export default function Dashboard() {
             />
           </Box>
 
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
-            {[
-              {
-                category: "ADMIN SYSTEM",
-                items: [
-                  { name: "Medical Services", value: 96, color: "#580000" },
-                  { name: "Dental Services", value: 91, color: "#580000" },
-                  { name: "General Clearance", value: 89, color: "#580000" },
-                  { name: "Facility Reservations", value: 99, color: "#10B981" },
-                ]
-              },
-              {
-                category: "ACADEMIC SYSTEM",
-                items: [
-                  { name: "Subject Adding / Dropping", value: 88, color: "#580000" },
-                  { name: "Grade Corrections", value: 74, color: "#C8960C" },
-                ]
-              },
-              {
-                category: "STUDENT SYSTEM",
-                items: [
-                  { name: "Transcript of Records", value: 93, color: "#580000" },
-                  { name: "Graduation Application", value: 85, color: "#580000" },
-                ]
-              }
-            ].map((section, idx) => (
-              <Box key={section.category} sx={{ display: "flex", flexDirection: "column" }}>
-                {idx > 0 && <Box sx={{ borderBottom: "1px solid #E2E8F0", my: 2 }} />}
-                <Typography sx={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: T.slate400,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  mb: 1.5,
-                  fontFamily: '"DM Sans", sans-serif'
-                }}>
-                  {section.category}
-                </Typography>
-                {section.items.map((item) => (
-                  <Box key={item.name} sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.25, "&:last-child": { mb: 0 } }}>
-                    <Typography sx={{
-                      width: 180,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "#334155",
-                      flexShrink: 0,
-                      fontFamily: '"DM Sans", sans-serif',
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
-                    }}>
-                      {item.name}
-                    </Typography>
-                    <Box sx={{ flex: 1, height: 6, bgcolor: "#F1F5F9", borderRadius: 3, position: "relative" }}>
-                      <Box sx={{ width: `${item.value}%`, height: "100%", bgcolor: item.color, borderRadius: 3 }} />
+          <Box sx={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
+            {Object.keys(complianceByCategory).length > 0 ? (
+              Object.keys(complianceByCategory).map((categoryName, idx) => (
+                <Box key={categoryName} sx={{ display: "flex", flexDirection: "column" }}>
+                  {idx > 0 && <Box sx={{ borderBottom: "1px solid #E2E8F0", my: 2 }} />}
+                  <Typography sx={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: T.slate400,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    mb: 1.5,
+                    fontFamily: '"DM Sans", sans-serif'
+                  }}>
+                    {categoryName}
+                  </Typography>
+                  {complianceByCategory[categoryName].map((item) => (
+                    <Box key={item.id} sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.25, "&:last-child": { mb: 0 } }}>
+                      <Typography sx={{
+                        width: 180,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#334155",
+                        flexShrink: 0,
+                        fontFamily: '"DM Sans", sans-serif',
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }} title={item.name}>
+                        {item.name}
+                      </Typography>
+                      <Box sx={{ flex: 1, height: 6, bgcolor: "#F1F5F9", borderRadius: 3, position: "relative" }}>
+                        <Box sx={{ width: `${item.value}%`, height: "100%", bgcolor: item.color, borderRadius: 3 }} />
+                      </Box>
+                      <Typography sx={{
+                        width: 36,
+                        textAlign: "right",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: item.color,
+                        fontFamily: '"DM Sans", sans-serif'
+                      }}>
+                        {item.value}%
+                      </Typography>
                     </Box>
-                    <Typography sx={{
-                      width: 36,
-                      textAlign: "right",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: item.color,
-                      fontFamily: '"DM Sans", sans-serif'
-                    }}>
-                      {item.value}%
-                    </Typography>
-                  </Box>
-                ))}
+                  ))}
+                </Box>
+              ))
+            ) : (
+              <Box sx={{ py: 6, textAlign: "center" }}>
+                <Typography sx={{ fontSize: 13, color: T.slate400, fontWeight: 500 }}>
+                  No SLA compliance data recorded in this period.
+                </Typography>
               </Box>
-            ))}
+            )}
           </Box>
         </ChartCard>
 
@@ -544,57 +645,96 @@ export default function Dashboard() {
           </Box>
 
           {/* SVG Bar Chart */}
-          <Box sx={{ width: "100%", overflow: "hidden", flex: 1, display: "flex", alignItems: "center" }}>
-            <Box sx={{ width: "100%", position: "relative" }}>
-              <svg width="100%" viewBox="0 0 500 350" fill="none" style={{ display: "block" }}>
-                {/* Grid Lines */}
-                {[60, 117.5, 175, 232.5, 290].map((yVal) => (
-                  <line
-                    key={yVal}
-                    x1="20"
-                    y1={yVal}
-                    x2="480"
-                    y2={yVal}
-                    stroke="#F1F5F9"
-                    strokeWidth="1"
-                    strokeDasharray={yVal === 290 ? "none" : "4 4"}
-                  />
-                ))}
+          <Box sx={{ width: "100%", overflow: "hidden", flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {chartData.length > 0 ? (
+              <Box sx={{ width: "100%", position: "relative" }}>
+                <svg width="100%" viewBox="0 0 500 350" fill="none" style={{ display: "block" }}>
+                  {/* Grid Lines */}
+                  {[60, 115, 170, 225, 280].map((yVal, idx) => {
+                    const val = Math.round(chartMaxVal - (idx * chartMaxVal) / 4);
+                    return (
+                      <g key={yVal}>
+                        <text
+                          x="15"
+                          y={yVal + 4}
+                          fill="#94A3B8"
+                          fontSize="9"
+                          fontWeight="500"
+                          textAnchor="end"
+                          fontFamily="'DM Sans', sans-serif"
+                        >
+                          {val}
+                        </text>
+                        <line
+                          x1="25"
+                          y1={yVal}
+                          x2="480"
+                          y2={yVal}
+                          stroke="#F1F5F9"
+                          strokeWidth="1"
+                          strokeDasharray={yVal === 280 ? "none" : "4 4"}
+                        />
+                      </g>
+                    );
+                  })}
 
-                {/* G1: Medical */}
-                <rect x="52" y="129" width="20" height="165" rx="4" fill="#580000" />
-                <rect x="76" y="101.4" width="20" height="192.6" rx="4" fill="#E2E8F0" />
+                  {chartData.map((item, i) => {
+                    const xStart = 35 + i * chartXSpacing + (chartXSpacing - 36) / 2;
+                    const actualHeight = (item.actual / chartMaxVal) * 220;
+                    const targetHeight = (item.target / chartMaxVal) * 220;
+                    const labelText = item.name.length > 10 ? `${item.name.substring(0, 8)}...` : item.name;
 
-                {/* G2: Dental */}
-                <rect x="140" y="175" width="20" height="119" rx="4" fill="#580000" />
-                <rect x="164" y="110.6" width="20" height="183.4" rx="4" fill="#E2E8F0" />
+                    return (
+                      <g key={item.id}>
+                        {/* Actual Bar (Maroon) */}
+                        <rect
+                          x={xStart}
+                          y={280 - actualHeight}
+                          width="16"
+                          height={actualHeight}
+                          rx="3"
+                          fill="#580000"
+                        />
+                        {/* Target Bar (Light Grey) */}
+                        <rect
+                          x={xStart + 20}
+                          y={280 - targetHeight}
+                          width="16"
+                          height={targetHeight}
+                          rx="3"
+                          fill="#E2E8F0"
+                        />
 
-                {/* G3: Doc Cert */}
-                <rect x="228" y="96.8" width="20" height="197.2" rx="4" fill="#580000" />
-                <rect x="252" y="96.8" width="20" height="197.2" rx="4" fill="#E2E8F0" />
+                        {/* Label */}
+                        <text
+                          x={xStart + 18}
+                          y="305"
+                          fill="#94A3B8"
+                          fontSize="9"
+                          fontWeight="700"
+                          textAnchor="middle"
+                          fontFamily="'DM Sans', sans-serif"
+                        >
+                          {labelText}
+                        </text>
+                      </g>
+                    );
+                  })}
 
-                {/* G4: Library */}
-                <rect x="316" y="147.4" width="20" height="146.6" rx="4" fill="#580000" />
-                <rect x="340" y="119.8" width="20" height="174.2" rx="4" fill="#E2E8F0" />
+                  {/* White Cover-up block to flatten bottom rounded corners of the bars */}
+                  <rect x="20" y="280" width="460" height="8" fill="#FFFFFF" />
 
-                {/* G5: Activity */}
-                <rect x="404" y="198" width="20" height="96" rx="4" fill="#580000" />
-                <rect x="428" y="140.5" width="20" height="153.5" rx="4" fill="#E2E8F0" />
-
-                {/* White Cover-up block to flatten bottom rounded corners of the bars */}
-                <rect x="20" y="290" width="460" height="8" fill="#FFFFFF" />
-
-                {/* Ground line drawn on top */}
-                <line x1="20" y1="290" x2="480" y2="290" stroke="#CBD5E1" strokeWidth="2" />
-
-                {/* Labels */}
-                <text x="74" y="315" fill="#94A3B8" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="'DM Sans', sans-serif">Medical</text>
-                <text x="162" y="315" fill="#94A3B8" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="'DM Sans', sans-serif">Dental</text>
-                <text x="250" y="315" fill="#94A3B8" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="'DM Sans', sans-serif">Doc Cert</text>
-                <text x="338" y="315" fill="#94A3B8" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="'DM Sans', sans-serif">Library</text>
-                <text x="426" y="315" fill="#94A3B8" fontSize="11" fontWeight="700" textAnchor="middle" fontFamily="'DM Sans', sans-serif">Activity</text>
-              </svg>
-            </Box>
+                  {/* Ground line drawn on top */}
+                  <line x1="20" y1="280" x2="480" y2="280" stroke="#CBD5E1" strokeWidth="2" />
+                </svg>
+              </Box>
+            ) : (
+              <Box sx={{ py: 8, textAlign: "center" }}>
+                <Typography sx={{ fontSize: 13, color: T.slate400, fontWeight: 500 }}>
+                  No transaction or target data available for this period.
+                </Typography>
+              </Box>
+            )}
           </Box>
         </ChartCard>
 

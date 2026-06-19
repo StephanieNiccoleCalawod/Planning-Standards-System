@@ -14,7 +14,7 @@ export default defineConfig({
             // validates the token against ARMS and routes to the correct
             // downstream module (service-catalogue, kpi-sla, commitment).
             '/api': {
-                target: 'http://127.0.0.1:4003',
+                target: process.env.API_GATEWAY_URL || 'http://127.0.0.1:4003',
                 changeOrigin: true,
             },
         },

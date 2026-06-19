@@ -189,6 +189,7 @@ export default function ServiceCatalogue() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [responsibleUnitFilter, setResponsibleUnitFilter] = useState("");
 
   const triggerSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -286,6 +287,10 @@ export default function ServiceCatalogue() {
     }
   };
 
+  const uniqueResponsibleUnits = Array.from(
+    new Set(services.map(s => s.responsibleUnit).filter(Boolean))
+  ).sort();
+
   const filteredData = services.filter(svc => {
     // Office scope: Staff and Admin only see services belonging to their own office
     if (!isInScope(svc.responsibleUnit, activeUser?.office, permissions)) return false;
@@ -296,6 +301,8 @@ export default function ServiceCatalogue() {
 
     const matchesType = !typeFilter || getArtaClassification(svc) === typeFilter;
 
+    const matchesResponsibleUnit = !responsibleUnitFilter || svc.responsibleUnit === responsibleUnitFilter;
+
     let matchesStatus = true;
     if (activeTab === 1) {
       matchesStatus = !svc.active;
@@ -303,7 +310,7 @@ export default function ServiceCatalogue() {
       matchesStatus = svc.active;
     }
 
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesType && matchesResponsibleUnit && matchesStatus;
   });
 
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -341,54 +348,160 @@ export default function ServiceCatalogue() {
       </Tabs>
 
       {/* Filters card */}
-      <Card sx={{ p: 2, mb: 3, borderRadius: "8px", border: '1px solid #E2E8F0', boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            placeholder="Search service name..."
-            size="small"
-            value={searchQuery}
-            onChange={(e) => handleFilterChange(setSearchQuery, e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="disabled" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ width: 240 }}
-          />
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+          
+          {/* Search Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Search Service
+            </Typography>
+            <TextField
+              placeholder="Search..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => handleFilterChange(setSearchQuery, e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                width: 240,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            />
+          </Box>
 
-          <TextField
-            select
-            label="Classifications"
-            size="small"
-            value={typeFilter}
-            onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
-            sx={{ width: 180 }}
-          >
-            <MenuItem value="">All Classifications</MenuItem>
-            <MenuItem value="Simple">Simple</MenuItem>
-            <MenuItem value="Complex">Complex</MenuItem>
-            <MenuItem value="Highly Technical">Highly Technical</MenuItem>
-          </TextField>
+          {/* Classification Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Classification
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={typeFilter}
+              onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              sx={{
+                width: 180,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            >
+              <MenuItem value="">All Classifications</MenuItem>
+              <MenuItem value="Simple">Simple</MenuItem>
+              <MenuItem value="Complex">Complex</MenuItem>
+              <MenuItem value="Highly Technical">Highly Technical</MenuItem>
+            </TextField>
+          </Box>
 
+          {/* Responsible Unit Field */}
+          {permissions?.canSeeOtherOffices && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Responsible Unit
+              </Typography>
+              <TextField
+                select
+                size="small"
+                value={responsibleUnitFilter}
+                onChange={(e) => handleFilterChange(setResponsibleUnitFilter, e.target.value)}
+                SelectProps={{ displayEmpty: true }}
+                sx={{
+                  width: 180,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '6px',
+                    backgroundColor: '#FFFFFF',
+                    height: '38px',
+                    fontSize: '0.875rem',
+                    color: '#1E293B',
+                    '& fieldset': { borderColor: '#CBD5E1' },
+                    '&:hover fieldset': { borderColor: '#94A3B8' },
+                    '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                  }
+                }}
+              >
+                <MenuItem value="">All Units</MenuItem>
+                {uniqueResponsibleUnits.map((unit) => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          )}
 
+          {/* Reset Filters */}
+          {(searchQuery || typeFilter || responsibleUnitFilter) && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSearchQuery("");
+                setTypeFilter("");
+                setResponsibleUnitFilter("");
+                setCurrentPage(1);
+              }}
+              sx={{
+                height: '38px',
+                textTransform: 'none',
+                borderColor: '#E2E8F0',
+                color: '#475569',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                '&:hover': {
+                  borderColor: '#CBD5E1',
+                  backgroundColor: '#F8FAFC',
+                }
+              }}
+            >
+              Reset Filters
+            </Button>
+          )}
 
+          {/* Add Service Button */}
           {canAddService && (
             <Button
               variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
               onClick={() => setShowAdd(true)}
-              sx={{ ml: 'auto' }}
+              sx={{
+                ml: 'auto',
+                height: '38px',
+                bgcolor: '#580000',
+                '&:hover': { bgcolor: '#700000' },
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textTransform: 'none',
+                px: 2.5
+              }}
             >
-              Add Service
+              + Add Service
             </Button>
           )}
-        </Box>
-      </Card>
+      </Box>
 
       {/* Table scroller */}
       <TableContainer component={Paper} sx={{ borderRadius: "8px", border: '1px solid #E2E8F0', mb: 3, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
@@ -396,10 +509,10 @@ export default function ServiceCatalogue() {
           <TableHead>
             <TableRow sx={{ bgcolor: '#580000', '& .MuiTableCell-root': { py: 1.5, whiteSpace: 'nowrap' } }}>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 240 }}>SERVICE NAME</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE MODE</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>CLASSIFICATION</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SLA TARGET</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>RESPONSIBLE UNIT</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE CLASSIFICATION</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>N/A FLAG</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>LAST UPDATED</TableCell>
               {canWrite && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
@@ -428,6 +541,21 @@ export default function ServiceCatalogue() {
                   <TableCell>
                     {(() => {
                       const artaClass = getArtaClassification(svc);
+                      const val = svc.classification;
+                      if (!val || val.trim() === "" || val.toLowerCase() === artaClass.toLowerCase()) {
+                        return <Typography color="text.disabled">—</Typography>;
+                      }
+
+                      return (
+                        <Typography sx={{ color: 'text.primary', fontSize: '0.8125rem' }}>
+                          {val}
+                        </Typography>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const artaClass = getArtaClassification(svc);
                       return (
                         <Chip
                           label={artaClass}
@@ -452,21 +580,6 @@ export default function ServiceCatalogue() {
                     <Typography sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
                       {svc.responsibleUnit || "Quality Assurance"}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const artaClass = getArtaClassification(svc);
-                      const val = svc.classification;
-                      if (!val || val.trim() === "" || val.toLowerCase() === artaClass.toLowerCase()) {
-                        return <Typography color="text.disabled">—</Typography>;
-                      }
-
-                      return (
-                        <Typography sx={{ color: 'text.primary', fontSize: '0.8125rem' }}>
-                          {val}
-                        </Typography>
-                      );
-                    })()}
                   </TableCell>
                   <TableCell>
                     {svc.naFlag ? (
@@ -569,7 +682,7 @@ export default function ServiceCatalogue() {
               return;
             }
 
-            // Client-side uniqueness check for [Name + Classification]
+            // Client-side uniqueness check for [Name + Service Mode]
             const nameLower = newSvc.serviceName.trim().toLowerCase();
             const classLower = newSvc.classification ? newSvc.classification.trim().toLowerCase() : "";
             const isDuplicate = services.some(s =>
@@ -581,7 +694,7 @@ export default function ServiceCatalogue() {
               setResultModal({
                 type: "error",
                 title: "Failed to Add Service",
-                message: "Failed to save. A service with this name and classification already exists in your office.",
+                message: "Failed to save. A service with this name and service mode already exists in your office.",
               });
               return;
             }
@@ -614,7 +727,7 @@ export default function ServiceCatalogue() {
           onClose={() => setEditingService(null)}
           onEdit={async (updatedSvc) => {
             try {
-              // Client-side uniqueness check for [Name + Classification]
+              // Client-side uniqueness check for [Name + Service Mode]
               const nameLower = updatedSvc.name.trim().toLowerCase();
               const classLower = updatedSvc.classification ? updatedSvc.classification.trim().toLowerCase() : "";
               const isDuplicate = services.some(s =>
@@ -624,7 +737,7 @@ export default function ServiceCatalogue() {
                 (s.classification ? s.classification.trim().toLowerCase() : "") === classLower
               );
               if (isDuplicate) {
-                triggerSnackbar("Failed to save. A service with this name and classification already exists in your office.", "error");
+                triggerSnackbar("Failed to save. A service with this name and service mode already exists in your office.", "error");
                 return;
               }
 
@@ -657,7 +770,7 @@ export default function ServiceCatalogue() {
               console.error(err);
               const isDuplicate = err.message && (err.message.includes("exists") || err.message.includes("Conflict") || err.message.includes("unique") || err.message.includes("duplicate"));
               const msg = isDuplicate
-                ? "Failed to save. A service with this name and classification already exists in your office."
+                ? "Failed to save. A service with this name and service mode already exists in your office."
                 : (err.message || "Failed to update service");
               triggerSnackbar(msg, "error");
               throw err;
@@ -786,7 +899,7 @@ export default function ServiceCatalogue() {
                 type: "error",
                 title: updatedSvc.isNew ? "Failed to Create Service" : "Intake Fields Save Failed",
                 message: isDuplicate
-                  ? "Failed to save. A service with this name and classification already exists in your office."
+                  ? "Failed to save. A service with this name and service mode already exists in your office."
                   : (err.message || "Failed to save to the database.")
               });
               throw err;

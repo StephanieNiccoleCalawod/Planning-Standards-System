@@ -172,13 +172,15 @@ services:
       dockerfile: Dockerfile
     container_name: pss-frontend
     ports:
-      - '5174:5174'
+      - '5174:5175'
     environment:
       PROXY_CATALOGUE_URL: http://service-catalogue:3000
       PROXY_KPI_SLA_URL: http://kpi-sla:3001
       PROXY_COMMITMENT_URL: http://commitment:3002
+      API_GATEWAY_URL: http://api-gateway:4003
     volumes:
       - ../src:/app/src
+      - ../vite.config.js:/app/vite.config.js
     depends_on:
       - service-catalogue
       - kpi-sla
