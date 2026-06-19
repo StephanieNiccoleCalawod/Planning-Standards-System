@@ -216,6 +216,7 @@ export class KpiSlaController {
     }
 
     @Patch('periods/:id/complete')
+    @Roles(Permission.PERIODS_WRITE)
     @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed - auto-activates next QUEUED period' })
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';

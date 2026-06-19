@@ -46,6 +46,7 @@ import ToggleStatusModal from "../modals/ToggleStatusModal";
 
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
+import { isInScope } from "../services/permissions";
 
 const parseSlaTarget = (targetStr) => {
   if (!targetStr) return { days: 0, hours: 0, minutes: 0 };
@@ -286,6 +287,9 @@ export default function ServiceCatalogue() {
   };
 
   const filteredData = services.filter(svc => {
+    // Office scope: Staff and Admin only see services belonging to their own office
+    if (!isInScope(svc.responsibleUnit, activeUser?.office, permissions)) return false;
+
     const matchesSearch = svc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       svc.id.toString().includes(searchQuery.toLowerCase()) ||
       (svc.responsibleUnit && svc.responsibleUnit.toLowerCase().includes(searchQuery.toLowerCase()));

@@ -38,6 +38,7 @@ import PageHeader from "../components/PageHeader";
 import ResultModal from "../modals/ResultModal";
 import KPIModal from "../modals/KPIModal";
 import ToggleStatusModal from "../modals/ToggleStatusModal";
+import { isInScope } from "../services/permissions";
 
 const CATEGORY_INDICATORS = {
   Timeliness: { color: "#2563EB", bg: "#EFF6FF", label: "Timeliness" },
@@ -83,6 +84,7 @@ export default function KPIStandards() {
     updateKpi,
     deleteKpi,
     permissions,
+    activeUser,
   } = useAppStore();
 
   const canWriteKpi = permissions?.canWriteKpi || false;
@@ -380,11 +382,17 @@ export default function KPIStandards() {
 
   // Client-side Filters
   const filteredKpis = kpis.filter(k => {
+    // Office scope: Check the responsibleUnit of the linked service
+    const linkedService = services.find(s => s.id === k.service_id);
+    if (linkedService && !isInScope(linkedService.responsibleUnit, activeUser?.office, permissions)) {
+      return false;
+    }
+
     const isTabMatch = activeTab === 0 ? k.active : !k.active;
     if (!isTabMatch) return false;
 
     const matchesSearch = k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (services.find(s => s.id === k.service_id)?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+      (linkedService?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !categoryFilter || k.category === categoryFilter;
     const matchesService = !serviceFilter || k.service_id === serviceFilter;
 
