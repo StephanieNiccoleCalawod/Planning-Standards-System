@@ -3,7 +3,7 @@
 // ARMS and PSS are different origins (different ports), so localStorage is
 // NOT shared between them. The expected flow is:
 //
-//   1. User logs into ARMS (e.g. http://localhost:5175)
+//   1. User logs into ARMS (e.g. http://localhost:5173)
 //   2. A "Go to PSS" link/button in ARMS navigates to:
 //        http://<pss-frontend>/?token=<jwt>
 //   3. On load, PSS reads ?token= from the URL, stores it under PSS_TOKEN_KEY,
@@ -14,7 +14,7 @@
 const PSS_TOKEN_KEY = 'pss_token';
 
 export function getToken() {
-  return localStorage.getItem(PSS_TOKEN_KEY) || 'mock_pss_jwt_token_for_dev_bypass_123';
+  return localStorage.getItem(PSS_TOKEN_KEY);
 }
 
 export function setToken(token) {
@@ -25,18 +25,42 @@ export function setToken(token) {
 
 export function clearToken() {
   localStorage.removeItem(PSS_TOKEN_KEY);
-  localStorage.removeItem('PSS_MOCK_ROLE');
+}
+
+export function decodeJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+export function getUserRoleFromToken() {
+  const token = getToken();
+  if (!token) return null;
+  const decoded = decodeJwt(token);
+  if (!decoded) return 'Staff';
+  
+  // ARMS roles -> PSS roles mapping
+  const ARMS_ROLE_MAP = {
+    SUPER_ADMIN: 'Admin',
+    SUBSYSTEM_ADMIN: 'Admin',
+    STAFF: 'Staff',
+    OPCR_EVALUATOR: 'OPCREvaluator'
+  };
+  
+  // Read role from JWT payload claims or root fields
+  const role = decoded.role || decoded.claims?.role || decoded.user?.role;
+  return ARMS_ROLE_MAP[role] || 'Staff';
 }
 
 export function isAuthenticated() {
-  // Always return true to bypass authentication check on local dev
-  if (!localStorage.getItem(PSS_TOKEN_KEY)) {
-    localStorage.setItem(PSS_TOKEN_KEY, 'mock_pss_jwt_token_for_dev_bypass_123');
-  }
-  if (!localStorage.getItem('PSS_MOCK_ROLE')) {
-    localStorage.setItem('PSS_MOCK_ROLE', 'Admin');
-  }
-  return true;
+  return !!getToken();
 }
 
 /**
@@ -60,4 +84,3 @@ export function initTokenFromUrl() {
     window.history.replaceState({}, '', newUrl);
   }
 }
-

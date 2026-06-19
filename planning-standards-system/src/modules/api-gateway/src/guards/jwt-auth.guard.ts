@@ -38,34 +38,7 @@ export class JwtAuthGuard implements CanActivate {
         if (!authHeader?.startsWith('Bearer ')) {
             throw new UnauthorizedException('Missing or invalid Authorization header');
         }
-        const token = authHeader.split(' ')[1];
-
-        if (token.startsWith('mock_pss_jwt_token_for_dev_bypass_123')) {
-            const parts = token.split('_');
-            const mockRole = parts[parts.length - 1]; // e.g. 'Admin', 'Staff', 'OPCREvaluator'
-            const role = ['Admin', 'Staff', 'OPCREvaluator'].includes(mockRole) ? mockRole : 'Admin';
-            
-            let armsRole = 'SUPER_ADMIN';
-            let office = 'ADMIN';
-            if (role === 'Staff') {
-                armsRole = 'STAFF';
-                office = 'STAFF_OFFICE';
-            } else if (role === 'OPCREvaluator') {
-                armsRole = 'OPCR_EVALUATOR';
-                office = 'PLANNING';
-            }
-
-            req.user = {
-                sub: 'dev-bypass-user-id-123',
-                userId: 'dev-bypass-user-id-123',
-                username: role.toLowerCase(),
-                office,
-                isCrossOffice: true,
-                armsRole,
-                role,
-            };
-            return true;
-        }
+                const token = authHeader.split(' ')[1];
 
         const armsAuthUrl = this.config.get<string>('ARMS_AUTH_URL');
 

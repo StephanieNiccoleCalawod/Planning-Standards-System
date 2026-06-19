@@ -226,8 +226,8 @@ export const useAppStore = create((set, get) => ({
         category: k.category === "COMPLIANCE" ? "Timeliness" : k.category === "CUSTOMER" ? "Quality" : "Efficiency",
         target_value: k.target_value,
         unit: k.unit === "PERCENT" ? "%" :
-              k.unit === "DAYS" ? " Days" :
-              (k.unit === "MINUTES" || k.unit === "COUNT" || k.unit === "Mins" || k.unit === "Minutes") ? " Mins" :
+          k.unit === "DAYS" ? " Days" :
+            (k.unit === "MINUTES" || k.unit === "COUNT" || k.unit === "Mins" || k.unit === "Minutes") ? " Mins" :
               (k.unit || " Mins"),
         service_id: k.service_id,
         active: k.is_active

@@ -984,7 +984,7 @@ export default function SLAConfiguration() {
           </>
         }
         confirmLabel="Yes, Restore Existing Version"
-        cancelLabel="No, Publish as New Version"
+        cancelLabel="Cancel"
         onConfirm={async () => {
           setShowRestoreExistingConfirm(false);
           if (!matchingExistingVersion || !activeRuleId) return;
@@ -1012,7 +1012,6 @@ export default function SLAConfiguration() {
         onCancel={() => {
           setShowRestoreExistingConfirm(false);
           setMatchingExistingVersion(null);
-          setShowConfirm(true);
         }}
       />
 
