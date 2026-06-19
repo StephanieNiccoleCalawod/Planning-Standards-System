@@ -149,37 +149,20 @@ export class KpiSlaService {
     }
 
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
-        // prevent duplicate KPI names + classification per office (case-insensitive, trimmed)
         const trimmedName = dto.name.trim();
-        const targetService = await this.getService(dto.service_id, office);
-        const targetClass = normalizeClassification(targetService?.classification);
 
-        const duplicates = await this.kpiRepo
+        // duplicate check: same name + same category + same service = not allowed
+        const dupExact = await this.kpiRepo
             .createQueryBuilder('kpi')
             .where('kpi.office = :office', { office })
+            .andWhere('kpi.category = :category', { category: dto.category })
+            .andWhere('kpi.service_id = :service_id', { service_id: dto.service_id ?? null })
             .andWhere('kpi.is_active = true')
             .andWhere('LOWER(kpi.name) = LOWER(:name)', { name: trimmedName })
-            .getMany();
-
-        for (const dup of duplicates) {
-            const dupService = await this.getService(dup.service_id, office);
-            const dupClass = normalizeClassification(dupService?.classification);
-            if (dupClass === targetClass) {
-                throw new ConflictException('A KPI with this name and classification already exists for your office.');
-            }
-        }
-
-        const existing = await this.kpiRepo.findOne({
-            where: {
-                office,
-                category: dto.category,
-                service_id: dto.service_id ?? null,
-                is_active: true,
-            },
-        });
-        if (existing) {
+            .getOne();
+        if (dupExact) {
             throw new ConflictException(
-                `A KPI with category "${dto.category}" already exists for this service`,
+                `A KPI with this name, measurement category, and linked service already exists for your office.`,
             );
         }
 
@@ -301,8 +284,8 @@ export class KpiSlaService {
     }
 
     async findAllSlaRules(office: string, isCrossOffice: boolean = false): Promise<SlaRule[]> {
+        // SLA rules are global — all users can view regardless of office
         return this.slaRepo.find({
-            where: isCrossOffice ? {} : { office },
             relations: { versions: true },
             order: { created_at: 'DESC' },
         });
@@ -525,8 +508,9 @@ export class KpiSlaService {
         pagination: PaginationDto = new PaginationDto(),
         isCrossOffice: boolean = false,
     ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+        // Evaluation periods are global — all users can view all periods
         const [periods, total] = await this.periodRepo.findAndCount({
-            where: isCrossOffice ? { is_active: true } : { office, is_active: true },
+            where: { is_active: true },
             order: { start_date: pagination.sort_order === 'ASC' ? 'ASC' : 'DESC' },
             skip: (pagination.page - 1) * pagination.limit,
             take: pagination.limit,
@@ -549,10 +533,9 @@ export class KpiSlaService {
     }
 
     async getPeriodWarnings(office: string, isCrossOffice: boolean = false): Promise<any[]> {
+        // Global — show warnings for all offices
         const periods = await this.periodRepo.find({
-            where: isCrossOffice
-                ? { status: PeriodStatus.OPEN, is_active: true }
-                : { office, status: PeriodStatus.OPEN, is_active: true },
+            where: { status: PeriodStatus.OPEN, is_active: true },
         });
 
         return periods
@@ -563,14 +546,14 @@ export class KpiSlaService {
             .filter(p => p.warning_level !== 'none');
     }
 
-    async updatePeriod(id: string, office: string, dto: UpdatePeriodDto): Promise<EvaluationPeriod> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async updatePeriod(id: string, office: string, dto: UpdatePeriodDto, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
         Object.assign(period, dto);
         return this.periodRepo.save(period);
     }
 
-    async completePeriod(id: string, office: string, actor: string): Promise<EvaluationPeriod> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async completePeriod(id: string, office: string, actor: string, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
 
         if (period.status !== PeriodStatus.OPEN) {
             throw new ForbiddenException('Only OPEN periods can be marked as completed.');
@@ -588,7 +571,9 @@ export class KpiSlaService {
         });
 
         const nextQueued = await this.periodRepo.findOne({
-            where: { office, status: PeriodStatus.QUEUED, is_active: true },
+            where: isCrossOffice
+                ? { status: PeriodStatus.QUEUED, is_active: true }
+                : { office, status: PeriodStatus.QUEUED, is_active: true },
             order: { created_at: 'ASC' },
         });
 
@@ -608,8 +593,8 @@ export class KpiSlaService {
         return period;
     }
 
-    async removePeriod(id: string, office: string): Promise<{ message: string }> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async removePeriod(id: string, office: string, isCrossOffice: boolean = false): Promise<{ message: string }> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
 
         if (period.status !== PeriodStatus.QUEUED) {
             throw new ForbiddenException('Only QUEUED periods can be deleted.');

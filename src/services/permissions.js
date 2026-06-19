@@ -29,19 +29,21 @@ export function getPermissions(user) {
             return buildPermissions({
                 role: 'OPCREvaluator',
                 isCrossOffice: true,
-                // Service Catalogue / KPI / SLA / Holiday / Periods — read-only
+                // Service Catalogue / KPI — read-only
                 canWriteServices: false,
                 canWriteKpi: false,
-                canWriteSla: false,
-                canWriteHolidays: false,
-                canWritePeriods: false,
+                // SLA — full access
+                canWriteSla: true,
+                // Holidays and Periods — full access (Super Admin)
+                canWriteHolidays: true,
+                canWritePeriods: true,
                 // Commitments — exclusive write access
                 canWriteCommitments: true,
                 canViewCommitments: true,
                 // UI visibility flags
                 canSeeAddServiceBtn: false,
                 canSeeKpiActions: false,
-                canSeeSlaForm: false,
+                canSeeSlaForm: true,
                 canSeeCommitmentsInSidebar: true,
                 canSeeOtherOffices: true,
             });
@@ -52,15 +54,17 @@ export function getPermissions(user) {
                 isCrossOffice: false,
                 canWriteServices: true,
                 canWriteKpi: true,
-                canWriteSla: true,
-                canWriteHolidays: true,
-                canWritePeriods: true,
+                // SLA — read-only, view history only
+                canWriteSla: false,
+                // Holidays and Periods — no write access
+                canWriteHolidays: false,
+                canWritePeriods: false,
                 // Admins cannot create/edit/lock commitments and cannot see the page
                 canWriteCommitments: false,
                 canViewCommitments: false,
                 canSeeAddServiceBtn: true,
                 canSeeKpiActions: true,
-                canSeeSlaForm: true,
+                canSeeSlaForm: false,
                 canSeeCommitmentsInSidebar: false,
                 canSeeOtherOffices: false,
             });
