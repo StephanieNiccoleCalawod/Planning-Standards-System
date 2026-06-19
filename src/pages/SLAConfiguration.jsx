@@ -833,7 +833,7 @@ export default function SLAConfiguration() {
                             </Box>
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, alignSelf: 'center' }}>
-                              {!item.is_active_rule && (
+                              {!item.is_active_rule && canSeeSlaForm && (
                                 <Button
                                   variant="outlined"
                                   size="small"
@@ -861,16 +861,18 @@ export default function SLAConfiguration() {
                                 </Button>
                               )}
                               
-                              <IconButton
-                                size="small"
-                                onClick={(e) => handleOpenMenu(e, item)}
-                                sx={{ 
-                                  color: 'text.secondary',
-                                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
-                                }}
-                              >
-                                <MoreVertIcon sx={{ fontSize: 18 }} />
-                              </IconButton>
+                              {canSeeSlaForm && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => handleOpenMenu(e, item)}
+                                  sx={{ 
+                                    color: 'text.secondary',
+                                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+                                  }}
+                                >
+                                  <MoreVertIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              )}
                             </Box>
                           </Box>
 

@@ -70,7 +70,8 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Update a KPI' })
     updateKpi(@Request() req, @Param('id') id: string, @Body() dto: UpdateKpiDto) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.updateKpi(id, office, dto);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.updateKpi(id, office, dto, isCrossOffice);
     }
 
     @Delete('kpis/:id')
@@ -79,12 +80,13 @@ export class KpiSlaController {
     removeKpi(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
         const actor = req.user?.sub ?? 'system';
-        return this.svc.removeKpi(id, office, actor);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.removeKpi(id, office, actor, isCrossOffice);
     }
 
     @Post('sla-rules')
     @HttpCode(HttpStatus.CREATED)
-    @Roles(Permission.KPIS_WRITE)
+    @Roles(Permission.SLA_WRITE)
     @ApiOperation({ summary: 'Create an SLA rule' })
     createSlaRule(@Request() req, @Body() dto: CreateSlaRuleDto) {
         const office = req.user?.office ?? 'unknown-office';
@@ -102,12 +104,13 @@ export class KpiSlaController {
     }
 
     @Put('sla-rules/:id')
-    @Roles(Permission.KPIS_WRITE)
+    @Roles(Permission.SLA_WRITE)
     @ApiOperation({ summary: 'Update SLA rule (saves version history)' })
     updateSlaRule(@Request() req, @Param('id') id: string, @Body() dto: UpdateSlaRuleDto) {
         const office = req.user?.office ?? 'unknown-office';
         const actor = req.user?.sub ?? 'system';
-        return this.svc.updateSlaRule(id, office, actor, dto);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.updateSlaRule(id, office, actor, dto, isCrossOffice);
     }
 
     @Get('sla-rules/:id/versions')
@@ -115,11 +118,12 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Get all version history of an SLA rule' })
     getSlaRuleVersions(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.getSlaRuleVersions(id, office);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.getSlaRuleVersions(id, office, isCrossOffice);
     }
 
     @Patch('sla-rules/:id/versions/:versionId/restore')
-    @Roles(Permission.KPIS_WRITE)
+    @Roles(Permission.SLA_WRITE)
     @ApiOperation({ summary: 'Restore a previous version of an SLA rule' })
     restoreSlaVersion(
         @Request() req,
@@ -128,7 +132,8 @@ export class KpiSlaController {
     ) {
         const office = req.user?.office ?? 'unknown-office';
         const actor = req.user?.sub ?? 'system';
-        return this.svc.restoreSlaVersion(id, versionId, office, actor);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.restoreSlaVersion(id, versionId, office, actor, isCrossOffice);
     }
 
     @Post('holidays')
@@ -212,7 +217,8 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Update an evaluation period' })
     updatePeriod(@Request() req, @Param('id') id: string, @Body() dto: UpdatePeriodDto) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.updatePeriod(id, office, dto);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.updatePeriod(id, office, dto, isCrossOffice);
     }
 
     @Patch('periods/:id/complete')
@@ -221,7 +227,8 @@ export class KpiSlaController {
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
         const actor = req.user?.sub ?? 'system';
-        return this.svc.completePeriod(id, office, actor);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.completePeriod(id, office, actor, isCrossOffice);
     }
 
     @Delete('periods/:id')
@@ -229,6 +236,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Delete a QUEUED evaluation period' })
     removePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.removePeriod(id, office);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.removePeriod(id, office, isCrossOffice);
     }
 }

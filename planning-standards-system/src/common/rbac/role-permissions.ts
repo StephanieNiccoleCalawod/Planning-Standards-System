@@ -32,5 +32,6 @@ export const RolePermissions: Record<Role, Permission[]> = {
         Permission.COMMITMENTS_READ,
         Permission.COMMITMENTS_WRITE,
         Permission.COMMITMENTS_LOCK,
+        Permission.SLA_WRITE,
     ],
 };

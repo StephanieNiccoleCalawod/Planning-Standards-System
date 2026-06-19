@@ -32,7 +32,7 @@ export function getPermissions(user) {
                 // Service Catalogue / KPI / SLA / Holiday / Periods — read-only
                 canWriteServices: false,
                 canWriteKpi: false,
-                canWriteSla: false,
+                canWriteSla: true,
                 canWriteHolidays: false,
                 canWritePeriods: false,
                 // Commitments — exclusive write access
@@ -41,7 +41,7 @@ export function getPermissions(user) {
                 // UI visibility flags
                 canSeeAddServiceBtn: false,
                 canSeeKpiActions: false,
-                canSeeSlaForm: false,
+                canSeeSlaForm: true,
                 canSeeCommitmentsInSidebar: true,
                 canSeeOtherOffices: true,
             });
@@ -52,7 +52,7 @@ export function getPermissions(user) {
                 isCrossOffice: false,
                 canWriteServices: true,
                 canWriteKpi: true,
-                canWriteSla: true,
+                canWriteSla: false,
                 canWriteHolidays: true,
                 canWritePeriods: true,
                 // Admins cannot create/edit/lock commitments and cannot see the page
@@ -60,7 +60,7 @@ export function getPermissions(user) {
                 canViewCommitments: false,
                 canSeeAddServiceBtn: true,
                 canSeeKpiActions: true,
-                canSeeSlaForm: true,
+                canSeeSlaForm: false,
                 canSeeCommitmentsInSidebar: false,
                 canSeeOtherOffices: false,
             });

@@ -10,4 +10,5 @@ export enum Permission {
   COMMITMENTS_READ = 'commitments.read',
   COMMITMENTS_WRITE = 'commitments.write',
   COMMITMENTS_LOCK = 'commitments.lock',
+  SLA_WRITE = 'sla.write',
 }

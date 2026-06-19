@@ -228,8 +228,8 @@ export class KpiSlaService {
         return { data, total, page: pagination.page, limit: pagination.limit };
     }
 
-    async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
-        const kpi = await this.findOneKpiOrFail(id, office);
+    async updateKpi(id: string, office: string, dto: UpdateKpiDto, isCrossOffice: boolean = false): Promise<Kpi> {
+        const kpi = await this.findOneKpiOrFail(id, office, isCrossOffice);
 
         // prevent duplicate KPI names + classification per office (case-insensitive, trimmed)
         if (dto.name !== undefined || dto.service_id !== undefined) {
@@ -264,8 +264,8 @@ export class KpiSlaService {
         return this.kpiRepo.save(kpi);
     }
 
-    async removeKpi(id: string, office: string, actor: string): Promise<{ message: string }> {
-        const kpi = await this.findOneKpiOrFail(id, office);
+    async removeKpi(id: string, office: string, actor: string, isCrossOffice: boolean = false): Promise<{ message: string }> {
+        const kpi = await this.findOneKpiOrFail(id, office, isCrossOffice);
         kpi.is_active = false;
         const saved = await this.kpiRepo.save(kpi);
         this.logAudit({
@@ -308,8 +308,8 @@ export class KpiSlaService {
         });
     }
 
-    async updateSlaRule(id: string, office: string, actor: string, dto: UpdateSlaRuleDto): Promise<SlaRule> {
-        const existing = await this.findOneSlaRuleOrFail(id, office);
+    async updateSlaRule(id: string, office: string, actor: string, dto: UpdateSlaRuleDto, isCrossOffice: boolean = false): Promise<SlaRule> {
+        const existing = await this.findOneSlaRuleOrFail(id, office, isCrossOffice);
 
         const newType = dto.work_schedule_type ?? existing.work_schedule_type;
         const newConfig = dto.work_schedule_config ?? existing.work_schedule_config;
@@ -345,8 +345,8 @@ export class KpiSlaService {
         return this.slaRepo.save(existing);
     }
 
-    async getSlaRuleVersions(id: string, office: string): Promise<SlaRuleVersion[]> {
-        const rule = await this.findOneSlaRuleOrFail(id, office);
+    async getSlaRuleVersions(id: string, office: string, isCrossOffice: boolean = false): Promise<SlaRuleVersion[]> {
+        const rule = await this.findOneSlaRuleOrFail(id, office, isCrossOffice);
 
         return this.slaVersionRepo.find({
             where: { sla_rule_id: id },
@@ -354,8 +354,8 @@ export class KpiSlaService {
         });
     }
 
-    async restoreSlaVersion(id: string, versionId: string, office: string, actor: string): Promise<SlaRule> {
-        const rule = await this.findOneSlaRuleOrFail(id, office);
+    async restoreSlaVersion(id: string, versionId: string, office: string, actor: string, isCrossOffice: boolean = false): Promise<SlaRule> {
+        const rule = await this.findOneSlaRuleOrFail(id, office, isCrossOffice);
 
         const version = await this.slaVersionRepo.findOne({
             where: { id: versionId, sla_rule_id: id },
@@ -563,14 +563,14 @@ export class KpiSlaService {
             .filter(p => p.warning_level !== 'none');
     }
 
-    async updatePeriod(id: string, office: string, dto: UpdatePeriodDto): Promise<EvaluationPeriod> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async updatePeriod(id: string, office: string, dto: UpdatePeriodDto, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
         Object.assign(period, dto);
         return this.periodRepo.save(period);
     }
 
-    async completePeriod(id: string, office: string, actor: string): Promise<EvaluationPeriod> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async completePeriod(id: string, office: string, actor: string, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
 
         if (period.status !== PeriodStatus.OPEN) {
             throw new ForbiddenException('Only OPEN periods can be marked as completed.');
@@ -608,8 +608,8 @@ export class KpiSlaService {
         return period;
     }
 
-    async removePeriod(id: string, office: string): Promise<{ message: string }> {
-        const period = await this.findOnePeriodOrFail(id, office);
+    async removePeriod(id: string, office: string, isCrossOffice: boolean = false): Promise<{ message: string }> {
+        const period = await this.findOnePeriodOrFail(id, office, isCrossOffice);
 
         if (period.status !== PeriodStatus.QUEUED) {
             throw new ForbiddenException('Only QUEUED periods can be deleted.');
@@ -619,19 +619,19 @@ export class KpiSlaService {
         await this.periodRepo.save(period);
         return { message: `Period ${id} deleted` };
     }
-    private async findOneKpiOrFail(id: string, office: string): Promise<Kpi> {
+    private async findOneKpiOrFail(id: string, office: string, isCrossOffice: boolean = false): Promise<Kpi> {
         const kpi = await this.kpiRepo.findOne({ where: { id } });
         if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
-        if (kpi.office !== office) {
+        if (!isCrossOffice && kpi.office !== office) {
             throw new ForbiddenException('You cannot access KPIs from another office');
         }
         return kpi;
     }
 
-    private async findOneSlaRuleOrFail(id: string, office: string): Promise<SlaRule> {
+    private async findOneSlaRuleOrFail(id: string, office: string, isCrossOffice: boolean = false): Promise<SlaRule> {
         const rule = await this.slaRepo.findOne({ where: { id } });
         if (!rule) throw new NotFoundException(`SLA Rule ${id} not found`);
-        if (rule.office !== office) {
+        if (!isCrossOffice && rule.office !== office) {
             throw new ForbiddenException('You cannot access SLA Rules from another office');
         }
         return rule;
