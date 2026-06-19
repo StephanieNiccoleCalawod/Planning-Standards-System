@@ -96,7 +96,9 @@ export default function ServiceCatalogue() {
     kpis,
     fetchKpis,
     commitments,
-    fetchCommitments
+    fetchCommitments,
+    permissions,
+    activeUser,
   } = useAppStore();
 
   const [showAdd, setShowAdd] = useState(false);
@@ -203,7 +205,9 @@ export default function ServiceCatalogue() {
   }, []);
 
   const activePeriod = useAppStore.getState().periods.find(p => p.status === "Active" || p.status === "Open");
-  const isStaff = useAppStore.getState().userRole === 'Staff';
+  // Derive write permission and office scope from the permissions object
+  const canWrite = permissions?.canWriteServices || false;
+  const canAddService = permissions?.canSeeAddServiceBtn || false;
 
   const handleToggle = async (id) => {
     const svc = services.find(s => s.id === id);
@@ -368,7 +372,7 @@ export default function ServiceCatalogue() {
 
 
 
-          {!isStaff && (
+          {canAddService && (
             <Button
               variant="contained"
               color="primary"
@@ -394,7 +398,7 @@ export default function ServiceCatalogue() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE CLASSIFICATION</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>N/A FLAG</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>LAST UPDATED</TableCell>
-              {!isStaff && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
+              {canWrite && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -474,7 +478,7 @@ export default function ServiceCatalogue() {
                       {svc.lastUpdated || "—"}
                     </Typography>
                   </TableCell>
-                  {!isStaff && (
+                  {canWrite && (
                     <TableCell align="center">
                       <Tooltip title="Actions" arrow>
                         <IconButton

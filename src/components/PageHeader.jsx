@@ -6,14 +6,16 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CircleIcon from "@mui/icons-material/Circle";
+import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import { clearToken } from "../services/auth";
 
 export default function PageHeader({ breadcrumb, title, subtitle, action }) {
-  const { 
-    periods, 
-    fetchPeriods, 
+  const {
+    periods,
+    fetchPeriods,
     userRole,
-    setUserRole,
+    activeUser,
+    permissions,
     sidebarCollapsed,
     setSidebarCollapsed,
     sidebarMobileOpen,
@@ -67,9 +69,19 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const initials = userRole === "Staff" ? "S" : (userRole === "OPCREvaluator" ? "OE" : "SA");
-  const displayName = userRole === "Staff" ? "Staff User" : (userRole === "OPCREvaluator" ? "OPCR Evaluator" : "Super Admin");
-  const displayRole = userRole === "Staff" ? "Staff" : (userRole === "OPCREvaluator" ? "OPCR Evaluator" : "Super Admin");
+  // Derive display info from the decoded activeUser (real token data)
+  const displayName = activeUser?.displayName || activeUser?.username || (userRole === "Staff" ? "Staff User" : userRole === "OPCREvaluator" ? "OPCR Evaluator" : "Admin User");
+  const displayRole = activeUser?.armsRole === 'OPCR_EVALUATOR' ? 'Campus Director'
+    : activeUser?.armsRole === 'SUBSYSTEM_ADMIN' ? 'Office Head'
+    : activeUser?.armsRole === 'STAFF' ? 'Staff'
+    : userRole;
+  const displayOffice = activeUser?.office && activeUser.office !== 'ALL' ? activeUser.office : (activeUser?.isCrossOffice ? 'All Offices' : '');
+  const initials = displayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const notifications = [
     { id: 1, title: 'New commitment draft saved', description: 'A new draft commitment has been successfully saved to your records.', time: '2 min ago', unread: true },
@@ -324,7 +336,7 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
                   {displayName}
                 </span>
                 <span style={{ fontSize: 11, color: "#64748B", lineHeight: "1.2", marginTop: 2 }}>
-                  {displayRole}
+                  {displayRole}{displayOffice ? ` · ${displayOffice}` : ''}
                 </span>
               </div>
               {/* Chevron */}
@@ -354,6 +366,36 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
                 overflow: "hidden",
               }}>
 
+
+                {/* Switch Profile */}
+                <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    clearToken();
+                    window.location.reload();
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "none",
+                    border: "none",
+                    borderBottom: "1px solid #F1F5F9",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#334155",
+                    textAlign: "left",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                  onMouseLeave={e => e.currentTarget.style.background = "none"}
+                >
+                  <SyncAltIcon sx={{ fontSize: 16, color: "#64748B" }} />
+                  Switch Profile
+                </button>
 
                 {/* Settings */}
                 <button

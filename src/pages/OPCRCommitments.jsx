@@ -44,7 +44,8 @@ export default function OPCRCommitments() {
     periods,
     fetchCommitments,
     fetchPeriods,
-    userRole
+    userRole,
+    permissions,
   } = useAppStore();
 
   const [showWizard, setShowWizard] = useState(false);
@@ -84,14 +85,15 @@ export default function OPCRCommitments() {
     handleMenuClose();
   };
 
-  const isStaff = userRole === 'Staff';
+  // Only OPCR Evaluator can write commitments
+  const canWriteCommitments = permissions?.canWriteCommitments || false;
 
   // Determine if a locked commitment already exists for the active period
   const activePeriod = periods.find(p => p.status === 'Active' || p.status === 'Open');
   const lockedCommitmentForActivePeriod = activePeriod
     ? commitments.find(c => String(c.period_id) === String(activePeriod.id) && c.status === 'Locked')
     : null;
-  const isCreateBlocked = !isStaff && !!lockedCommitmentForActivePeriod;
+  const isCreateBlocked = canWriteCommitments && !!lockedCommitmentForActivePeriod;
 
   useEffect(() => {
     fetchPeriods();
@@ -150,7 +152,7 @@ export default function OPCRCommitments() {
               }
             }}
           />
-          {!isStaff && (
+          {canWriteCommitments && (
             <Tooltip
               title={
                 isCreateBlocked
@@ -171,7 +173,7 @@ export default function OPCRCommitments() {
                     setWizardReadOnly(false);
                     setShowWizard(true);
                   }}
-                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' }, borderRadius: 2, py: 1, px: 2.5, fontWeight: 600, textTransform: 'none' }}
+                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' }, borderRadius: 2, py: 1, px: 2.5, fontWeight: 600, textTransform: 'none'}}
                 >
                   Create / Edit Commitment
                 </Button>
@@ -390,7 +392,7 @@ export default function OPCRCommitments() {
           <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>View Commitment</Typography>
         </MenuItem>
 
-        {selectedCommitment && !(selectedCommitment.status === "Locked" || isStaff) && (
+        {selectedCommitment && !(selectedCommitment.status === "Locked") && canWriteCommitments && (
           <>
             <Divider sx={{ my: 0.5 }} />
             <MenuItem onClick={handleEditClick}>

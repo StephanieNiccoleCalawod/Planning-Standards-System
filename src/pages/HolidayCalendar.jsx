@@ -62,8 +62,11 @@ export default function HolidayCalendar() {
     fetchHolidays,
     createHoliday,
     updateHoliday,
-    deleteHoliday
+    deleteHoliday,
+    permissions,
   } = useAppStore();
+
+  const canWriteHolidays = permissions?.canWriteHolidays || false;
 
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -367,6 +370,7 @@ export default function HolidayCalendar() {
             ))}
           </TextField>
 
+          {canWriteHolidays && (
           <Button
             variant="contained"
             color="primary"
@@ -376,6 +380,7 @@ export default function HolidayCalendar() {
           >
             Add Holiday
           </Button>
+          )}
         </Box>
       </Card>
 
@@ -402,6 +407,7 @@ export default function HolidayCalendar() {
                         {MONTHS[currentMonth]} {selectedDate}, {currentYear}
                       </Typography>
                     </Box>
+                    {canWriteHolidays && (
                     <Button
                       size="small"
                       variant="outlined"
@@ -411,6 +417,7 @@ export default function HolidayCalendar() {
                     >
                       + Add
                     </Button>
+                    )}
                   </Box>
 
                   {selectedHolidays.length > 0 ? (
@@ -458,6 +465,7 @@ export default function HolidayCalendar() {
                                 )}
                               </Box>
                             </Box>
+                            {canWriteHolidays && (
                             <IconButton
                               size="small"
                               onClick={() => openEdit(h)}
@@ -469,6 +477,7 @@ export default function HolidayCalendar() {
                             >
                               <EditIcon sx={{ fontSize: 13, color: "text.secondary" }} />
                             </IconButton>
+                            )}
                           </Paper>
                         );
                       })}
@@ -479,6 +488,7 @@ export default function HolidayCalendar() {
                       <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 500, mb: 1.5 }}>
                         No holidays on this date
                       </Typography>
+                   {canWriteHolidays && (
                       <Button
                         size="small"
                         color="primary"
@@ -487,6 +497,7 @@ export default function HolidayCalendar() {
                       >
                         Encode one
                       </Button>
+                    )}
                     </Box>
                   )}
                 </Box>

@@ -41,58 +41,44 @@ export class JwtAuthGuard implements CanActivate {
                 const token = authHeader.split(' ')[1];
 
         if (token && token.startsWith('mock-token-')) {
-            const mockRole = token.split('mock-token-')[1].toUpperCase();
-            let claims = {
-                userId: 'mock-user-id',
-                username: `mock_${mockRole.toLowerCase()}`,
-                office: 'Records Office',
-                isCrossOffice: false,
-                role: 'STAFF',
-            };
+            // Dynamic base64-decoded mock token format:
+            //   mock-token-<base64(JSON_claims_payload)>
+            // where JSON_claims_payload contains:
+            //   { userId, username, displayName, armsRole, office, isCrossOffice }
+            //
+            // This allows the frontend to create any user/office/role combination
+            // without requiring a backend redeploy.
+            const b64Part = token.slice('mock-token-'.length);
 
-            if (mockRole === 'OPCR_EVALUATOR') {
-                claims = {
-                    userId: 'mock-office-head-id',
-                    username: 'mock_office_head',
-                    office: 'Records Office',
-                    isCrossOffice: false,
-                    role: 'OPCR_EVALUATOR',
+            let claims: Record<string, any>;
+            try {
+                // Attempt to decode as base64 JSON (new dynamic format)
+                const json = Buffer.from(b64Part, 'base64').toString('utf-8');
+                claims = JSON.parse(json);
+            } catch {
+                // Fallback: old string format (e.g. mock-token-staff, mock-token-super_admin)
+                // Map legacy strings to minimal claim objects for backward compatibility
+                const legacyRole = b64Part.toUpperCase();
+                const legacyMap: Record<string, Record<string, any>> = {
+                    STAFF: { userId: 'mock-staff-id', username: 'mock_staff', armsRole: 'STAFF', office: 'ACAD', isCrossOffice: false },
+                    SUBSYSTEM_ADMIN: { userId: 'mock-sub-admin-id', username: 'mock_subsystem_admin', armsRole: 'SUBSYSTEM_ADMIN', office: 'ACAD', isCrossOffice: false },
+                    SUPER_ADMIN: { userId: 'mock-super-admin-id', username: 'mock_super_admin', armsRole: 'SUPER_ADMIN', office: 'ALL', isCrossOffice: true },
+                    OPCR_EVALUATOR: { userId: 'mock-evaluator-id', username: 'mock_evaluator', armsRole: 'OPCR_EVALUATOR', office: 'ALL', isCrossOffice: true },
                 };
-            } else if (mockRole === 'SUBSYSTEM_ADMIN') {
-                claims = {
-                    userId: 'mock-sub-admin-id',
-                    username: 'mock_subsystem_admin_2',
-                    office: 'Records Office',
-                    isCrossOffice: false,
-                    role: 'SUBSYSTEM_ADMIN',
-                };
-            } else if (mockRole === 'SUPER_ADMIN') {
-                claims = {
-                    userId: 'mock-super-admin-id',
-                    username: 'mock_super_admin',
-                    office: 'Records Office',
-                    isCrossOffice: true,
-                    role: 'SUPER_ADMIN',
-                };
-            } else {
-                // STAFF
-                claims = {
-                    userId: 'mock-staff-id',
-                    username: 'mock_staff',
-                    office: 'Records Office',
-                    isCrossOffice: false,
-                    role: 'STAFF',
-                };
+                claims = legacyMap[legacyRole] ?? legacyMap['STAFF'];
             }
 
+            const armsRole = claims.armsRole || claims.role || 'STAFF';
+
             req.user = {
-                sub: claims.userId,
-                userId: claims.userId,
-                username: claims.username,
-                office: claims.office,
-                isCrossOffice: claims.isCrossOffice,
-                armsRole: claims.role,
-                role: ARMS_ROLE_MAP[claims.role] ?? 'Staff',
+                sub: claims.userId || 'mock-user',
+                userId: claims.userId || 'mock-user',
+                username: claims.username || 'mock_user',
+                displayName: claims.displayName || claims.username || 'Mock User',
+                office: claims.office || 'ACAD',
+                isCrossOffice: !!claims.isCrossOffice,
+                armsRole,
+                role: ARMS_ROLE_MAP[armsRole] ?? 'Staff',
             };
             return true;
         }

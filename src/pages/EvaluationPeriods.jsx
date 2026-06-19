@@ -68,8 +68,11 @@ export default function EvaluationPeriods() {
         closePeriod,
         deletePeriod,
         commitments = [],
-        fetchCommitments
+        fetchCommitments,
+        permissions,
     } = useAppStore();
+
+    const canWritePeriods = permissions?.canWritePeriods || false;
 
     const [showAdd, setShowAdd] = useState(false);
     const [closingPeriod, setClosingPeriod] = useState(null);
@@ -357,6 +360,7 @@ export default function EvaluationPeriods() {
                             }
                         }}
                     />
+                    {canWritePeriods && (
                     <Button
                         variant="contained"
                         color="primary"
@@ -366,6 +370,7 @@ export default function EvaluationPeriods() {
                     >
                         Create Evaluation Period
                     </Button>
+                    )}
                 </Box>
             </Card>
 
@@ -454,7 +459,7 @@ export default function EvaluationPeriods() {
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                                    {isActive && (
+                                                    {canWritePeriods && isActive && (
                                                         <Button
                                                             variant="contained"
                                                             size="small"
@@ -473,7 +478,7 @@ export default function EvaluationPeriods() {
                                                             Complete
                                                         </Button>
                                                     )}
-                                                    {isQueued && (
+                                                    {canWritePeriods && isQueued && (
                                                         <Tooltip title="Actions">
                                                             <IconButton
                                                                 size="small"
@@ -491,6 +496,9 @@ export default function EvaluationPeriods() {
                                                         <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', py: 0.5, px: 1 }}>
                                                             Completed
                                                         </Typography>
+                                                    )}
+                                                    {!canWritePeriods && !isClosed && (
+                                                        <Typography variant="caption" sx={{ color: 'text.secondary', py: 0.5, px: 1 }}>—</Typography>
                                                     )}
                                                 </Box>
                                             </TableCell>

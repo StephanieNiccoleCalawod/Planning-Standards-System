@@ -35,10 +35,11 @@ services:
     volumes:
       - postgres_catalogue_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d service-catalogue-db']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - pss-network
 
@@ -80,10 +81,11 @@ services:
     volumes:
       - postgres_kpi_sla_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d kpi-sla-db']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - pss-network
 
@@ -131,12 +133,14 @@ services:
     volumes:
       - postgres_commitment_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d commitment-db']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - pss-network
+
 
   # ── api-gateway ────────────────────────────────────────────────────────────
   api-gateway:

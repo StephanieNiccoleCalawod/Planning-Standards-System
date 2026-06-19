@@ -69,8 +69,11 @@ export default function SLAConfiguration() {
     createSlaRule,
     restoreSlaVersion,
     periods,
-    fetchPeriods
+    fetchPeriods,
+    permissions,
   } = useAppStore();
+
+  const canSeeSlaForm = permissions?.canSeeSlaForm || false;
 
   const [workingDays, setWorkingDays] = useState([]);
   const [startTime, setStartTime] = useState("08:00");
@@ -540,13 +543,14 @@ export default function SLAConfiguration() {
 
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' },
+        gridTemplateColumns: canSeeSlaForm ? { xs: '1fr', md: '7fr 5fr' } : '1fr',
         gap: 4,
         mt: 2,
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        {/* Left Form Panel */}
+      {/* Left Form Panel — only shown for roles with SLA write permission */}
+        {canSeeSlaForm && (
         <Card sx={{ alignSelf: 'start', borderRadius: '8px', p: { xs: 2, sm: 3 }, border: '1px solid #E2E8F0', bgcolor: 'background.paper', width: '100%', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column' }}>
             <Box>
@@ -659,7 +663,8 @@ export default function SLAConfiguration() {
                 </Button>
               </Box>
             </form>
-          </Card>
+        </Card>
+        )}
 
         {/* Right Audit Log / Version History */}
         <Box sx={{ width: '100%' }}>

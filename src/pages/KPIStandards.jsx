@@ -81,8 +81,11 @@ export default function KPIStandards() {
     fetchKpis,
     createKpi,
     updateKpi,
-    deleteKpi
+    deleteKpi,
+    permissions,
   } = useAppStore();
+
+  const canWriteKpi = permissions?.canWriteKpi || false;
 
   // UI states
   const [activeTab, setActiveTab] = useState(0); // 0: active, 1: deactivated
@@ -476,15 +479,17 @@ export default function KPIStandards() {
             ))}
           </TextField>
 
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleOpenAdd}
-            sx={{ ml: 'auto' }}
-          >
-            Add KPI Target
-          </Button>
+          {canWriteKpi && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAdd}
+              sx={{ ml: 'auto' }}
+            >
+              Add KPI Target
+            </Button>
+          )}
         </Box>
       </Card>
 
@@ -498,7 +503,7 @@ export default function KPIStandards() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>TARGET VALUE</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>LINKED SERVICE</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE CLASSIFICATION</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>
+              {canWriteKpi && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -558,6 +563,7 @@ export default function KPIStandards() {
                         );
                       })()}
                     </TableCell>
+                    {canWriteKpi && (
                     <TableCell align="center">
                       <Tooltip title="Actions" arrow>
                         <IconButton
@@ -575,6 +581,7 @@ export default function KPIStandards() {
                         </IconButton>
                       </Tooltip>
                     </TableCell>
+                    )}
                   </TableRow>
                 );
               })

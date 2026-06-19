@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../services/api";
-import { getUserRoleFromToken } from "../services/auth";
+import { getUserRoleFromToken, decodeCurrentUser, encodeMockToken, PREDEFINED_MOCK_USERS } from "../services/auth";
+import { getPermissions } from "../services/permissions";
 
 // Helper functions for SLA target formatting
 const formatSlaTarget = (s) => {
@@ -77,6 +78,11 @@ const mapPeriodStatusToFrontend = (s) => {
   return s === "Open" ? "Active" : "Closed";
 };
 
+// Derive initial user state from whatever token is in localStorage
+const _initialUser = decodeCurrentUser();
+const _initialRole = _initialUser?.role || 'Admin';
+const _initialPermissions = getPermissions(_initialUser);
+
 export const useAppStore = create((set, get) => ({
   // State Slices
   services: [],
@@ -86,7 +92,11 @@ export const useAppStore = create((set, get) => ({
   slaRules: [],
   commitments: [],
   activeCommitment: null,
-  userRole: getUserRoleFromToken() || 'Admin',
+  userRole: _initialRole,
+  // Active user decoded from the stored token
+  activeUser: _initialUser,
+  // Derived permissions from the active user
+  permissions: _initialPermissions,
 
   // Loading States
   loadingServices: false,
@@ -561,16 +571,37 @@ export const useAppStore = create((set, get) => ({
     set({ sidebarMobileOpen: open });
   },
 
-  setUserRole: (role) => {
-    const roleTokenMap = {
-      'Staff': 'mock-token-staff',
-      'OPCREvaluator': 'mock-token-opcr_evaluator',
-      'Admin': 'mock-token-super_admin'
+  /**
+   * Login as one of the predefined mock users (by user object from PREDEFINED_MOCK_USERS).
+   * Encodes a base64 token, stores it, and reloads.
+   */
+  loginAsMockUser: (mockUser) => {
+    const claims = {
+      userId: mockUser.id,
+      username: mockUser.username,
+      displayName: mockUser.displayName,
+      armsRole: mockUser.armsRole,
+      office: mockUser.office,
+      isCrossOffice: mockUser.isCrossOffice,
     };
-    const token = roleTokenMap[role] || 'mock-token-staff';
+    const token = encodeMockToken(claims);
     localStorage.setItem('pss_token', token);
-    set({ userRole: role });
-    // Reload to apply new auth headers
     window.location.reload();
+  },
+
+  /**
+   * @deprecated Use loginAsMockUser() instead.
+   * Kept for backward compatibility — maps old role strings to a predefined mock user.
+   */
+  setUserRole: (role) => {
+    const userMap = {
+      'Staff': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'STAFF' && u.office === 'ACAD'),
+      'OPCREvaluator': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'OPCR_EVALUATOR'),
+      'Admin': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'SUBSYSTEM_ADMIN' && u.office === 'ACAD'),
+    };
+    const mockUser = userMap[role] || userMap['Staff'];
+    if (mockUser) {
+      get().loginAsMockUser(mockUser);
+    }
   },
 }));

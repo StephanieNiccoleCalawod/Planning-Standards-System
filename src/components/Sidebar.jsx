@@ -81,7 +81,16 @@ const ICONS = {
 };
 
 export default function Sidebar({ active, setActive, isOpen, onClose }) {
-  const { sidebarCollapsed } = useAppStore();
+  const { sidebarCollapsed, permissions } = useAppStore();
+
+  // Derive visible nav tree based on permissions
+  const visibleNavTree = NAV_TREE.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      if (item.key === 'opcrCommitments') return permissions?.canSeeCommitmentsInSidebar !== false;
+      return true;
+    })
+  })).filter(section => section.items.length > 0);
 
   return (
     <>
@@ -335,7 +344,7 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
         </div>
 
         <div className="sidebar-nav">
-          {NAV_TREE.map((section) => (
+          {visibleNavTree.map((section) => (
             <div key={section.section} className="nav-section">
               <div className="nav-section-title">{section.section.toUpperCase()}</div>
               <div className="nav-section-divider" />
