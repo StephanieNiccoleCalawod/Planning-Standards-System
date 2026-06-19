@@ -18,7 +18,6 @@ const NAV_TREE = [
     section: "Insights",
     items: [
       { key: "opcrCommitments", label: "OPCR Commitments", routeKey: "opcrCommitments", icon: "file" },
-      { key: "slaComputation", label: "SLA Computation", routeKey: "slaComputation", icon: "activity" },
     ],
   },
 ];
@@ -71,11 +70,6 @@ const ICONS = {
       <line x1="3" y1="10" x2="21" y2="10" />
       <line x1="8" y1="14" x2="16" y2="14" />
       <line x1="8" y1="18" x2="13" y2="18" />
-    </svg>
-  ),
-  activity: (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   ),
 };
@@ -252,9 +246,12 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
             display: flex;
             align-items: center;
             gap: 16px;
-            border-radius: 6px;
-            padding: 10px 16px;
-            margin: 2px 12px;
+            border-top-left-radius: 0px;
+            border-bottom-left-radius: 0px;
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+            padding: 10px 16px 10px 20px;
+            margin: 2px 12px 2px 0px;
             justify-content: flex-start;
             font-size: 14px;
             font-weight: 500;
@@ -265,20 +262,19 @@ export default function Sidebar({ active, setActive, isOpen, onClose }) {
           }
           .sidebar.collapsed .nav-leaf {
             gap: 0;
-            padding: 10px 15px;
-            margin: 2px 8px;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+            margin: 2px 8px 2px 0px !important;
           }
           .nav-leaf:hover {
             color: #ffffff !important;
-            background: rgba(255, 255, 255, 0.1) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
           }
           .nav-leaf.active {
             color: #ffffff !important;
-            background: rgba(0, 0, 0, 0.2) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
             font-weight: 500;
             border-left: 4px solid var(--gold, #C8960C) !important;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
           }
           .nav-leaf.active .nav-leaf-icon {
             color: #ffffff !important;

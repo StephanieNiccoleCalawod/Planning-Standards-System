@@ -667,7 +667,7 @@ export default function SLAConfiguration() {
         )}
 
         {/* Right Audit Log / Version History */}
-        <Box sx={{ width: '100%' }}>
+        <Box sx={{ width: '100%', maxWidth: canSeeSlaForm ? '100%' : '800px', mx: 'auto' }}>
           <Card sx={{ borderRadius: '8px', p: { xs: 2, sm: 3 }, border: '1px solid #E2E8F0', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', width: '100%', height: '100%', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, pb: 1.5, borderBottom: '1px solid #F1F5F9' }}>
               <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -733,23 +733,15 @@ export default function SLAConfiguration() {
                         <Box
                           sx={{
                             borderRadius: '8px',
-                            p: isExpanded ? '12px 16px' : '8px 16px',
-                            mb: 1,
-                            border: `1px solid ${
-                              item.is_active_rule 
-                                ? '#0284C7' 
-                                : (isExpanded ? '#E2E8F0' : 'transparent')
-                            }`,
-                            borderLeft: item.is_active_rule ? '4px solid #0284C7' : undefined,
-                            bgcolor: item.is_active_rule 
-                              ? '#F0F9FF' 
-                              : (isExpanded ? '#F8FAFC' : 'transparent'),
-                            boxShadow: (isExpanded || item.is_active_rule) ? '0 1px 2px 0 rgba(0, 0, 0, 0.05)' : 'none',
+                            p: isExpanded ? '16px' : '12px 16px',
+                            mb: 1.5,
+                            border: '1px solid #E2E8F0',
+                            borderLeft: item.is_active_rule ? '4px solid #800000' : '1px solid #E2E8F0',
+                            bgcolor: '#ffffff',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
-                              bgcolor: item.is_active_rule 
-                                ? '#E0F2FE' 
-                                : (isExpanded ? '#F8FAFC' : '#F1F5F9'),
+                              bgcolor: '#F8FAFC',
                               cursor: 'pointer'
                             }
                           }}
@@ -807,7 +799,7 @@ export default function SLAConfiguration() {
                                 )}
                                 
                                 {item.is_active_rule && (
-                                  <Typography variant="caption" sx={{ color: '#0369A1', fontWeight: 600, display: 'block', mt: 0.25 }}>
+                                  <Typography variant="caption" sx={{ color: '#800000', fontWeight: 700, display: 'block', mt: 0.25 }}>
                                     Current version
                                   </Typography>
                                 )}
@@ -818,8 +810,8 @@ export default function SLAConfiguration() {
                                         key={rIdx} 
                                         variant="caption" 
                                         sx={{ 
-                                          color: '#0284C7', 
-                                          fontWeight: 600,
+                                          color: '#800000', 
+                                          fontWeight: 700,
                                           display: 'flex',
                                           alignItems: 'center',
                                           gap: 0.5
@@ -883,28 +875,43 @@ export default function SLAConfiguration() {
                           </Box>
 
                           {isExpanded && (
-                            <Box sx={{ mt: 2, pl: 4, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', pb: 1 }}>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <CalendarMonthIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                  Working days
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
-                                  {item.working_days}
-                                </Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', pb: 1 }}>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                  Daily shift
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary' }}>
-                                  {item.working_hours}
-                                </Typography>
-                              </Box>
-
-                            </Box>
-                          )}
+                             <Box sx={{ 
+                               mt: 2, 
+                               pl: 4, 
+                               display: 'flex', 
+                               flexDirection: 'row', 
+                               gap: 4,
+                               flexWrap: 'wrap',
+                               borderTop: '1px dashed #E2E8F0',
+                               pt: 2
+                             }}>
+                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                 <CalendarMonthIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                 <Box>
+                                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 500 }}>
+                                     Working Days
+                                   </Typography>
+                                   <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                     {item.working_days}
+                                   </Typography>
+                                 </Box>
+                               </Box>
+                               
+                               <Divider orientation="vertical" flexItem sx={{ borderStyle: 'dashed' }} />
+ 
+                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                 <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                 <Box>
+                                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 500 }}>
+                                     Daily Shift
+                                   </Typography>
+                                   <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                     {item.working_hours}
+                                   </Typography>
+                                 </Box>
+                               </Box>
+                             </Box>
+                           )}
                         </Box>
                       </Box>
                     );

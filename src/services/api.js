@@ -157,7 +157,12 @@ export const api = {
   lockCommitment: (id) => request(`/commitments/${id}/lock`, { method: 'PATCH' }),
 
   // Dashboard
-  getDashboardSummary: () => request('/dashboard/summary'),
+  getDashboardSummary: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.office) query.append('office', params.office);
+    const queryString = query.toString();
+    return request(`/dashboard/summary${queryString ? `?${queryString}` : ''}`);
+  },
 
   // Offices (dynamic integration)
   getOffices: () => request('/offices'),

@@ -18,56 +18,76 @@
  * @returns {object} permissions
  */
 export function getPermissions(user) {
-  if (!user) {
-    return buildPermissions({ role: 'STAFF', isCrossOffice: false, canWrite: false });
-  }
+    if (!user) {
+        return buildPermissions({ role: 'STAFF', isCrossOffice: false, canWrite: false });
+    }
 
-  const { armsRole = 'STAFF', isCrossOffice = false } = user;
+    const { armsRole = 'STAFF', isCrossOffice = false } = user;
 
-  switch (armsRole) {
-    case 'OPCR_EVALUATOR':
-      return buildPermissions({
-        role: 'OPCREvaluator',
-        isCrossOffice: true,
-        // Service Catalogue / KPI / SLA / Holiday / Periods — read-only
-        canWriteServices: false,
-        canWriteKpi: false,
-        canWriteSla: false,
-        canWriteHolidays: false,
-        canWritePeriods: false,
-        // Commitments — exclusive write access
-        canWriteCommitments: true,
-        canViewCommitments: true,
-        // UI visibility flags
-        canSeeAddServiceBtn: false,
-        canSeeKpiActions: false,
-        canSeeSlaForm: false,
-        canSeeCommitmentsInSidebar: true,
-        canSeeOtherOffices: true,
-      });
+    switch (armsRole) {
+        case 'OPCR_EVALUATOR':
+            return buildPermissions({
+                role: 'OPCREvaluator',
+                isCrossOffice: true,
+                // Service Catalogue / KPI / SLA / Holiday / Periods — read-only
+                canWriteServices: false,
+                canWriteKpi: false,
+                canWriteSla: false,
+                canWriteHolidays: false,
+                canWritePeriods: false,
+                // Commitments — exclusive write access
+                canWriteCommitments: true,
+                canViewCommitments: true,
+                // UI visibility flags
+                canSeeAddServiceBtn: false,
+                canSeeKpiActions: false,
+                canSeeSlaForm: false,
+                canSeeCommitmentsInSidebar: true,
+                canSeeOtherOffices: true,
+            });
 
-    case 'SUBSYSTEM_ADMIN':
-      return buildPermissions({
-        role: 'Admin',
-        isCrossOffice: false,
-        canWriteServices: true,
-        canWriteKpi: true,
-        canWriteSla: true,
-        canWriteHolidays: true,
-        canWritePeriods: true,
-        // Admins cannot create/edit/lock commitments
-        canWriteCommitments: false,
-        canViewCommitments: true,
-        canSeeAddServiceBtn: true,
-        canSeeKpiActions: true,
-        canSeeSlaForm: true,
-        canSeeCommitmentsInSidebar: true,
-        canSeeOtherOffices: false,
-      });
+        case 'SUBSYSTEM_ADMIN':
+            return buildPermissions({
+                role: 'Admin',
+                isCrossOffice: false,
+                canWriteServices: true,
+                canWriteKpi: true,
+                canWriteSla: true,
+                canWriteHolidays: true,
+                canWritePeriods: true,
+                // Admins cannot create/edit/lock commitments and cannot see the page
+                canWriteCommitments: false,
+                canViewCommitments: false,
+                canSeeAddServiceBtn: true,
+                canSeeKpiActions: true,
+                canSeeSlaForm: true,
+                canSeeCommitmentsInSidebar: false,
+                canSeeOtherOffices: false,
+            });
 
-    case 'STAFF':
-    default:
-      return buildPermissions({
+        case 'STAFF':
+        default:
+            return buildPermissions({
+                role: 'Staff',
+                isCrossOffice: false,
+                canWriteServices: false,
+                canWriteKpi: false,
+                canWriteSla: false,
+                canWriteHolidays: false,
+                canWritePeriods: false,
+                canWriteCommitments: false,
+                canViewCommitments: false,
+                canSeeAddServiceBtn: false,
+                canSeeKpiActions: false,
+                canSeeSlaForm: false,
+                canSeeCommitmentsInSidebar: false,
+                canSeeOtherOffices: false,
+            });
+    }
+}
+
+function buildPermissions(overrides) {
+    return {
         role: 'Staff',
         isCrossOffice: false,
         canWriteServices: false,
@@ -82,28 +102,8 @@ export function getPermissions(user) {
         canSeeSlaForm: false,
         canSeeCommitmentsInSidebar: false,
         canSeeOtherOffices: false,
-      });
-  }
-}
-
-function buildPermissions(overrides) {
-  return {
-    role: 'Staff',
-    isCrossOffice: false,
-    canWriteServices: false,
-    canWriteKpi: false,
-    canWriteSla: false,
-    canWriteHolidays: false,
-    canWritePeriods: false,
-    canWriteCommitments: false,
-    canViewCommitments: false,
-    canSeeAddServiceBtn: false,
-    canSeeKpiActions: false,
-    canSeeSlaForm: false,
-    canSeeCommitmentsInSidebar: false,
-    canSeeOtherOffices: false,
-    ...overrides,
-  };
+        ...overrides,
+    };
 }
 
 /**
@@ -116,9 +116,9 @@ function buildPermissions(overrides) {
  * @returns {boolean}
  */
 export function isInScope(recordOffice, userOffice, perms) {
-  if (!perms || perms.canSeeOtherOffices) return true;
-  if (!recordOffice || !userOffice) return true; // if no office tag, show to all
-  return normalizeOffice(recordOffice) === normalizeOffice(userOffice);
+    if (!perms || perms.canSeeOtherOffices) return true;
+    if (!recordOffice || !userOffice) return true; // if no office tag, show to all
+    return normalizeOffice(recordOffice) === normalizeOffice(userOffice);
 }
 
 /**
@@ -126,11 +126,11 @@ export function isInScope(recordOffice, userOffice, perms) {
  * Handles common variations like "Academic Affairs" → "ACAD".
  */
 function normalizeOffice(office) {
-  if (!office) return '';
-  const upper = office.toUpperCase().trim();
-  // Common expansions
-  if (upper.includes('ACAD') || upper.includes('ACADEMIC')) return 'ACAD';
-  if (upper.includes('OSAS') || upper.includes('STUDENT')) return 'OSAS';
-  if (upper.includes('ADMIN') || upper.includes('ADMINISTRATIVE')) return 'ADMIN';
-  return upper;
+    if (!office) return '';
+    const upper = office.toUpperCase().trim();
+    // Common expansions
+    if (upper.includes('ACAD') || upper.includes('ACADEMIC')) return 'ACAD';
+    if (upper.includes('OSAS') || upper.includes('STUDENT')) return 'OSAS';
+    if (upper.includes('ADMIN') || upper.includes('ADMINISTRATIVE')) return 'ADMIN';
+    return upper;
 }

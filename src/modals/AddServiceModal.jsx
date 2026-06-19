@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
+import { useAppStore } from "../store/useAppStore";
 import {
   Dialog,
   DialogTitle,
@@ -43,7 +44,35 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
   const [slaDays, setSlaDays] = useState(initialSla.days);
   const [slaHours, setSlaHours] = useState(initialSla.hours);
   const [slaMinutes, setSlaMinutes] = useState(initialSla.minutes);
-  const [responsibleUnit, setResponsibleUnit] = useState(service && service.responsibleUnit ? service.responsibleUnit : "");
+  const { activeUser } = useAppStore();
+
+  const getOfficeDisplayName = (officeCode) => {
+    switch (officeCode) {
+      case 'ACAD':
+        return "Academic Affairs";
+      case 'OSAS':
+        return "OSAS";
+      case 'ADMIN':
+        return "Administration";
+      default:
+        return officeCode || "";
+    }
+  };
+
+  const [responsibleUnit, setResponsibleUnit] = useState(() => {
+    if (service && service.responsibleUnit) {
+      return service.responsibleUnit;
+    }
+    return activeUser ? getOfficeDisplayName(activeUser.office) : "";
+  });
+
+  useEffect(() => {
+    if (!service || service.isNew) {
+      if (activeUser) {
+        setResponsibleUnit(getOfficeDisplayName(activeUser.office));
+      }
+    }
+  }, [activeUser, service]);
   const [intakeDocuments, setIntakeDocuments] = useState(service && service.intakeDocuments ? service.intakeDocuments : "");
   const [stepsTimeline, setStepsTimeline] = useState(service && service.stepsTimeline ? service.stepsTimeline : "");
   const [expectedOutput, setExpectedOutput] = useState(service && service.expectedOutput ? service.expectedOutput : "");
@@ -384,10 +413,10 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
               sx={{ mt: 1, '& .MuiFormLabel-asterisk': { color: '#ef4444' } }}
             />
 
-            {/* Service Classification */}
+            {/* Service Mode */}
             <TextField
-              label="Service Classification (optional)"
-              placeholder="e.g. Walk-in, With Billing Statement"
+              label="Service Mode (optional)"
+              placeholder="e.g. Walk-in, Online"
               fullWidth
               value={classification}
               onChange={(e) => setClassification(e.target.value)}
@@ -459,26 +488,24 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
 
             {/* Responsible Office */}
             <TextField
-              select
               label="Responsible Office/Unit"
               required
               fullWidth
+              InputProps={{
+                readOnly: true,
+              }}
               value={responsibleUnit}
               error={!!errors.responsibleUnit}
               helperText={errors.responsibleUnit}
-              onChange={(e) => {
-                setResponsibleUnit(e.target.value);
-                clearError("responsibleUnit");
-              }}
               variant="outlined"
               size="small"
-              sx={{ '& .MuiFormLabel-asterisk': { color: '#ef4444' } }}
-            >
-              <MenuItem value="">Select Office/Unit...</MenuItem>
-              {offices.map(name => (
-                <MenuItem key={name} value={name}>{name}</MenuItem>
-              ))}
-            </TextField>
+              sx={{ 
+                '& .MuiFormLabel-asterisk': { color: '#ef4444' },
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#f8fafc',
+                }
+              }}
+            />
 
 
             {/* Steps Timeline */}

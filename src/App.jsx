@@ -7,401 +7,582 @@ import SLAConfiguration from "./pages/SLAConfiguration";
 import HolidayCalendar from "./pages/HolidayCalendar";
 import EvaluationPeriods from "./pages/EvaluationPeriods";
 import OPCRCommitments from "./pages/OPCRCommitments";
-import SLAComputation from "./pages/SLAComputation";
-import { isAuthenticated, encodeMockToken, PREDEFINED_MOCK_USERS } from "./services/auth";
+import { isAuthenticated, PREDEFINED_MOCK_USERS, encodeMockToken } from "./services/auth";
 import { useAppStore } from "./store/useAppStore";
 
 const ARMS_URL = import.meta.env.VITE_ARMS_URL || 'http://localhost:5173';
 
 const ROLE_COLORS = {
-  'Staff': { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
-  'Office Head': { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
-  'Campus Director / Evaluator': { bg: '#FDF4FF', text: '#7E22CE', border: '#E9D5FF' },
+    'Staff': { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
+    'Office Head': { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
+    'Campus Director / Evaluator': { bg: '#FDF4FF', text: '#7E22CE', border: '#E9D5FF' },
 };
 
 const OFFICE_COLORS = {
-  'ACAD': { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
-  'OSAS': { bg: '#F0FDF4', text: '#166534', border: '#BBF7D0' },
-  'ADMIN': { bg: '#EFF6FF', text: '#1E40AF', border: '#BFDBFE' },
-  'ALL': { bg: '#FDF4FF', text: '#7E22CE', border: '#E9D5FF' },
+    'ACAD': { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+    'OSAS': { bg: '#F0FDF4', text: '#166534', border: '#BBF7D0' },
+    'ADMIN': { bg: '#EFF6FF', text: '#1E40AF', border: '#BFDBFE' },
+    'ALL': { bg: '#FDF4FF', text: '#7E22CE', border: '#E9D5FF' },
 };
 
 function DevBypassScreen() {
-  const { loginAsMockUser } = useAppStore();
-  const [hoveredId, setHoveredId] = useState(null);
-  const [customName, setCustomName] = useState('');
-  const [customUsername, setCustomUsername] = useState('');
-  const [customRole, setCustomRole] = useState('STAFF');
-  const [customOffice, setCustomOffice] = useState('ACAD');
-  const [showCustom, setShowCustom] = useState(false);
+    const { loginAsMockUser } = useAppStore();
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
-  const handleLoginAs = (user) => {
-    loginAsMockUser(user);
-  };
-
-  const handleCustomLogin = () => {
-    if (!customName.trim() || !customUsername.trim()) return;
-    const mockUser = {
-      id: `custom-${Date.now()}`,
-      displayName: customName.trim(),
-      username: customUsername.trim().replace(/\s+/g, '.').toLowerCase(),
-      armsRole: customRole,
-      office: customOffice,
-      isCrossOffice: customOffice === 'ALL',
+    const handleLoginAs = (user) => {
+        loginAsMockUser(user);
     };
-    const claims = {
-      userId: mockUser.id,
-      username: mockUser.username,
-      displayName: mockUser.displayName,
-      armsRole: mockUser.armsRole,
-      office: mockUser.office,
-      isCrossOffice: mockUser.isCrossOffice,
+
+    const groupedOffices = ['ACAD', 'OSAS', 'ADMIN', 'Cross-Office'];
+
+    const officeFullNames = {
+        'ACAD': 'Academic Affairs Office',
+        'OSAS': 'Student Affairs Office (OSAS)',
+        'ADMIN': 'Administration Office',
+        'Cross-Office': 'Cross-Office Access',
     };
-    localStorage.setItem('pss_token', encodeMockToken(claims));
-    window.location.reload();
-  };
 
-  const groupedUsers = [
-    { office: 'ACAD', users: PREDEFINED_MOCK_USERS.filter(u => u.office === 'ACAD') },
-    { office: 'OSAS', users: PREDEFINED_MOCK_USERS.filter(u => u.office === 'OSAS') },
-    { office: 'ADMIN', users: PREDEFINED_MOCK_USERS.filter(u => u.office === 'ADMIN') },
-    { office: 'Cross-Office', users: PREDEFINED_MOCK_USERS.filter(u => u.office === 'ALL') },
-  ];
+    const getOfficeColors = (office) => {
+        switch (office) {
+            case 'ACAD':
+                return { color: 'var(--acad)', soft: 'var(--acad-soft)' };
+            case 'OSAS':
+                return { color: 'var(--osas)', soft: 'var(--osas-soft)' };
+            case 'ADMIN':
+                return { color: 'var(--admin)', soft: 'var(--admin-soft)' };
+            default:
+                return { color: 'var(--accent)', soft: 'var(--accent-soft)' };
+        }
+    };
 
-  const officeFullNames = {
-    'ACAD': 'Academic Affairs Office',
-    'OSAS': 'Student Affairs Office (OSAS)',
-    'ADMIN': 'Administration Office',
-    'Cross-Office': 'Cross-Office Access',
-  };
+    const getFilteredUsers = (officeKey) => {
+        return PREDEFINED_MOCK_USERS.filter((user) => {
+            const matchesOffice = (officeKey === 'Cross-Office' ? user.office === 'ALL' : user.office === officeKey);
+            if (!matchesOffice) return false;
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #580000 0%, #3B0000 40%, #1a0000 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '32px 16px',
-      fontFamily: '"DM Sans", sans-serif',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Background decorative circles */}
-      <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -120, left: -60, width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,255,255,0.02)', pointerEvents: 'none' }} />
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) return true;
 
-      <div style={{ width: '100%', maxWidth: 820 }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 100,
-            padding: '6px 16px',
-            marginBottom: 16,
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              PSS — Planning & Standards System
-            </span>
-          </div>
-          <h1 style={{ color: '#ffffff', fontSize: 28, fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
-            Session not found
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: 0 }}>
-            Log in through ARMS to access PSS, or use a developer bypass below.
-          </p>
+            const haystack = `${user.displayName} @${user.username} ${user.roleLabel} ${officeFullNames[officeKey] || officeKey}`.toLowerCase();
+            return haystack.includes(q);
+        });
+    };
+
+    return (
+        <div className="bypass-bg">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+                .bypass-bg {
+                    --bg: #F5F6F8;
+                    --surface: #FFFFFF;
+                    --ink: #12151C;
+                    --ink-muted: #5B6472;
+                    --ink-faint: #9AA1AC;
+                    --line: #E6E8EC;
+
+                    --accent: #7A1125;
+                    --accent-soft: #F3E1E4;
+                    --accent-deep: #56091A;
+
+                    --acad: #3955C9;
+                    --acad-soft: #E9ECFB;
+                    --osas: #128A63;
+                    --osas-soft: #DFF5EC;
+                    --admin: #A8790F;
+                    --admin-soft: #FBF0D8;
+
+                    --shadow-rest: 0 2px 8px rgba(18, 21, 28, 0.04), 0 1px 2px rgba(18, 21, 28, 0.02);
+                    --shadow-hover: 0 12px 28px rgba(18, 21, 28, 0.09), 0 4px 10px rgba(18, 21, 28, 0.04);
+
+                    min-height: 100vh;
+                    height: 100vh;
+                    overflow-y: auto;
+                    background:
+                        radial-gradient(circle at 1px 1px, rgba(18,21,28,0.05) 1px, transparent 0) 0 0/22px 22px,
+                        var(--bg);
+                    color: var(--ink);
+                    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+                    -webkit-font-smoothing: antialiased;
+                    padding: 64px 24px 140px;
+                }
+
+                .mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+
+                .wrap {
+                    max-width: 880px;
+                    margin: 0 auto;
+                }
+
+                .header {
+                    text-align: center;
+                    margin-bottom: 48px;
+                }
+
+                .eyebrow {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 7px 14px;
+                    border-radius: var(--radius-full);
+                    background: var(--accent-soft);
+                    color: var(--accent-deep);
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    margin-bottom: 22px;
+                }
+                .eyebrow::before {
+                    content: '';
+                    width: 6px; height: 6px; border-radius: 50%;
+                    background: var(--accent);
+                    flex-shrink: 0;
+                }
+
+                .bypass-title {
+                    font-size: 42px;
+                    font-weight: 800;
+                    letter-spacing: -0.025em;
+                    line-height: 1.08;
+                    margin: 0 0 14px;
+                    color: var(--ink);
+                }
+                
+                .subcopy {
+                    font-size: 16px;
+                    color: var(--ink-muted);
+                    max-width: 440px;
+                    margin: 0 auto;
+                    line-height: 1.55;
+                }
+
+                .search-row {
+                    max-width: 480px;
+                    margin: 32px auto 0;
+                    position: relative;
+                }
+                .search-row::before {
+                    content: '>';
+                    position: absolute;
+                    left: 18px; top: 50%; transform: translateY(-50%);
+                    color: var(--ink-faint);
+                    font-weight: 700;
+                    font-size: 14px;
+                }
+                #search {
+                    width: 100%;
+                    padding: 13px 16px 13px 36px;
+                    border-radius: var(--radius-md);
+                    border: 1px solid var(--line);
+                    background: var(--surface);
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 13.5px;
+                    color: var(--ink);
+                    outline: none;
+                    box-shadow: var(--shadow-rest);
+                    transition: border-color .15s ease, box-shadow .15s ease;
+                }
+                #search::placeholder { color: var(--ink-faint); }
+                #search:focus {
+                    border-color: var(--ink);
+                    box-shadow: var(--shadow-hover);
+                }
+
+                .panel {
+                    background: var(--surface);
+                    border: 1px solid var(--line);
+                    border-radius: var(--radius-xl);
+                    box-shadow: var(--shadow-md);
+                    padding: 36px 40px 28px;
+                    margin-top: 40px;
+                }
+
+                .panel-head {
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    margin-bottom: 18px;
+                }
+                .panel-head .rule {
+                    flex: 1; height: 1px; background: var(--line);
+                }
+                .panel-head .tag {
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.1em;
+                    text-transform: uppercase;
+                    color: var(--ink-faint);
+                    display: flex; align-items: center; gap: 7px;
+                    white-space: nowrap;
+                }
+
+                .info-box {
+                    border: 1px dashed var(--line);
+                    border-radius: var(--radius-md);
+                    padding: 14px 16px;
+                    font-size: 12.5px;
+                    line-height: 1.6;
+                    color: var(--ink-muted);
+                    background: #FBFBFC;
+                    margin-bottom: 34px;
+                    text-align: left;
+                }
+                .info-box b { color: var(--ink); font-weight: 600; }
+
+                .office {
+                    margin-bottom: 32px;
+                    text-align: left;
+                }
+                .office:last-child { margin-bottom: 8px; }
+
+                .office-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-size: 11.5px;
+                    font-weight: 700;
+                    letter-spacing: 0.09em;
+                    text-transform: uppercase;
+                    color: var(--ink-faint);
+                    margin-bottom: 14px;
+                }
+                .office-label .dot {
+                    width: 7px; height: 7px; border-radius: 2px;
+                }
+                .office-label .count {
+                    margin-left: auto;
+                    font-weight: 500;
+                    color: var(--ink-faint);
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 11px;
+                }
+
+                .cards {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
+                    gap: 12px;
+                    justify-content: center;
+                }
+
+                .card {
+                    position: relative;
+                    text-align: left;
+                    background: var(--surface);
+                    border: 1px solid var(--line);
+                    border-left: 3px solid var(--office-color, var(--ink-faint));
+                    border-radius: var(--radius-lg);
+                    padding: 16px 16px 14px;
+                    cursor: pointer;
+                    box-shadow: var(--shadow-rest);
+                    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+                    font: inherit;
+                    color: inherit;
+                    display: block;
+                    width: 100%;
+                    outline: none;
+                }
+                .card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-hover);
+                }
+                .card:focus-visible {
+                    outline: 2px solid var(--ink);
+                    outline-offset: 2px;
+                }
+                .card.selected {
+                    box-shadow: var(--shadow-hover);
+                    border-color: var(--office-color, var(--ink));
+                }
+                .card.selected::after {
+                    content: '✓';
+                    position: absolute;
+                    top: 14px; right: 14px;
+                    width: 20px; height: 20px;
+                    border-radius: 50%;
+                    background: var(--office-color, var(--ink));
+                    color: #fff;
+                    font-size: 11px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 700;
+                }
+
+                .card-top {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    margin-bottom: 13px;
+                }
+
+                .avatar {
+                    width: 42px; height: 42px;
+                    border-radius: var(--radius-md);
+                    background: var(--office-soft, #EEF0F3);
+                    color: var(--office-color, var(--ink-muted));
+                    display: flex; align-items: center; justify-content: center;
+                    font-family: 'JetBrains Mono', monospace;
+                    font-weight: 700;
+                    font-size: 13.5px;
+                    flex-shrink: 0;
+                    transition: background 0.15s ease, color 0.15s ease;
+                }
+
+                .name-block .name {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: var(--ink);
+                    line-height: 1.3;
+                }
+                .name-block .handle {
+                    font-size: 12px;
+                    color: var(--ink-faint);
+                    font-family: 'JetBrains Mono', monospace;
+                    margin-top: 1px;
+                }
+
+                .badges {
+                    display: flex;
+                    gap: 6px;
+                    flex-wrap: wrap;
+                    margin-bottom: 10px;
+                }
+                .badge {
+                    font-size: 10.5px;
+                    font-weight: 700;
+                    letter-spacing: 0.03em;
+                    text-transform: uppercase;
+                    padding: 4px 9px;
+                    border-radius: var(--radius-full);
+                    font-family: 'JetBrains Mono', monospace;
+                }
+                .badge.role-staff { background: #EEF0F3; color: #4B5563; }
+                .badge.role-head { background: var(--office-soft, #EEF0F3); color: var(--office-color, var(--ink-muted)); }
+                .badge.role-dept { background: #F3F4F6; color: #6B7280; }
+
+                .token-line {
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 10.5px;
+                    color: var(--ink-faint);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-height: 0;
+                    opacity: 0;
+                    transition: max-height .18s ease, opacity .18s ease, margin-top .18s ease;
+                    text-align: left;
+                }
+                .card:hover .token-line, .card.selected .token-line {
+                    max-height: 16px;
+                    opacity: 1;
+                    margin-top: 2px;
+                }
+                .token-line::before { content: 'token  '; color: var(--ink-faint); opacity: .6; }
+
+                .continue-bar {
+                    position: fixed;
+                    left: 0; right: 0; bottom: 0;
+                    display: flex;
+                    justify-content: center;
+                    padding: 18px 24px;
+                    pointer-events: none;
+                    z-index: 100;
+                }
+                .continue-bar .inner {
+                    pointer-events: auto;
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    background: var(--ink);
+                    color: #fff;
+                    border-radius: var(--radius-lg);
+                    padding: 10px 12px 10px 18px;
+                    box-shadow: 0 14px 32px rgba(18,21,28,0.28);
+                    transform: translateY(120%);
+                    opacity: 0;
+                    transition: transform .22s ease, opacity .22s ease;
+                }
+                .continue-bar .inner.show {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+                .continue-bar .label {
+                    font-size: 13px;
+                    font-family: 'JetBrains Mono', monospace;
+                    color: #C7CBD3;
+                    white-space: nowrap;
+                }
+                .continue-bar .label b { color: #fff; font-weight: 600; }
+                .continue-bar button {
+                    background: var(--accent);
+                    color: #fff;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    padding: 9px 16px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    font-family: 'Inter', sans-serif;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: background .15s ease;
+                }
+                .continue-bar button:hover { background: var(--accent-deep); }
+
+                @media (max-width: 600px) {
+                    .bypass-bg { padding: 40px 16px 130px; }
+                    .bypass-title { font-size: 30px; }
+                    .panel { padding: 26px 20px 20px; }
+                    .cards { grid-template-columns: 1fr; }
+                }
+            `}} />
+
+            <div className="wrap">
+                {/* Header */}
+                <div className="header">
+                    <span className="eyebrow mono">PSS — Planning &amp; Standards System</span>
+                    <h1 className="bypass-title">Session not found</h1>
+                    <p className="subcopy">Select a mock user below to simulate a session.</p>
+
+                    <div className="search-row">
+                        <input
+                            id="search"
+                            className="mono"
+                            type="text"
+                            placeholder="search by name, handle, or office..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Panel */}
+                <div className="panel">
+                    <div className="panel-head">
+                        <div className="rule"></div>
+                        <div className="tag mono">⚙ Developer bypass</div>
+                        <div className="rule"></div>
+                    </div>
+
+                    <div className="info-box mono">
+                        Select a mock user to simulate that user's session. <b>Tokens are base64-encoded</b> and decoded dynamically — no backend redeploy needed.
+                    </div>
+
+                    <div id="officeList">
+                        {groupedOffices.map((officeKey) => {
+                            const filteredUsers = getFilteredUsers(officeKey);
+                            if (filteredUsers.length === 0) return null;
+
+                            const officeColors = getOfficeColors(officeKey);
+
+                            return (
+                                <div key={officeKey} className="office" data-office={officeKey.toLowerCase()}>
+                                    <div className="office-label">
+                                        <span className="dot" style={{ background: officeColors.color }}></span>
+                                        {officeFullNames[officeKey] || officeKey}
+                                        <span className="count mono">{filteredUsers.length}</span>
+                                    </div>
+
+                                    <div className="cards">
+                                        {filteredUsers.map((user) => {
+                                            const isSelected = selectedUser?.id === user.id;
+                                            const token = encodeMockToken({
+                                                userId: user.id,
+                                                username: user.username,
+                                                displayName: user.displayName,
+                                                armsRole: user.armsRole,
+                                                office: user.office,
+                                                isCrossOffice: user.isCrossOffice,
+                                            });
+
+                                            return (
+                                                <button
+                                                    key={user.id}
+                                                    type="button"
+                                                    className={`card ${isSelected ? 'selected' : ''}`}
+                                                    style={{
+                                                        '--office-color': officeColors.color,
+                                                        '--office-soft': officeColors.soft,
+                                                    }}
+                                                    onClick={() => setSelectedUser(user)}
+                                                >
+                                                    <div className="card-top">
+                                                        <div className="avatar">
+                                                            {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                        </div>
+                                                        <div className="name-block">
+                                                            <div className="name">{user.displayName}</div>
+                                                            <div className="handle">@{user.username}</div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="badges">
+                                                        {user.roleLabel === 'Staff' && <span className="badge role-staff">Staff</span>}
+                                                        {user.roleLabel === 'Office Head' && <span className="badge role-head">Office Head</span>}
+                                                        {user.roleLabel === 'Campus Director / Evaluator' && <span className="badge role-head">Director</span>}
+                                                        <span className="badge role-dept">{user.office}</span>
+                                                    </div>
+                                                    
+                                                    <div className="token-line">{token}</div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Sticky Continue Bar */}
+            <div className="continue-bar">
+                <div className={`inner ${selectedUser ? 'show' : ''}`} id="bar">
+                    <span className="label mono" id="barLabel">
+                        Continue as <b>{selectedUser ? selectedUser.displayName : '—'}</b>
+                    </span>
+                    <button id="continueBtn" type="button" onClick={() => handleLoginAs(selectedUser)}>
+                        Continue →
+                    </button>
+                </div>
+            </div>
         </div>
-
-        {/* Main card */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: 16,
-          boxShadow: '0 25px 50px rgba(0,0,0,0.4)',
-          overflow: 'hidden',
-        }}>
-          {/* Login via ARMS */}
-          <div style={{ padding: '28px 32px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', margin: '0 0 4px 0' }}>Production Login</p>
-              <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Authenticate through the ARMS portal to receive a valid JWT token.</p>
-            </div>
-            <a
-              href={ARMS_URL}
-              style={{
-                background: '#580000',
-                color: '#fff',
-                padding: '10px 20px',
-                borderRadius: 8,
-                textDecoration: 'none',
-                fontWeight: 700,
-                fontSize: 13,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                transition: 'background 0.2s',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#700000'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#580000'}
-            >
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-              Go to ARMS Login
-            </a>
-          </div>
-
-          {/* Developer Bypass Section */}
-          <div style={{ padding: '24px 32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0 10px', whiteSpace: 'nowrap' }}>
-                🛠 Developer Bypass
-              </span>
-              <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-            </div>
-
-            <p style={{ fontSize: 12, color: '#64748B', margin: '0 0 20px 0', lineHeight: 1.6 }}>
-              Select a mock user to simulate that user's session. Tokens are base64-encoded and decoded dynamically — no backend redeploy needed.
-            </p>
-
-            {/* Mock user registry grouped by office */}
-            {groupedUsers.map(({ office, users }) => (
-              <div key={office} style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: '#64748B',
-                  }}>
-                    {officeFullNames[office] || office}
-                  </span>
-                  <div style={{ flex: 1, height: 1, background: '#F1F5F9' }} />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-                  {users.map((user) => {
-                    const roleColor = ROLE_COLORS[user.roleLabel] || ROLE_COLORS['Staff'];
-                    const officeColor = OFFICE_COLORS[user.office] || OFFICE_COLORS['ACAD'];
-                    const isHovered = hoveredId === user.id;
-                    return (
-                      <button
-                        key={user.id}
-                        id={`bypass-btn-${user.id}`}
-                        onMouseEnter={() => setHoveredId(user.id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                        onClick={() => handleLoginAs(user)}
-                        style={{
-                          padding: '12px 14px',
-                          border: `1.5px solid ${isHovered ? '#580000' : '#E2E8F0'}`,
-                          borderRadius: 10,
-                          background: isHovered ? '#FEF2F2' : '#FAFAFA',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all 0.18s ease',
-                          transform: isHovered ? 'translateY(-1px)' : 'none',
-                          boxShadow: isHovered ? '0 4px 12px rgba(88,0,0,0.12)' : 'none',
-                        }}
-                      >
-                        {/* Avatar row */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                          <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: isHovered ? '#580000' : '#E2E8F0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 11,
-                            fontWeight: 800,
-                            color: isHovered ? '#fff' : '#475569',
-                            flexShrink: 0,
-                            transition: 'all 0.18s ease',
-                          }}>
-                            {user.displayName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </div>
-                          <div>
-                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>{user.displayName}</p>
-                            <p style={{ margin: 0, fontSize: 10, color: '#64748B', lineHeight: 1.2 }}>@{user.username}</p>
-                          </div>
-                        </div>
-                        {/* Tags */}
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 100,
-                            background: roleColor.bg, color: roleColor.text, border: `1px solid ${roleColor.border}`,
-                          }}>
-                            {user.roleLabel}
-                          </span>
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 100,
-                            background: officeColor.bg, color: officeColor.text, border: `1px solid ${officeColor.border}`,
-                          }}>
-                            {user.office}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {/* Custom user creator toggle */}
-            <div style={{ marginTop: 16 }}>
-              <button
-                id="toggle-custom-user-btn"
-                onClick={() => setShowCustom(v => !v)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 700, color: '#580000', padding: '4px 0',
-                  textDecoration: showCustom ? 'underline' : 'none',
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
-                {showCustom ? 'Hide custom user creator' : 'Create a custom mock user'}
-              </button>
-
-              {showCustom && (
-                <div style={{
-                  marginTop: 12,
-                  padding: 16,
-                  background: '#F8FAFC',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: 10,
-                }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: '#334155', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Custom Mock User
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Full Name</label>
-                      <input
-                        id="custom-user-name"
-                        type="text"
-                        placeholder="e.g. Maria Santos"
-                        value={customName}
-                        onChange={e => setCustomName(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #CBD5E1', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Username</label>
-                      <input
-                        id="custom-user-username"
-                        type="text"
-                        placeholder="e.g. maria.santos"
-                        value={customUsername}
-                        onChange={e => setCustomUsername(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #CBD5E1', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Role</label>
-                      <select
-                        id="custom-user-role"
-                        value={customRole}
-                        onChange={e => setCustomRole(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #CBD5E1', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
-                      >
-                        <option value="STAFF">Staff</option>
-                        <option value="SUBSYSTEM_ADMIN">Office Head (Admin)</option>
-                        <option value="OPCR_EVALUATOR">Campus Director (Evaluator)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>Office</label>
-                      <select
-                        id="custom-user-office"
-                        value={customOffice}
-                        onChange={e => setCustomOffice(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #CBD5E1', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
-                      >
-                        <option value="ACAD">Academic Affairs (ACAD)</option>
-                        <option value="OSAS">Student Affairs (OSAS)</option>
-                        <option value="ADMIN">Administration (ADMIN)</option>
-                        <option value="ALL">All Offices (Cross-Office)</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    id="custom-user-login-btn"
-                    onClick={handleCustomLogin}
-                    disabled={!customName.trim() || !customUsername.trim()}
-                    style={{
-                      padding: '9px 20px',
-                      background: (!customName.trim() || !customUsername.trim()) ? '#CBD5E1' : '#580000',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 7,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      cursor: (!customName.trim() || !customUsername.trim()) ? 'not-allowed' : 'pointer',
-                      transition: 'background 0.18s',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    Generate Token & Login
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 20 }}>
-          PUP Caloocan — Planning & Standards System v1.0
-        </p>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default function App() {
-  const [active, setActive] = useState("dashboard");
-  const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions } = useAppStore();
+    const [active, setActive] = useState("dashboard");
+    const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions } = useAppStore();
 
-  if (!isAuthenticated()) {
-    return <DevBypassScreen />;
-  }
+    if (!isAuthenticated()) {
+        return <DevBypassScreen />;
+    }
 
-  // Staff users cannot access opcrCommitments — redirect to dashboard silently
-  const safeActive = (active === 'opcrCommitments' && !permissions.canViewCommitments)
-    ? 'dashboard'
-    : active;
+    // Staff users cannot access opcrCommitments — redirect to dashboard silently
+    const safeActive = (active === 'opcrCommitments' && !permissions.canViewCommitments)
+        ? 'dashboard'
+        : active;
 
-  const PAGES = {
-    dashboard: <Dashboard />,
-    serviceCatalogue: <ServiceCatalogue />,
-    kpiStandards: <KPIStandards />,
-    slaConfiguration: <SLAConfiguration />,
-    holidayCalendar: <HolidayCalendar />,
-    evaluationPeriods: <EvaluationPeriods />,
-    opcrCommitments: permissions.canViewCommitments ? <OPCRCommitments /> : <Dashboard />,
-    slaComputation: <SLAComputation />,
-  };
+    const PAGES = {
+        dashboard: <Dashboard />,
+        serviceCatalogue: <ServiceCatalogue />,
+        kpiStandards: <KPIStandards />,
+        slaConfiguration: <SLAConfiguration />,
+        holidayCalendar: <HolidayCalendar />,
+        evaluationPeriods: <EvaluationPeriods />,
+        opcrCommitments: permissions.canViewCommitments ? <OPCRCommitments /> : <Dashboard />,
+    };
 
-  const handleNavigate = (pageKey) => {
-    // Block Staff from navigating to opcrCommitments
-    if (pageKey === 'opcrCommitments' && !permissions.canViewCommitments) return;
-    setActive(pageKey);
-    setSidebarMobileOpen(false);
-  };
+    const handleNavigate = (pageKey) => {
+        // Block Staff from navigating to opcrCommitments
+        if (pageKey === 'opcrCommitments' && !permissions.canViewCommitments) return;
+        setActive(pageKey);
+        setSidebarMobileOpen(false);
+    };
 
-  return (
-    <div className="lib-page" style={{ height: "100vh", overflow: "hidden", display: "flex", width: "100vw" }}>
-      <style dangerouslySetInnerHTML={{
-        __html: `
+    return (
+        <div className="lib-page" style={{ height: "100vh", overflow: "hidden", display: "flex", width: "100vw" }}>
+            <style dangerouslySetInnerHTML={{
+                __html: `
         .main-container {
           display: flex;
           flex-direction: column;
@@ -448,33 +629,33 @@ export default function App() {
           background: rgba(255, 255, 255, 0.12);
         }
       `}} />
-      <Sidebar
-        active={safeActive}
-        setActive={handleNavigate}
-        isOpen={sidebarMobileOpen}
-        onClose={() => setSidebarMobileOpen(false)}
-      />
-      <div
-        className="main-container"
-        style={{
-          marginLeft: sidebarCollapsed ? '64px' : '256px',
-          transition: 'margin-left 0.3s ease-in-out'
-        }}
-      >
-        <div className="mobile-header">
-          <button className="menu-btn" onClick={() => setSidebarMobileOpen(true)}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="15" y2="18" />
-            </svg>
-          </button>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.5px', fontFamily: '"DM Sans", sans-serif' }}>PUP Caloocan</span>
+            <Sidebar
+                active={safeActive}
+                setActive={handleNavigate}
+                isOpen={sidebarMobileOpen}
+                onClose={() => setSidebarMobileOpen(false)}
+            />
+            <div
+                className="main-container"
+                style={{
+                    marginLeft: sidebarCollapsed ? '64px' : '256px',
+                    transition: 'margin-left 0.3s ease-in-out'
+                }}
+            >
+                <div className="mobile-header">
+                    <button className="menu-btn" onClick={() => setSidebarMobileOpen(true)}>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12" />
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <line x1="3" y1="18" x2="15" y2="18" />
+                        </svg>
+                    </button>
+                    <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.5px', fontFamily: '"DM Sans", sans-serif' }}>PUP Caloocan</span>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
+                    {PAGES[safeActive] || PAGES.dashboard}
+                </div>
+            </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
-          {PAGES[safeActive] || PAGES.dashboard}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
