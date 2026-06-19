@@ -128,60 +128,105 @@ export default function OPCRCommitments() {
       <PageHeader breadcrumb="Commitments" title="OPCR Commitments" subtitle="View and manage your office performance commitment reports." />
 
       {/* Search Card */}
-      <Card sx={{ p: 2, mb: 3, borderRadius: "8px", border: '1px solid #E2E8F0', boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <TextField
-            placeholder="Search period..."
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="disabled" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{
-              width: 240,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '8px',
-                bgcolor: '#ffffff',
-              }
-            }}
-          />
-          {canWriteCommitments && (
-            <Tooltip
-              title={
-                isCreateBlocked
-                  ? `A locked commitment already exists for "${activePeriod?.name}". Only one commitment per period is allowed.`
-                  : ""
-              }
-              arrow
-              disableHoverListener={!isCreateBlocked}
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+          
+          {/* Search Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Search Period
+            </Typography>
+            <TextField
+              placeholder="Search..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                width: 240,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            />
+          </Box>
+
+          {/* Reset Filters */}
+          {searchQuery && (
+            <Button
+              variant="outlined"
+              onClick={() => setSearchQuery("")}
+              sx={{
+                height: '38px',
+                textTransform: 'none',
+                borderColor: '#E2E8F0',
+                color: '#475569',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                '&:hover': {
+                  borderColor: '#CBD5E1',
+                  backgroundColor: '#F8FAFC',
+                }
+              }}
             >
-              <span>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AddIcon />}
-                  disabled={isCreateBlocked}
-                  onClick={() => {
-                    setSelectedCommitmentId(null);
-                    setWizardReadOnly(false);
-                    setShowWizard(true);
-                  }}
-                  sx={{ bgcolor: isCreateBlocked ? undefined : '#800000', '&:hover': { bgcolor: '#990000' }, borderRadius: 2, py: 1, px: 2.5, fontWeight: 600, textTransform: 'none'}}
-                >
-                  Create / Edit Commitment
-                </Button>
-              </span>
-            </Tooltip>
+              Reset Filters
+            </Button>
           )}
-        </Box>
-      </Card>
+
+          {/* Create Button */}
+          {canWriteCommitments && (
+            <span style={{ marginLeft: 'auto' }}>
+              <Tooltip
+                title={
+                  isCreateBlocked
+                    ? `A locked commitment already exists for "${activePeriod?.name}". Only one commitment per period is allowed.`
+                    : ""
+                }
+                arrow
+                disableHoverListener={!isCreateBlocked}
+              >
+                <span>
+                  <Button
+                    variant="contained"
+                    disabled={isCreateBlocked}
+                    onClick={() => {
+                      setSelectedCommitmentId(null);
+                      setWizardReadOnly(false);
+                      setShowWizard(true);
+                    }}
+                    sx={{
+                      height: '38px',
+                      bgcolor: isCreateBlocked ? undefined : '#580000',
+                      '&:hover': { bgcolor: isCreateBlocked ? undefined : '#700000' },
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      textTransform: 'none',
+                      px: 2.5
+                    }}
+                  >
+                    + Create / Edit Commitment
+                  </Button>
+                </span>
+              </Tooltip>
+            </span>
+          )}
+      </Box>
 
       {/* Main Table Card */}
       <Card sx={{ borderRadius: "8px", border: '1px solid #E2E8F0', mb: 3, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>

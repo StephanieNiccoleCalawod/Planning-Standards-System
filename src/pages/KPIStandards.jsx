@@ -275,7 +275,7 @@ export default function KPIStandards() {
       }
     }
 
-    // Uniqueness validation: Enforce [KPI Name + Service Classification] compound unique check
+    // Uniqueness validation: Enforce [KPI Name + Service Mode] compound unique check
     if (name.trim() && serviceId) {
       const targetService = services.find(s => s.id === serviceId);
       const targetClass = targetService?.classification ? targetService.classification.trim().toLowerCase() : "";
@@ -288,7 +288,7 @@ export default function KPIStandards() {
         return kClass === targetClass;
       });
       if (isNameDuplicate) {
-        err.name = "A KPI with this name and classification already exists.";
+        err.name = "A KPI with this name and service mode already exists.";
       }
     }
 
@@ -431,75 +431,165 @@ export default function KPIStandards() {
       </Tabs>
 
       {/* Filters Card */}
-      <Card sx={{ p: 2, mb: 3, borderRadius: "8px", border: '1px solid #E2E8F0', boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            placeholder="Search KPI name or service..."
-            size="small"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="disabled" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ width: 240 }}
-          />
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+          
+          {/* Search Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Search KPI or Service
+            </Typography>
+            <TextField
+              placeholder="Search..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                width: 240,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            />
+          </Box>
 
-          <TextField
-            select
-            label="Categories"
-            size="small"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            sx={{ width: 180 }}
-          >
-            <MenuItem value="">All Categories</MenuItem>
-            <MenuItem value="Timeliness">Timeliness</MenuItem>
-            <MenuItem value="Quality">Quality</MenuItem>
-            <MenuItem value="Efficiency">Efficiency</MenuItem>
-          </TextField>
+          {/* Category Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Category
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              SelectProps={{ displayEmpty: true }}
+              sx={{
+                width: 180,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            >
+              <MenuItem value="">All Categories</MenuItem>
+              <MenuItem value="Timeliness">Timeliness</MenuItem>
+              <MenuItem value="Quality">Quality</MenuItem>
+              <MenuItem value="Efficiency">Efficiency</MenuItem>
+            </TextField>
+          </Box>
 
-          <TextField
-            select
-            label="Linked Services"
-            size="small"
-            value={serviceFilter}
-            onChange={(e) => {
-              setServiceFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            sx={{ width: 220 }}
-          >
-            <MenuItem value="">All Linked Services</MenuItem>
-            {services.map(s => (
-              <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-            ))}
-          </TextField>
+          {/* Linked Service Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Linked Service
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={serviceFilter}
+              onChange={(e) => {
+                setServiceFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              SelectProps={{ displayEmpty: true }}
+              sx={{
+                width: 220,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            >
+              <MenuItem value="">All Linked Services</MenuItem>
+              {services.map(s => (
+                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
 
+          {/* Reset Filters */}
+          {(searchQuery || categoryFilter || serviceFilter) && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSearchQuery("");
+                setCategoryFilter("");
+                setServiceFilter("");
+                setCurrentPage(1);
+              }}
+              sx={{
+                height: '38px',
+                textTransform: 'none',
+                borderColor: '#E2E8F0',
+                color: '#475569',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                '&:hover': {
+                  borderColor: '#CBD5E1',
+                  backgroundColor: '#F8FAFC',
+                }
+              }}
+            >
+              Reset Filters
+            </Button>
+          )}
+
+          {/* Add KPI Target Button */}
           {canWriteKpi && (
             <Button
               variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
               onClick={handleOpenAdd}
-              sx={{ ml: 'auto' }}
+              sx={{
+                ml: 'auto',
+                height: '38px',
+                bgcolor: '#580000',
+                '&:hover': { bgcolor: '#700000' },
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textTransform: 'none',
+                px: 2.5
+              }}
             >
-              Add KPI Target
+              + Add KPI Target
             </Button>
           )}
-        </Box>
-      </Card>
+      </Box>
 
       {/* Table Container */}
       <TableContainer component={Paper} sx={{ borderRadius: "8px", border: '1px solid #E2E8F0', mb: 3, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
@@ -510,7 +600,7 @@ export default function KPIStandards() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>CATEGORY</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>TARGET VALUE</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>LINKED SERVICE</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE CLASSIFICATION</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>SERVICE MODE</TableCell>
               {canWriteKpi && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
             </TableRow>
           </TableHead>

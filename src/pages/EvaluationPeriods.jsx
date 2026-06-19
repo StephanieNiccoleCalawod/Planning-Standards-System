@@ -333,46 +333,93 @@ export default function EvaluationPeriods() {
             <PageHeader breadcrumb="Evaluation Periods" title="Evaluation Periods" subtitle="Create and manage evaluation cycles for performance tracking." />
 
             {/* Search Card */}
-            <Card sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <TextField
-                        placeholder="Search period name..."
-                        size="small"
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setCurrentPage(1);
-                        }}
-                        slotProps={{
-                            input: {
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon color="disabled" />
-                                    </InputAdornment>
-                                ),
-                            },
-                        }}
-                        sx={{
-                            width: 280,
-                            '& .MuiOutlinedInput-root': {
-                                borderRadius: '8px',
-                                bgcolor: '#ffffff',
-                            }
-                        }}
-                    />
-                    {canWritePeriods && (
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<AddIcon />}
-                        onClick={handleOpenAdd}
-                        sx={{ ml: 'auto', bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
-                    >
-                        Create Evaluation Period
-                    </Button>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+                    
+                    {/* Search Field */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Search Period
+                        </Typography>
+                        <TextField
+                            placeholder="Search..."
+                            size="small"
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            slotProps={{
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}
+                            sx={{
+                                width: 280,
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '6px',
+                                    backgroundColor: '#FFFFFF',
+                                    height: '38px',
+                                    fontSize: '0.875rem',
+                                    color: '#1E293B',
+                                    '& fieldset': { borderColor: '#CBD5E1' },
+                                    '&:hover fieldset': { borderColor: '#94A3B8' },
+                                    '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                                }
+                            }}
+                        />
+                    </Box>
+
+                    {/* Reset Filters */}
+                    {searchQuery && (
+                        <Button
+                            variant="outlined"
+                            onClick={() => {
+                                setSearchQuery("");
+                                setCurrentPage(1);
+                            }}
+                            sx={{
+                                height: '38px',
+                                textTransform: 'none',
+                                borderColor: '#E2E8F0',
+                                color: '#475569',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                fontSize: '0.875rem',
+                                '&:hover': {
+                                    borderColor: '#CBD5E1',
+                                    backgroundColor: '#F8FAFC',
+                                }
+                            }}
+                        >
+                            Reset Filters
+                        </Button>
                     )}
-                </Box>
-            </Card>
+
+                    {/* Create Button */}
+                    {canWritePeriods && (
+                        <Button
+                            variant="contained"
+                            onClick={handleOpenAdd}
+                            sx={{
+                                ml: 'auto',
+                                height: '38px',
+                                bgcolor: '#580000',
+                                '&:hover': { bgcolor: '#700000' },
+                                borderRadius: '6px',
+                                fontWeight: 700,
+                                fontSize: '0.875rem',
+                                textTransform: 'none',
+                                px: 2.5
+                            }}
+                        >
+                            + Create Evaluation Period
+                        </Button>
+                    )}
+            </Box>
 
             {/* Main Table Card */}
             <Card sx={{ borderRadius: '8px', border: '1px solid #E2E8F0', mb: 3, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>

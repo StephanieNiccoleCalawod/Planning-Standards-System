@@ -323,66 +323,155 @@ export default function HolidayCalendar() {
       />
 
       {/* ── Filter Controls ── */}
-      <Card sx={{ p: 2, mb: 3, borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            placeholder="Search holiday name.."
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="disabled" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={{ width: 260 }}
-          />
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
-          <TextField
-            select
-            label="Types"
-            size="small"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            sx={{ width: 180 }}
-          >
-            <MenuItem value="">All Types</MenuItem>
-            <MenuItem value="National">National</MenuItem>
-            <MenuItem value="Local">Local</MenuItem>
-            <MenuItem value="Campus">Campus</MenuItem>
-          </TextField>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+          
+          {/* Search Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Search Holiday
+            </Typography>
+            <TextField
+              placeholder="Search..."
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#94A3B8', fontSize: 18 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                width: 260,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            />
+          </Box>
 
-          <TextField
-            select
-            label="Months"
-            size="small"
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            sx={{ width: 150 }}
-          >
-            <MenuItem value="">All Months</MenuItem>
-            {MONTHS.map((m, idx) => (
-              <MenuItem key={m} value={idx}>{m}</MenuItem>
-            ))}
-          </TextField>
+          {/* Holiday Type Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Holiday Type
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              sx={{
+                width: 180,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            >
+              <MenuItem value="">All Types</MenuItem>
+              <MenuItem value="National">National</MenuItem>
+              <MenuItem value="Local">Local</MenuItem>
+              <MenuItem value="Campus">Campus</MenuItem>
+            </TextField>
+          </Box>
 
-          {canWriteHolidays && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => openAdd()}
-            sx={{ ml: 'auto', fontWeight: 700 }}
-          >
-            Add Holiday
-          </Button>
+          {/* Month Field */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Month
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              sx={{
+                width: 150,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  height: '38px',
+                  fontSize: '0.875rem',
+                  color: '#1E293B',
+                  '& fieldset': { borderColor: '#CBD5E1' },
+                  '&:hover fieldset': { borderColor: '#94A3B8' },
+                  '&.Mui-focused fieldset': { borderColor: '#64748B', borderWidth: '1px' },
+                }
+              }}
+            >
+              <MenuItem value="">All Months</MenuItem>
+              {MONTHS.map((m, idx) => (
+                <MenuItem key={m} value={idx}>{m}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          {/* Reset Filters */}
+          {(searchQuery || typeFilter || monthFilter !== "") && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setSearchQuery("");
+                setTypeFilter("");
+                setMonthFilter("");
+              }}
+              sx={{
+                height: '38px',
+                textTransform: 'none',
+                borderColor: '#E2E8F0',
+                color: '#475569',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                '&:hover': {
+                  borderColor: '#CBD5E1',
+                  backgroundColor: '#F8FAFC',
+                }
+              }}
+            >
+              Reset Filters
+            </Button>
           )}
-        </Box>
-      </Card>
+
+          {/* Add Holiday Button */}
+          {canWriteHolidays && (
+            <Button
+              variant="contained"
+              onClick={() => openAdd()}
+              sx={{
+                ml: 'auto',
+                height: '38px',
+                bgcolor: '#580000',
+                '&:hover': { bgcolor: '#700000' },
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textTransform: 'none',
+                px: 2.5
+              }}
+            >
+              + Add Holiday
+            </Button>
+          )}
+      </Box>
 
       {/* ── Main Layout ── */}
       <Box sx={{ display: "flex", gap: 3, flexWrap: { xs: "wrap", md: "nowrap" }, width: "100%", mt: 1 }}>
