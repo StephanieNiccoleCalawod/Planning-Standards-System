@@ -29,6 +29,7 @@ export const RolePermissions: Record<Role, Permission[]> = {
         Permission.KPIS_READ,
         Permission.HOLIDAYS_READ,
         Permission.PERIODS_READ,
+        Permission.PERIODS_WRITE,   
         Permission.COMMITMENTS_READ,
         Permission.COMMITMENTS_WRITE,
         Permission.COMMITMENTS_LOCK,

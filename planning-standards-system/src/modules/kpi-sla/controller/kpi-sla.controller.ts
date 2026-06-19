@@ -212,7 +212,8 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Update an evaluation period' })
     updatePeriod(@Request() req, @Param('id') id: string, @Body() dto: UpdatePeriodDto) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.updatePeriod(id, office, dto);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.updatePeriod(id, office, dto, isCrossOffice);
     }
 
     @Patch('periods/:id/complete')
@@ -221,7 +222,8 @@ export class KpiSlaController {
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
         const actor = req.user?.sub ?? 'system';
-        return this.svc.completePeriod(id, office, actor);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.completePeriod(id, office, actor, isCrossOffice);
     }
 
     @Delete('periods/:id')
@@ -229,6 +231,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Delete a QUEUED evaluation period' })
     removePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
-        return this.svc.removePeriod(id, office);
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.removePeriod(id, office, isCrossOffice);
     }
 }
