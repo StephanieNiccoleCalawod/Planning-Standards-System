@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "../services/api";
+import { getUserRoleFromToken } from "../services/auth";
 
 // Helper functions for SLA target formatting
 const formatSlaTarget = (s) => {
@@ -85,7 +86,7 @@ export const useAppStore = create((set, get) => ({
   slaRules: [],
   commitments: [],
   activeCommitment: null,
-  userRole: localStorage.getItem('PSS_MOCK_ROLE') || 'Admin',
+  userRole: getUserRoleFromToken() || 'Admin',
 
   // Loading States
   loadingServices: false,
@@ -561,7 +562,13 @@ export const useAppStore = create((set, get) => ({
   },
 
   setUserRole: (role) => {
-    localStorage.setItem('PSS_MOCK_ROLE', role);
+    const roleTokenMap = {
+      'Staff': 'mock-token-staff',
+      'OPCREvaluator': 'mock-token-opcr_evaluator',
+      'Admin': 'mock-token-super_admin'
+    };
+    const token = roleTokenMap[role] || 'mock-token-staff';
+    localStorage.setItem('pss_token', token);
     set({ userRole: role });
     // Reload to apply new auth headers
     window.location.reload();

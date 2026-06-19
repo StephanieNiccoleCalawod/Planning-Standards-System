@@ -36,26 +36,203 @@ export default function App() {
                 alignItems: "center",
                 justifyContent: "center",
                 height: "100vh",
-                gap: 16,
+                gap: 20,
                 fontFamily: '"DM Sans", sans-serif',
                 textAlign: "center",
                 padding: 24,
+                background: "#F8FAFC",
             }}>
-                <h2>Session not found</h2>
-                <p>Please log in through ARMS first to access the Planning &amp; Standards System.</p>
-                <a
-                    href={ARMS_URL}
-                    style={{
-                        background: "#500000",
-                        color: "#fff",
-                        padding: "10px 24px",
-                        borderRadius: 6,
-                        textDecoration: "none",
-                        fontWeight: 600,
-                    }}
-                >
-                    Go to ARMS Login
-                </a>
+                <div style={{
+                    background: "#ffffff",
+                    padding: 32,
+                    borderRadius: 12,
+                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)",
+                    border: "1px solid #E2E8F0",
+                    maxWidth: 480,
+                    width: "100%"
+                }}>
+                    <h2 style={{ color: "#0F172A", margin: "0 0 8px 0", fontWeight: 700 }}>Session not found</h2>
+                    <p style={{ color: "#64748B", fontSize: "0.875rem", margin: "0 0 24px 0", lineHeight: 1.5 }}>
+                        Please log in through ARMS first to access the Planning &amp; Standards System.
+                    </p>
+                    <a
+                        href={ARMS_URL}
+                        style={{
+                            background: "#580000",
+                            color: "#fff",
+                            padding: "10px 24px",
+                            borderRadius: 6,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            display: "inline-block",
+                            transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "#700000"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "#580000"}
+                    >
+                        Go to ARMS Login
+                    </a>
+
+                    <div style={{ margin: "24px 0 16px 0", borderTop: "1px solid #E2E8F0", position: "relative" }}>
+                        <span style={{
+                            position: "absolute",
+                            top: -10,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            background: "#fff",
+                            padding: "0 12px",
+                            fontSize: "0.75rem",
+                            color: "#94A3B8",
+                            fontWeight: 600,
+                            letterSpacing: "0.05em",
+                            textTransform: "uppercase"
+                        }}>
+                            OR DEVELOPER BYPASS
+                        </span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('pss_token', 'mock-token-staff');
+                                window.location.reload();
+                            }}
+                            style={{
+                                padding: "10px 16px",
+                                border: "1px solid #E2E8F0",
+                                background: "#ffffff",
+                                color: "#334155",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                transition: "all 0.2s",
+                                textAlign: "left",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#580000";
+                                e.currentTarget.style.color = "#580000";
+                                e.currentTarget.style.background = "#FEF2F2";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "#E2E8F0";
+                                e.currentTarget.style.color = "#334155";
+                                e.currentTarget.style.background = "#ffffff";
+                            }}
+                        >
+                            <span>Mock Staff User</span>
+                            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: 400 }}>Role: Staff</span>
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('pss_token', 'mock-token-opcr_evaluator');
+                                window.location.reload();
+                            }}
+                            style={{
+                                padding: "10px 16px",
+                                border: "1px solid #E2E8F0",
+                                background: "#ffffff",
+                                color: "#334155",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                transition: "all 0.2s",
+                                textAlign: "left",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#580000";
+                                e.currentTarget.style.color = "#580000";
+                                e.currentTarget.style.background = "#FEF2F2";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "#E2E8F0";
+                                e.currentTarget.style.color = "#334155";
+                                e.currentTarget.style.background = "#ffffff";
+                            }}
+                        >
+                            <span>Mock Subsystem Admin / Office Head 1</span>
+                            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: 400 }}>Role: OPCREvaluator</span>
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('pss_token', 'mock-token-subsystem_admin');
+                                window.location.reload();
+                            }}
+                            style={{
+                                padding: "10px 16px",
+                                border: "1px solid #E2E8F0",
+                                background: "#ffffff",
+                                color: "#334155",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                transition: "all 0.2s",
+                                textAlign: "left",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#580000";
+                                e.currentTarget.style.color = "#580000";
+                                e.currentTarget.style.background = "#FEF2F2";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "#E2E8F0";
+                                e.currentTarget.style.color = "#334155";
+                                e.currentTarget.style.background = "#ffffff";
+                            }}
+                        >
+                            <span>Mock Subsystem Admin 2</span>
+                            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: 400 }}>Role: Admin (Local)</span>
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('pss_token', 'mock-token-super_admin');
+                                window.location.reload();
+                            }}
+                            style={{
+                                padding: "10px 16px",
+                                border: "1px solid #E2E8F0",
+                                background: "#ffffff",
+                                color: "#334155",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                transition: "all 0.2s",
+                                textAlign: "left",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#580000";
+                                e.currentTarget.style.color = "#580000";
+                                e.currentTarget.style.background = "#FEF2F2";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "#E2E8F0";
+                                e.currentTarget.style.color = "#334155";
+                                e.currentTarget.style.background = "#ffffff";
+                            }}
+                        >
+                            <span>Mock Super Admin</span>
+                            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: 400 }}>Role: Admin (Cross-Office)</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }

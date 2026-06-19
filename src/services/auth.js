@@ -28,6 +28,11 @@ export function clearToken() {
 }
 
 export function decodeJwt(token) {
+  if (!token) return null;
+  if (token.startsWith('mock-token-')) {
+    const role = token.split('mock-token-')[1].toUpperCase();
+    return { role, username: `mock_${role.toLowerCase()}` };
+  }
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -60,7 +65,8 @@ export function getUserRoleFromToken() {
 }
 
 export function isAuthenticated() {
-  return !!getToken();
+  const token = getToken();
+  return !!token;
 }
 
 /**

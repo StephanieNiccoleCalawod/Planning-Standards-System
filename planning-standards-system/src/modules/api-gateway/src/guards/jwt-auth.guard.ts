@@ -40,6 +40,63 @@ export class JwtAuthGuard implements CanActivate {
         }
                 const token = authHeader.split(' ')[1];
 
+        if (token && token.startsWith('mock-token-')) {
+            const mockRole = token.split('mock-token-')[1].toUpperCase();
+            let claims = {
+                userId: 'mock-user-id',
+                username: `mock_${mockRole.toLowerCase()}`,
+                office: 'Records Office',
+                isCrossOffice: false,
+                role: 'STAFF',
+            };
+
+            if (mockRole === 'OPCR_EVALUATOR') {
+                claims = {
+                    userId: 'mock-office-head-id',
+                    username: 'mock_office_head',
+                    office: 'Records Office',
+                    isCrossOffice: false,
+                    role: 'OPCR_EVALUATOR',
+                };
+            } else if (mockRole === 'SUBSYSTEM_ADMIN') {
+                claims = {
+                    userId: 'mock-sub-admin-id',
+                    username: 'mock_subsystem_admin_2',
+                    office: 'Records Office',
+                    isCrossOffice: false,
+                    role: 'SUBSYSTEM_ADMIN',
+                };
+            } else if (mockRole === 'SUPER_ADMIN') {
+                claims = {
+                    userId: 'mock-super-admin-id',
+                    username: 'mock_super_admin',
+                    office: 'Records Office',
+                    isCrossOffice: true,
+                    role: 'SUPER_ADMIN',
+                };
+            } else {
+                // STAFF
+                claims = {
+                    userId: 'mock-staff-id',
+                    username: 'mock_staff',
+                    office: 'Records Office',
+                    isCrossOffice: false,
+                    role: 'STAFF',
+                };
+            }
+
+            req.user = {
+                sub: claims.userId,
+                userId: claims.userId,
+                username: claims.username,
+                office: claims.office,
+                isCrossOffice: claims.isCrossOffice,
+                armsRole: claims.role,
+                role: ARMS_ROLE_MAP[claims.role] ?? 'Staff',
+            };
+            return true;
+        }
+
         const armsAuthUrl = this.config.get<string>('ARMS_AUTH_URL');
 
         let response;
