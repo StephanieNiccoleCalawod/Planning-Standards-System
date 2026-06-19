@@ -16,11 +16,12 @@ export class ProxyService {
      *   JwtAuthGuard) so downstream guards / audit logging keep working:
      *     x-office     -> office for office-scoping (existing pattern)
      *     x-role       -> PSS role (Admin/Staff) for RolesGuard
-     *     x-actor-id        -> ARMS userId
-     *     x-actor-username  -> ARMS username (for Kafka audit userName)
-     *     x-arms-role       -> original ARMS role (for Kafka audit userRole)
-     *     x-is-cross-office -> true/false
-     *     x-client-ip       -> real client IP (for audit ip_address)
+     *     x-actor-id           -> ARMS userId
+     *     x-actor-username     -> ARMS username (for Kafka audit userName)
+     *     x-actor-display-name -> Human-readable display name (e.g. "Ana Reyes")
+     *     x-arms-role          -> original ARMS role (for Kafka audit userRole)
+     *     x-is-cross-office    -> true/false
+     *     x-client-ip          -> real client IP (for audit ip_address)
      */
     async forward(req: Request, res: Response, targetBaseUrl: string): Promise<void> {
         const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
@@ -34,6 +35,7 @@ export class ProxyService {
             headers['x-role'] = req.user.role ?? 'Admin';
             headers['x-actor-id'] = req.user.userId ?? req.user.sub ?? 'system';
             headers['x-actor-username'] = req.user.username ?? req.user.userId ?? 'system';
+            headers['x-actor-display-name'] = req.user.displayName ?? req.user.username ?? req.user.userId ?? 'system';
             headers['x-arms-role'] = req.user.armsRole ?? req.user.role ?? 'STAFF';
             headers['x-is-cross-office'] = req.user.isCrossOffice ? 'true' : 'false';
         }

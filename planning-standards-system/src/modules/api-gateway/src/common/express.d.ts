@@ -7,6 +7,7 @@ declare global {
                 sub?: string;
                 userId?: string;
                 username?: string;
+                displayName?: string;
                 office?: string;
                 role?: string;
                 armsRole?: string;

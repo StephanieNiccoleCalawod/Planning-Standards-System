@@ -75,6 +75,11 @@ export class DashboardService {
                     headers: {
                         Authorization: `Bearer service-token`,
                         'x-office': targetOffice,
+                        'x-role': 'Admin',           // required by RolesGuard downstream
+                        'x-arms-role': 'SUBSYSTEM_ADMIN',
+                        'x-is-cross-office': 'false', // always scope to targetOffice
+                        'x-actor-id': 'dashboard-service',
+                        'x-actor-username': 'dashboard-service',
                     },
                 })
             );

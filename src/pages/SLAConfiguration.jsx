@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 
 import { useAppStore } from "../store/useAppStore";
+import { PREDEFINED_MOCK_USERS } from "../services/auth";
 import PageHeader from "../components/PageHeader";
 import ResultModal from "../modals/ResultModal";
 import ConfirmModal from "../modals/ConfirmModal";
@@ -35,6 +36,25 @@ import {
   ExpandLess as ExpandLessIcon,
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
+
+// Resolve stored actor values (userId / username / displayName) to human-readable display names.
+// Handles legacy stored IDs like "mock-ana" and usernames like "ana.reyes".
+const resolveActorName = (actor) => {
+  if (!actor || actor === 'system' || actor === 'System Admin' || actor === 'Subsystem Admin') return actor || 'System';
+  // First try to match by userId (e.g. "mock-ana")
+  const byId = PREDEFINED_MOCK_USERS.find(u => u.id === actor);
+  if (byId) return byId.displayName;
+  // Then try to match by username (e.g. "ana.reyes")
+  const byUsername = PREDEFINED_MOCK_USERS.find(u => u.username === actor);
+  if (byUsername) return byUsername.displayName;
+  // If it already looks like a display name (has a space), return as-is
+  if (actor.includes(' ')) return actor;
+  // Last resort: prettify username format (e.g. "ana.reyes" -> "Ana Reyes")
+  if (actor.includes('.')) {
+    return actor.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  }
+  return actor;
+};
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -218,7 +238,7 @@ export default function SLAConfiguration() {
               minute: "2-digit",
               hour12: true
             }),
-            actor: activeRule.created_by || "System Admin",
+            actor: resolveActorName(activeRule.created_by) || "System Admin",
             working_days: formatDaysList(activeRule.work_schedule_type, activeRule.work_schedule_config),
             working_hours: `${format12Hour(activeRule.work_start_time)} - ${format12Hour(activeRule.work_end_time)}`,
             overdue_threshold: "100%",
@@ -249,7 +269,7 @@ export default function SLAConfiguration() {
                 minute: "2-digit",
                 hour12: true
               }),
-              actor: v.changed_by || "Subsystem Admin",
+              actor: resolveActorName(v.changed_by) || "Subsystem Admin",
               working_days: formatDaysList(v.work_schedule_type, v.work_schedule_config),
               working_hours: `${format12Hour(v.work_start_time)} - ${format12Hour(v.work_end_time)}`,
               overdue_threshold: "100%",

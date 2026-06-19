@@ -19,6 +19,7 @@ export class JwtAuthGuard implements CanActivate {
       req.user = {
         sub: req.headers['x-actor-id'] ?? 'system',
         username: req.headers['x-actor-username'] ?? req.headers['x-actor-id'] ?? 'system',
+        displayName: req.headers['x-actor-display-name'] ?? req.headers['x-actor-username'] ?? req.headers['x-actor-id'] ?? 'system',
         office: req.headers['x-office'] ?? 'unknown-office',
         role: req.headers['x-role'] ?? 'Staff',
         armsRole: req.headers['x-arms-role'] ?? req.headers['x-role'] ?? 'STAFF',
