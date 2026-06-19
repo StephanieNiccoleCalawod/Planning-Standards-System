@@ -23,6 +23,7 @@ import { Permission } from '../../../common/rbac/permission.enum';
 export class AuditController {
     constructor(private readonly auditSvc: AuditService) { }
 
+    // for getting all audit events with optional filters
     @Get()
     @Roles(Permission.COMMITMENTS_READ)
     @ApiOperation({ summary: 'Get all audit events - fetched by audit group' })
@@ -34,10 +35,12 @@ export class AuditController {
         @Query('event') event?: string,
         @Query('office_id') office_id?: string,
     ) {
+        // convert is_synced string to boolean before passing to service
         const isSyncedBool = is_synced !== undefined ? is_synced === 'true' : undefined;
         return this.auditSvc.findAll({ is_synced: isSyncedBool, event, office_id });
     }
 
+    // for marking an audit event as synced
     @Patch(':id/sync')
     @Roles(Permission.COMMITMENTS_WRITE)
     @ApiOperation({ summary: 'Mark an audit event as synced' })
@@ -45,23 +48,16 @@ export class AuditController {
         return this.auditSvc.markSynced(id);
     }
 
+    // for logging a new audit event from other pss microservices or the gateway
     @Post()
     @ApiOperation({ summary: 'Log a new audit event (used by other PSS microservices and the gateway)' })
     async createEvent(@Request() req, @Body() payload: any) {
-        // service-catalogue / kpi-sla call this endpoint directly (not through
-        // the gateway), so they may not carry x-arms-role / x-actor-username /
-        // x-client-ip headers. Whatever they DO send in the body wins; these
-        // headers are a fallback for requests that go through the gateway
-        // (e.g. if a future caller proxies through it, or for events logged
-        // by commitment's own controllers which already pass these fields
-        // explicitly in the payload).
         const enriched = {
             ...payload,
             actor_role: payload.actor_role ?? req.headers['x-arms-role'] ?? req.user?.armsRole,
             actor_username: payload.actor_username ?? req.headers['x-actor-username'] ?? req.user?.username,
             ip_address: payload.ip_address ?? req.headers['x-client-ip'],
         };
-
         await this.auditSvc.log(enriched);
         return { success: true };
     }

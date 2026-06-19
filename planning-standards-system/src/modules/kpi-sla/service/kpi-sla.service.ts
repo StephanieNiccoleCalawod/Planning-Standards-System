@@ -149,26 +149,9 @@ export class KpiSlaService {
     }
 
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
-        // prevent duplicate KPI names + classification per office (case-insensitive, trimmed)
         const trimmedName = dto.name.trim();
-        const targetService = await this.getService(dto.service_id, office);
-        const targetClass = normalizeClassification(targetService?.classification);
 
-        const duplicates = await this.kpiRepo
-            .createQueryBuilder('kpi')
-            .where('kpi.office = :office', { office })
-            .andWhere('kpi.is_active = true')
-            .andWhere('LOWER(kpi.name) = LOWER(:name)', { name: trimmedName })
-            .getMany();
-
-        for (const dup of duplicates) {
-            const dupService = await this.getService(dup.service_id, office);
-            const dupClass = normalizeClassification(dupService?.classification);
-            if (dupClass === targetClass) {
-                throw new ConflictException('A KPI with this name and classification already exists for your office.');
-            }
-        }
-
+        // duplicate check: same name + same category + same service = not allowed
         const existing = await this.kpiRepo.findOne({
             where: {
                 office,
@@ -177,9 +160,9 @@ export class KpiSlaService {
                 is_active: true,
             },
         });
-        if (existing) {
+        if (existing && existing.name.trim().toLowerCase() === trimmedName.toLowerCase()) {
             throw new ConflictException(
-                `A KPI with category "${dto.category}" already exists for this service`,
+                `A KPI with this name, category, and service already exists for your office.`,
             );
         }
 
@@ -301,8 +284,8 @@ export class KpiSlaService {
     }
 
     async findAllSlaRules(office: string, isCrossOffice: boolean = false): Promise<SlaRule[]> {
+        // SLA rules are global — all users can view regardless of office
         return this.slaRepo.find({
-            where: isCrossOffice ? {} : { office },
             relations: { versions: true },
             order: { created_at: 'DESC' },
         });
