@@ -48,6 +48,8 @@ export class DashboardService {
             targetOffice = office;
         }
 
+        const isOverall = targetOffice === 'OVERALL';
+
         let activePeriod = null;
         let activeServices = [];
         let activeKpis = 0;
@@ -58,7 +60,8 @@ export class DashboardService {
                 this.httpService.get(`${this.kpiSlaUrl}/api/periods`, {
                     headers: {
                         Authorization: `Bearer service-token`,
-                        'x-office': targetOffice,
+                        'x-office': isOverall ? 'unknown-office' : targetOffice,
+                        'x-is-cross-office': isOverall ? 'true' : 'false',
                     },
                 })
             );
@@ -74,7 +77,8 @@ export class DashboardService {
                 this.httpService.get(`${this.catalogueUrl}/api/services`, {
                     headers: {
                         Authorization: `Bearer service-token`,
-                        'x-office': targetOffice,
+                        'x-office': isOverall ? 'unknown-office' : targetOffice,
+                        'x-is-cross-office': isOverall ? 'true' : 'false',
                     },
                 })
             );
@@ -89,11 +93,16 @@ export class DashboardService {
         // If no items exist yet, fall back to fetching the kpi-sla catalogue.
         // ────────────────────────────────────────────────────────────────────
         try {
-            // Count distinct KPI IDs already used in this office's commitments
-            const dbKpiCount = await this.itemRepo
+            // Count distinct KPI IDs already used in commitments
+            const queryBuilder = this.itemRepo
                 .createQueryBuilder('item')
-                .innerJoin('item.commitment', 'commitment')
-                .where('commitment.office = :office', { office: targetOffice })
+                .innerJoin('item.commitment', 'commitment');
+
+            if (!isOverall) {
+                queryBuilder.where('commitment.office = :office', { office: targetOffice });
+            }
+
+            const dbKpiCount = await queryBuilder
                 .select('COUNT(DISTINCT item.kpi_id)', 'count')
                 .getRawOne<{ count: string }>();
 
@@ -108,7 +117,8 @@ export class DashboardService {
                     this.httpService.get(`${this.kpiSlaUrl}/api/kpis?include_inactive=false`, {
                         headers: {
                             Authorization: `Bearer service-token`,
-                            'x-office': targetOffice,
+                            'x-office': isOverall ? 'unknown-office' : targetOffice,
+                            'x-is-cross-office': isOverall ? 'true' : 'false',
                         },
                     })
                 );
@@ -122,24 +132,44 @@ export class DashboardService {
         // ── Fetch current commitment for this office ────────────────────────
         let commitmentStatus = 'None';
         let commitment = null;
+        let commitments = [];
         if (activePeriod) {
-            commitment = await this.commitmentRepo.findOne({
-                where: { office: targetOffice, period_id: activePeriod.id },
-                relations: { items: true },
-            });
-            if (commitment) {
-                commitmentStatus = commitment.status;
+            if (isOverall) {
+                commitments = await this.commitmentRepo.find({
+                    where: { period_id: activePeriod.id },
+                    relations: { items: true },
+                });
+                const lockedCount = commitments.filter(c => c.status === 'Locked').length;
+                commitmentStatus = lockedCount === commitments.length && commitments.length > 0 ? 'Locked' : `${lockedCount} / ${commitments.length} Locked`;
+            } else {
+                commitment = await this.commitmentRepo.findOne({
+                    where: { office: targetOffice, period_id: activePeriod.id },
+                    relations: { items: true },
+                });
+                if (commitment) {
+                    commitmentStatus = commitment.status;
+                }
             }
         }
 
         // ── Map services with commitment targets ────────────────────────────
         const servicesWithTargets = activeServices.map((service) => {
             let commitmentTarget = null;
-            if (commitment?.items?.length) {
-                const matchedItem = commitment.items.find(
-                    (item) => item.service_id === service.id,
-                );
-                commitmentTarget = matchedItem?.target_value ?? null;
+            if (isOverall) {
+                const matchedCommitment = commitments.find(c => c.office === service.office);
+                if (matchedCommitment?.items?.length) {
+                    const matchedItem = matchedCommitment.items.find(
+                        (item) => item.service_id === service.id,
+                    );
+                    commitmentTarget = matchedItem?.target_value ?? null;
+                }
+            } else {
+                if (commitment?.items?.length) {
+                    const matchedItem = commitment.items.find(
+                        (item) => item.service_id === service.id,
+                    );
+                    commitmentTarget = matchedItem?.target_value ?? null;
+                }
             }
             return {
                 id: service.id,

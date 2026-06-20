@@ -382,9 +382,9 @@ export default function KPIStandards() {
 
   // Client-side Filters
   const filteredKpis = kpis.filter(k => {
-    // Office scope: Check the responsibleUnit of the linked service
+    // Office scope: Check the office of the linked service
     const linkedService = services.find(s => s.id === k.service_id);
-    if (linkedService && !isInScope(linkedService.responsibleUnit, activeUser?.office, permissions)) {
+    if (linkedService && !isInScope(linkedService.office || linkedService.responsibleUnit, activeUser?.office, permissions)) {
       return false;
     }
 

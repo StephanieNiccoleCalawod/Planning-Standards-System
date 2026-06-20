@@ -293,7 +293,7 @@ export default function ServiceCatalogue() {
 
   const filteredData = services.filter(svc => {
     // Office scope: Staff and Admin only see services belonging to their own office
-    if (!isInScope(svc.responsibleUnit, activeUser?.office, permissions)) return false;
+    if (!isInScope(svc.office || svc.responsibleUnit, activeUser?.office, permissions)) return false;
 
     const matchesSearch = svc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       svc.id.toString().includes(searchQuery.toLowerCase()) ||

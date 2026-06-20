@@ -44,7 +44,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Create a KPI' })
     createKpi(@Request() req, @Body() dto: CreateKpiDto) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.createKpi(office, actor, dto);
     }
 
@@ -78,7 +78,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Soft-delete a KPI' })
     removeKpi(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.removeKpi(id, office, actor);
     }
 
@@ -88,7 +88,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Create an SLA rule' })
     createSlaRule(@Request() req, @Body() dto: CreateSlaRuleDto) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.createSlaRule(office, actor, dto);
     }
 
@@ -106,7 +106,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Update SLA rule (saves version history)' })
     updateSlaRule(@Request() req, @Param('id') id: string, @Body() dto: UpdateSlaRuleDto) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.updateSlaRule(id, office, actor, dto);
     }
 
@@ -127,7 +127,7 @@ export class KpiSlaController {
         @Param('versionId') versionId: string,
     ) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.restoreSlaVersion(id, versionId, office, actor);
     }
 
@@ -136,7 +136,7 @@ export class KpiSlaController {
     @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Add a holiday' })
     createHoliday(@Request() req, @Body() dto: CreateHolidayDto) {
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.createHoliday(dto, actor);
     }
 
@@ -164,7 +164,7 @@ export class KpiSlaController {
     @Roles(Permission.HOLIDAYS_WRITE)
     @ApiOperation({ summary: 'Delete a holiday' })
     removeHoliday(@Request() req, @Param('id') id: string) {
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.removeHoliday(id, actor);
     }
 
@@ -174,7 +174,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Create an evaluation period' })
     createPeriod(@Request() req, @Body() dto: CreatePeriodDto) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         return this.svc.createPeriod(office, actor, dto);
     }
 
@@ -221,7 +221,7 @@ export class KpiSlaController {
     @ApiOperation({ summary: 'Mark an OPEN evaluation period as completed - auto-activates next QUEUED period' })
     completePeriod(@Request() req, @Param('id') id: string) {
         const office = req.user?.office ?? 'unknown-office';
-        const actor = req.user?.displayName ?? req.user?.sub ?? 'system';
+        const actor = req.user?.sub ?? 'system';
         const isCrossOffice = req.user?.isCrossOffice ?? false;
         return this.svc.completePeriod(id, office, actor, isCrossOffice);
     }

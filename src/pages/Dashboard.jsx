@@ -3,6 +3,7 @@ import { Box, Typography, Chip, Alert, TextField, MenuItem } from "@mui/material
 import PageHeader from "../components/PageHeader";
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
+import { normalizeOffice } from "../services/permissions";
 
 const getArtaClassification = (svc) => {
   if (!svc) return "Simple";
@@ -223,7 +224,7 @@ export default function Dashboard() {
   const [summaryData, setSummaryData] = useState(null);
   const [slaLogs, setSlaLogs] = useState([]);
   const [utilizationData, setUtilizationData] = useState([]);
-  const [selectedOffice, setSelectedOffice] = useState("ADMIN");
+  const [selectedOffice, setSelectedOffice] = useState("OVERALL");
 
   useEffect(() => {
     // Run each call independently so one failure doesn't prevent the others from loading
@@ -248,21 +249,35 @@ export default function Dashboard() {
   }, [selectedOffice, permissions?.canSeeOtherOffices]);
 
   // ── Computed metrics ──────────────────────────────────────────────────────
-  const totalServices = services.filter(s => !s.archived).length;
+  const currentOfficeScope = permissions?.canSeeOtherOffices ? selectedOffice : activeUser?.office;
+
+  const officeServices = services.filter(s => {
+    if (!currentOfficeScope || currentOfficeScope === 'OVERALL') return true;
+    const sOffice = s.office || s.responsibleUnit;
+    return normalizeOffice(sOffice) === normalizeOffice(currentOfficeScope);
+  });
+
+  const officeKpis = kpis.filter(k => {
+    if (!currentOfficeScope || currentOfficeScope === 'OVERALL') return true;
+    const kOffice = k.office || k.sub_office;
+    return normalizeOffice(kOffice) === normalizeOffice(currentOfficeScope);
+  });
+
+  const totalServices = officeServices.filter(s => !s.archived).length;
   // Prefer the API summary count; fall back to counting active services from the local store
   const activeServices = summaryData
     ? summaryData.active_services_count
-    : services.filter(s => s.active && !s.archived).length;
+    : officeServices.filter(s => s.active && !s.archived).length;
   const inactiveServices = totalServices - activeServices;
-  const naFlaggedServicesCount = services.filter(s => s.naFlag && !s.archived).length;
+  const naFlaggedServicesCount = officeServices.filter(s => s.naFlag && !s.archived).length;
 
-  const totalKpis = kpis.length;
-  const activeKpis = kpis.filter(k => k.active).length;
+  const totalKpis = officeKpis.length;
+  const activeKpis = officeKpis.filter(k => k.active).length;
   const inactiveKpis = totalKpis - activeKpis;
 
-  const simpleCount = services.filter(s => getArtaClassification(s) === "Simple" && !s.archived).length;
-  const complexCount = services.filter(s => getArtaClassification(s) === "Complex" && !s.archived).length;
-  const highlyTechnicalCount = services.filter(s => getArtaClassification(s) === "Highly Technical" && !s.archived).length;
+  const simpleCount = officeServices.filter(s => getArtaClassification(s) === "Simple" && !s.archived).length;
+  const complexCount = officeServices.filter(s => getArtaClassification(s) === "Complex" && !s.archived).length;
+  const highlyTechnicalCount = officeServices.filter(s => getArtaClassification(s) === "Highly Technical" && !s.archived).length;
 
   // Prefer API summary period; fall back to the periods store (Open/Active period)
   const activePeriod =
@@ -273,7 +288,7 @@ export default function Dashboard() {
   const currentPeriod = activePeriod || { name: "No active evaluation period", id: null };
   const commitmentStatus = summaryData?.commitment_status || "Not Started";
 
-  const activeServiceIds = services.filter(s => s.active && !s.archived).map(s => s.id);
+  const activeServiceIds = officeServices.filter(s => s.active && !s.archived).map(s => s.id);
   const activeEMS = EMS_UTILIZATION_DATA.filter(d =>
     d.periodId === Number(currentPeriod.id || 2) && activeServiceIds.includes(d.serviceId)
   );
@@ -306,6 +321,7 @@ export default function Dashboard() {
         id: service.id,
         name: service.name,
         responsibleUnit: service.responsibleUnit,
+        office: service.office,
         value: complianceRate,
         color
       };
@@ -315,7 +331,7 @@ export default function Dashboard() {
   // Group compliance by category
   const complianceByCategory = {};
   serviceComplianceList.forEach(item => {
-    const cat = getCategoryName(item.responsibleUnit);
+    const cat = getCategoryName(item.office || item.responsibleUnit);
     if (!complianceByCategory[cat]) {
       complianceByCategory[cat] = [];
     }
@@ -323,7 +339,7 @@ export default function Dashboard() {
   });
 
   // Generate actual vs target data for the bar chart
-  const chartData = (summaryData?.services || services)
+  const chartData = (summaryData?.services || officeServices)
     .map(service => {
       const util = utilizationData.find(u => u.service_id === service.id || u.service_name === service.name);
       const actual = util ? util.transaction_count : 0;
@@ -347,7 +363,7 @@ export default function Dashboard() {
   const chartXSpacing = chartN > 0 ? 400 / chartN : 80;
 
   // KPI counts by category for donut chart
-  const activeKpisList = kpis.filter(k => k.active);
+  const activeKpisList = officeKpis.filter(k => k.active);
   const timelinessCount = activeKpisList.filter(k => k.category === "Timeliness").length;
   const qualityCount = activeKpisList.filter(k => k.category === "Quality").length;
   const efficiencyCount = activeKpisList.filter(k => k.category === "Efficiency").length;
@@ -426,6 +442,7 @@ export default function Dashboard() {
               }
             }}
           >
+            <MenuItem value="OVERALL">Overall / All Offices</MenuItem>
             <MenuItem value="ADMIN">Administration (ADMIN)</MenuItem>
             <MenuItem value="ACAD">Academic Affairs (ACAD)</MenuItem>
             <MenuItem value="OSAS">Student Affairs (OSAS)</MenuItem>

@@ -129,7 +129,7 @@ export function isInScope(recordOffice, userOffice, perms) {
  * Normalize office strings for comparison.
  * Handles common variations like "Academic Affairs" → "ACAD".
  */
-function normalizeOffice(office) {
+export function normalizeOffice(office) {
     if (!office) return '';
     const upper = office.toUpperCase().trim();
     // Common expansions
