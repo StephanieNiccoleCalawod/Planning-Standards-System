@@ -30,23 +30,17 @@ export class DashboardService {
     /**
      * @param office        The authenticated user's own office.
      * @param isCrossOffice True for SUPER_ADMIN / OPCR_EVALUATOR (ARMS isCrossOffice=true, office=null).
-     * @param officeParam   Office to view, from ?office=. Required when isCrossOffice is true
-     *                       (since a cross-office user has no "own" office to default to).
+     * @param officeParam   Office to view, from ?office=. If omitted for cross-office roles,
+     *                       the summary is computed across ALL offices (global view).
      *                       Ignored for office-scoped users (they always see their own office).
      */
     async getSummary(office: string, isCrossOffice: boolean = false, officeParam?: string) {
-        let targetOffice: string;
-
-        if (isCrossOffice) {
-            if (!officeParam) {
-                throw new BadRequestException(
-                    'Cross-office roles must specify ?office=<OFFICE> (e.g. ADMIN, ACADEME, OSAS) to view a dashboard.',
-                );
-            }
-            targetOffice = officeParam;
-        } else {
-            targetOffice = office;
-        }
+        // For cross-office roles, an omitted officeParam means "all offices" (global view).
+        // For office-scoped roles, the office is always their own — officeParam is ignored.
+        const targetOffice: string | undefined = isCrossOffice
+            ? (officeParam || undefined)
+            : office;
+        const isGlobalView = isCrossOffice && !officeParam;
 
         let activePeriod = null;
         let activeServices = [];
@@ -58,7 +52,8 @@ export class DashboardService {
                 this.httpService.get(`${this.kpiSlaUrl}/api/periods`, {
                     headers: {
                         Authorization: `Bearer service-token`,
-                        'x-office': targetOffice,
+                        'x-office': targetOffice ?? 'ALL',
+                        'x-is-cross-office': isGlobalView ? 'true' : 'false',
                     },
                 })
             );
@@ -68,20 +63,29 @@ export class DashboardService {
             this.logger.error('Failed to fetch periods', String(err));
         }
 
-        // ── Fetch active services ───────────────────────────────────────────
+        // ── Fetch services (active + inactive) ──────────────────────────────
+        // include_archived=true so we get ALL non-archived statuses (ACTIVE + INACTIVE),
+        // letting us compute an accurate active/inactive split below.
+        let allServices = [];
         try {
             const { data: services } = await lastValueFrom(
                 this.httpService.get(`${this.catalogueUrl}/api/services`, {
                     headers: {
                         Authorization: `Bearer service-token`,
-                        'x-office': targetOffice,
+                        'x-office': targetOffice ?? 'ALL',
+                        'x-is-cross-office': isGlobalView ? 'true' : 'false',
                     },
+                    params: { include_archived: true, limit: 1000 },
                 })
             );
-            activeServices = Array.isArray(services) ? services : (services?.data || []);
+            allServices = Array.isArray(services) ? services : (services?.data || []);
         } catch (err) {
             this.logger.error('Failed to fetch services', String(err));
         }
+
+        // Only count services whose status is Active (exclude Inactive / Archived).
+        // ServiceStatus enum values are 'Active' | 'Inactive' | 'Archived'.
+        activeServices = allServices.filter((s) => s.status === 'Active');
 
         // ── Task 3: COUNT KPIs via DB query instead of fetching the full list
         // First try a direct COUNT from the commitment_item table (most reliable
@@ -89,13 +93,16 @@ export class DashboardService {
         // If no items exist yet, fall back to fetching the kpi-sla catalogue.
         // ────────────────────────────────────────────────────────────────────
         try {
-            // Count distinct KPI IDs already used in this office's commitments
-            const dbKpiCount = await this.itemRepo
+            const itemQuery = this.itemRepo
                 .createQueryBuilder('item')
                 .innerJoin('item.commitment', 'commitment')
-                .where('commitment.office = :office', { office: targetOffice })
-                .select('COUNT(DISTINCT item.kpi_id)', 'count')
-                .getRawOne<{ count: string }>();
+                .select('COUNT(DISTINCT item.kpi_id)', 'count');
+
+            if (!isGlobalView) {
+                itemQuery.where('commitment.office = :office', { office: targetOffice });
+            }
+
+            const dbKpiCount = await itemQuery.getRawOne<{ count: string }>();
 
             const countFromDb = parseInt(dbKpiCount?.count ?? '0', 10);
 
@@ -108,7 +115,8 @@ export class DashboardService {
                     this.httpService.get(`${this.kpiSlaUrl}/api/kpis?include_inactive=false`, {
                         headers: {
                             Authorization: `Bearer service-token`,
-                            'x-office': targetOffice,
+                            'x-office': targetOffice ?? 'ALL',
+                            'x-is-cross-office': isGlobalView ? 'true' : 'false',
                         },
                     })
                 );
@@ -120,9 +128,11 @@ export class DashboardService {
         }
 
         // ── Fetch current commitment for this office ────────────────────────
+        // Commitment status is inherently office-scoped — for a global view
+        // there's no single "current commitment", so we skip this lookup.
         let commitmentStatus = 'None';
         let commitment = null;
-        if (activePeriod) {
+        if (activePeriod && !isGlobalView && targetOffice) {
             commitment = await this.commitmentRepo.findOne({
                 where: { office: targetOffice, period_id: activePeriod.id },
                 relations: { items: true },
@@ -151,9 +161,10 @@ export class DashboardService {
 
         // ── Task 3: Return kpi_count explicitly for the frontend ────────────
         return {
-            office: targetOffice,
+            office: isGlobalView ? 'ALL' : targetOffice,
             current_period: activePeriod || null,
             active_services_count: activeServices.length,
+            total_services_count: allServices.length,
             active_kpis_count: activeKpis,   // renamed field kept for backward compat
             kpi_count: activeKpis,            // explicit count field for frontend
             commitment_status: commitmentStatus,
