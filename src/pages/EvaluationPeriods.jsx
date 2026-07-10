@@ -50,7 +50,7 @@ const mapTypeToBackend = (t) => {
     switch (t) {
         case "Quarterly": return "Quarterly";
         case "Semestral": return "Semester";
-        case "Bi-Annual": return "SEMI_ANNUAL";
+        case "Bi-Annual": return "BI_ANNUAL";
         case "Annual": return "Yearly";
         default: return "Semester";
     }
