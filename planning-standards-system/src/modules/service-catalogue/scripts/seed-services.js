@@ -120,18 +120,58 @@ function markDisambiguation(records) {
   return disambiguated;
 }
 
+// (FIX 2 — with_referral is derived from service_mode, not parsed from the
+// name. The actual derivation function is defined further below alongside
+// FIX 6, which also corrects the enum values to match the live API.)
+
 // ---------------------------------------------------------------------------
-// 4. FIX 2 — derive with_referral from service_mode, not from the name
+// FIX 4 — the live CreateServiceDto does NOT accept office / status /
+// created_by in the body at all (whitelist-stripped/rejected — confirmed via
+// live 400 errors: "property office should not exist", etc). The controller
+// derives office from the x-office header and created_by from x-actor-id
+// server-side. status defaults automatically. Only send what the DTO allows.
 // ---------------------------------------------------------------------------
+
+// FIX 5 — sla_target_unit enum is capitalized: 'Minutes' | 'Hours' | 'Days'
+// (SlaUnit enum in service-catalogue/enums), not lowercase 'minutes'.
+const SLA_UNIT = 'Minutes';
+
+// FIX 6 — with_referral enum is 'With' | 'Without' | 'N/A' (ReferralStatus
+// enum), NOT 'Non-Referral'. The seeding docs' default value was invalid.
 function deriveWithReferral(serviceMode) {
   if (serviceMode === 'With Referral') return 'With';
   if (serviceMode === 'Without Referral') return 'Without';
-  return 'Non-Referral';
+  return 'N/A';
 }
 
-// ---------------------------------------------------------------------------
-// required_documents: "No Requirements Needed" -> []; else split by "; "
-// ---------------------------------------------------------------------------
+// FIX 7 — name has a hard 100-char DB/DTO limit (MaxLength(100)). Several
+// raw names already exceed 100 chars on their own, and disambiguation
+// (appending " — service_mode") pushes many more over the limit. When
+// truncating, preserve the full disambiguating suffix (it's what keeps the
+// row unique) and trim the base name instead, so two same-named services
+// don't collapse back into identical truncated strings.
+function truncateName(name, maxLen = 100) {
+  if (name.length <= maxLen) return name;
+
+  const sepIndex = name.indexOf(' — ');
+  if (sepIndex === -1) {
+    // No disambiguation suffix — just hard truncate with an ellipsis marker.
+    return name.slice(0, maxLen - 1) + '…';
+  }
+
+  const suffix = name.slice(sepIndex); // " — <service_mode>", keep in full
+  const base = name.slice(0, sepIndex);
+  const maxBaseLen = maxLen - suffix.length - 1; // -1 for the ellipsis char
+
+  if (maxBaseLen < 10) {
+    // Suffix alone is too long to leave meaningful room for the base name —
+    // fall back to a plain hard truncate of the whole string.
+    return name.slice(0, maxLen - 1) + '…';
+  }
+
+  return base.slice(0, maxBaseLen) + '…' + suffix;
+}
+
 function parseRequiredDocuments(raw) {
   if (!raw || raw.trim() === '' || raw.trim() === 'No Requirements Needed') {
     return [];
@@ -140,36 +180,48 @@ function parseRequiredDocuments(raw) {
 }
 
 // ---------------------------------------------------------------------------
-// Build the POST payload for a single record (service_mode intentionally
-// omitted — not a DB column per SEEDING_INSTRUCTIONS.md)
+// Build the POST payload for a single record. office/status/created_by are
+// intentionally NOT included — the live API rejects them; office comes from
+// the x-office header, created_by from x-actor-id, status defaults server-side.
 // ---------------------------------------------------------------------------
 function buildServicePayload(record) {
   return {
-    name: record._finalName,
-    office: record.office,
+    name: truncateName(record._finalName),
     responsible_unit: record.responsible_unit,
     classification: record.classification,
     sla_target_value: Number(record.sla_target_value),
-    sla_target_unit: 'minutes',
+    sla_target_unit: SLA_UNIT,
     processing_steps: record.processing_steps,
     required_documents: parseRequiredDocuments(record.required_documents),
     expected_output: record.expected_output,
     with_referral: deriveWithReferral(record.service_mode),
-    status: 'Active',
-    created_by: 'system_seed',
   };
 }
 
 // ---------------------------------------------------------------------------
 // API helpers
 // ---------------------------------------------------------------------------
+// NOTE: The commitment/service-catalogue JwtAuthGuard (src/common/guards/jwt-auth.guard.ts)
+// does NOT use x-mock-role / x-mock-office (that scheme is outdated — it predates the
+// current guard). Instead it trusts requests carrying x-actor-id and/or x-office,
+// treating them as if they were already validated + forwarded by the API Gateway.
+// RolesGuard then checks x-role against RolePermissions — 'Admin' has both
+// SERVICES_READ and SERVICES_WRITE (see src/common/rbac/role-permissions.ts).
+function authHeaders(office) {
+  return {
+    'x-actor-id': 'system_seed',
+    'x-actor-username': 'system_seed',
+    'x-office': office,
+    'x-role': 'Admin',
+    'x-arms-role': 'SUBSYSTEM_ADMIN',
+    'x-is-cross-office': 'false',
+  };
+}
+
 async function apiGet(pathname, office) {
   const res = await fetch(`${API_BASE}${pathname}`, {
     method: 'GET',
-    headers: {
-      'x-mock-role': 'SubsystemAdmin',
-      'x-mock-office': office,
-    },
+    headers: authHeaders(office),
   });
   if (!res.ok) {
     throw new Error(`GET ${pathname} (${office}) failed: ${res.status} ${await res.text()}`);
@@ -182,8 +234,7 @@ async function apiPost(pathname, office, body) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-mock-role': 'SubsystemAdmin',
-      'x-mock-office': office,
+      ...authHeaders(office),
     },
     body: JSON.stringify(body),
   });
@@ -195,7 +246,9 @@ async function apiPost(pathname, office, body) {
     json = text;
   }
   if (!res.ok) {
-    throw new Error(`POST ${pathname} (${office}) failed: ${res.status} ${JSON.stringify(json)}`);
+    const err = new Error(`POST ${pathname} (${office}) failed: ${res.status} ${JSON.stringify(json)}`);
+    err.status = res.status;
+    throw err;
   }
   return json;
 }
@@ -203,14 +256,62 @@ async function apiPost(pathname, office, body) {
 // ---------------------------------------------------------------------------
 // Fetch existing service names per office (idempotency lookup)
 // ---------------------------------------------------------------------------
-async function fetchExistingNamesByOffice(offices) {
-  const lookup = new Map(); // office -> Set(names)
+async function fetchAllServicesForOffice(office) {
+  // BUG FIX — GET /api/services defaults to limit=20, sorted newest-first
+  // (see pagination.dto.ts). Any office with more than 20 services had
+  // older entries silently fall onto page 2+, which a single unpaginated
+  // call never saw — causing this script to think they didn't exist yet
+  // and re-POST them, hitting a real 409 Conflict from the DB. Loop through
+  // all pages explicitly, using the max allowed page size (100), so this
+  // holds regardless of how many services an office ends up with.
+  const all = [];
+  let page = 1;
+  const limit = 100; // DTO max — see pagination.dto.ts @Max(100)
+  while (true) {
+    const res = await apiGet(`/api/services?page=${page}&limit=${limit}`, office);
+    const list = Array.isArray(res) ? res : (res?.data ?? []);
+    all.push(...list);
+    const total = Array.isArray(res) ? list.length : (res?.total ?? list.length);
+    if (all.length >= total || list.length === 0) break;
+    page += 1;
+  }
+  return all;
+}
+
+async function fetchExistingServicesByOffice(offices) {
+  const lookup = new Map(); // office -> Map(name -> id)
   for (const office of offices) {
-    const existing = await apiGet('/api/services', office);
-    const names = new Set((existing || []).map((s) => s.name));
-    lookup.set(office, names);
+    const list = await fetchAllServicesForOffice(office);
+    // Map name -> id, so already-existing services can still be checked/
+    // backfilled for intake fields (needed because a prior buggy run could
+    // have created services successfully but failed on their intake fields).
+    const byName = new Map(list.map((s) => [s.name, s.id]));
+    lookup.set(office, byName);
   }
   return lookup;
+}
+
+async function getIntakeFieldCount(serviceId, office) {
+  const existing = await apiGet(`/api/services/${serviceId}/intake-fields`, office);
+  const list = Array.isArray(existing) ? existing : (existing?.data ?? []);
+  return list.length;
+}
+
+async function createIntakeFields(serviceId, office, intakeFields, results, finalName) {
+  for (const field of intakeFields) {
+    try {
+      await apiPost(`/api/services/${serviceId}/intake-fields`, office, {
+        label: field.label,
+        field_type: (field.field_type || '').toUpperCase(),
+        is_required: field.is_required,
+        display_order: field.display_order,
+        dropdown_options: null,
+      });
+      results.intakeFieldsCreated += 1;
+    } catch (fieldErr) {
+      results.errors.push({ service: finalName, stage: 'intake_field', error: fieldErr.message });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -255,23 +356,41 @@ async function main() {
 
   const offices = [...new Set(records.map((r) => r.office))];
   console.log(`\nFetching existing services for offices: ${offices.join(', ')}`);
-  const existingByOffice = await fetchExistingNamesByOffice(offices);
+  const existingByOffice = await fetchExistingServicesByOffice(offices);
 
   const results = {
     attempted: records.length,
     created: 0,
     skipped: 0,
     intakeFieldsCreated: 0,
+    intakeFieldsBackfilled: 0,
     errors: [],
   };
 
   for (const record of records) {
     const office = record.office;
     const finalName = record._finalName;
-    const existingNames = existingByOffice.get(office) || new Set();
+    const officeMap = existingByOffice.get(office) || new Map();
+    const intakeFields = record.intake_fields || [];
 
-    if (existingNames.has(finalName)) {
+    const existingId = officeMap.get(finalName);
+    if (existingId) {
       results.skipped += 1;
+      // Recovery path: the service exists (created in a prior run), but that
+      // run may have failed partway through its intake fields (e.g. the
+      // field_type casing bug). Check if it actually has fields yet, and
+      // backfill only if it doesn't — never duplicate on a true re-run.
+      if (intakeFields.length > 0) {
+        try {
+          const currentCount = await getIntakeFieldCount(existingId, office);
+          if (currentCount === 0) {
+            await createIntakeFields(existingId, office, intakeFields, results, finalName);
+            results.intakeFieldsBackfilled += 1;
+          }
+        } catch (err) {
+          results.errors.push({ service: finalName, stage: 'intake_field_check', error: err.message });
+        }
+      }
       continue;
     }
 
@@ -279,29 +398,36 @@ async function main() {
       const payload = buildServicePayload(record);
       const created = await apiPost('/api/services', office, payload);
       results.created += 1;
-      existingNames.add(finalName); // prevent re-creating within this same run
+      officeMap.set(finalName, created.id); // prevent re-creating within this same run
 
-      const intakeFields = record.intake_fields || [];
-      for (const field of intakeFields) {
-        try {
-          await apiPost(`/api/services/${created.id}/intake-fields`, office, {
-            label: field.label,
-            field_type: field.field_type,
-            is_required: field.is_required,
-            display_order: field.display_order,
-            dropdown_options: null,
-          });
-          results.intakeFieldsCreated += 1;
-        } catch (fieldErr) {
-          results.errors.push({
-            service: finalName,
-            stage: 'intake_field',
-            error: fieldErr.message,
-          });
-        }
-      }
+      await createIntakeFields(created.id, office, intakeFields, results, finalName);
     } catch (err) {
-      results.errors.push({ service: finalName, stage: 'service', error: err.message });
+      if (err.status === 409) {
+        // The listing endpoint's pagination is unreliable (see comments on
+        // fetchAllServicesForOffice / a backend na_flags join bug), so it
+        // can miss services that genuinely exist. A 409 here is the DB's
+        // own source of truth: this service really does already exist.
+        // Treat it as a skip instead of a hard error, and try to recover
+        // its id via the search filter so intake fields can still be
+        // backfilled if needed.
+        results.skipped += 1;
+        try {
+          const searchRes = await apiGet(`/api/services?search=${encodeURIComponent(finalName)}&limit=100`, office);
+          const list = Array.isArray(searchRes) ? searchRes : (searchRes?.data ?? []);
+          const match = list.find((s) => s.name === finalName);
+          if (match && intakeFields.length > 0) {
+            const currentCount = await getIntakeFieldCount(match.id, office);
+            if (currentCount === 0) {
+              await createIntakeFields(match.id, office, intakeFields, results, finalName);
+              results.intakeFieldsBackfilled += 1;
+            }
+          }
+        } catch (lookupErr) {
+          results.errors.push({ service: finalName, stage: 'conflict_lookup', error: lookupErr.message });
+        }
+      } else {
+        results.errors.push({ service: finalName, stage: 'service', error: err.message });
+      }
     }
   }
 
@@ -310,6 +436,7 @@ async function main() {
   console.log(`Created (new):          ${results.created}`);
   console.log(`Skipped (already existed): ${results.skipped}`);
   console.log(`Intake fields created:  ${results.intakeFieldsCreated}`);
+  console.log(`Services backfilled with missing intake fields: ${results.intakeFieldsBackfilled}`);
   console.log(`Errors:                 ${results.errors.length}`);
   if (results.errors.length > 0) {
     console.log('\n--- Errors ---');
