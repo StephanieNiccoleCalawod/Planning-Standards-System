@@ -113,7 +113,7 @@ export const useAppStore = create((set, get) => ({
     fetchServices: async () => {
         set({ loadingServices: true });
         try {
-            const res = await api.getServices({ include_archived: true });
+            const res = await api.getServices({ limit: 100, include_archived: true });
             const servicesArray = Array.isArray(res) ? res : (res?.data || []);
             const storedReferrals = JSON.parse(localStorage.getItem('service_referrals') || '{}');
 
@@ -232,7 +232,7 @@ export const useAppStore = create((set, get) => ({
     fetchKpis: async () => {
         set({ loadingKpis: true });
         try {
-            const res = await api.getKpis({ include_inactive: true });
+            const res = await api.getKpis({ limit: 100, include_inactive: true });
             const kpisArray = res?.data || [];
 
             const formatted = kpisArray.map(k => ({
@@ -414,7 +414,7 @@ export const useAppStore = create((set, get) => ({
     fetchPeriods: async () => {
         set({ loadingPeriods: true });
         try {
-            const res = await api.getPeriods();
+            const res = await api.getPeriods({ limit: 100 });
             const periodsArray = res?.data || [];
 
             const formatted = periodsArray.map(p => ({
@@ -502,7 +502,7 @@ export const useAppStore = create((set, get) => ({
     fetchCommitments: async (params = {}) => {
         set({ loadingCommitments: true });
         try {
-            const res = await api.getCommitments(params);
+            const res = await api.getCommitments({ limit: 100, ...params });
             const data = res?.data || [];
             set({ commitments: data, loadingCommitments: false });
         } catch (err) {

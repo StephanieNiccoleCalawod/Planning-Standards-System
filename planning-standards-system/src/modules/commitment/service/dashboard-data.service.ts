@@ -57,7 +57,7 @@ export class DashboardService {
         // ── Fetch active period ─────────────────────────────────────────────
         try {
             const { data: periods } = await lastValueFrom(
-                this.httpService.get(`${this.kpiSlaUrl}/api/periods`, {
+                this.httpService.get(`${this.kpiSlaUrl}/api/periods?limit=100`, {
                     headers: {
                         Authorization: `Bearer service-token`,
                         'x-office': isOverall ? 'unknown-office' : targetOffice,
@@ -74,7 +74,7 @@ export class DashboardService {
         // ── Fetch active services ───────────────────────────────────────────
         try {
             const { data: services } = await lastValueFrom(
-                this.httpService.get(`${this.catalogueUrl}/api/services`, {
+                this.httpService.get(`${this.catalogueUrl}/api/services?limit=100`, {
                     headers: {
                         Authorization: `Bearer service-token`,
                         'x-office': isOverall ? 'unknown-office' : targetOffice,
@@ -114,7 +114,7 @@ export class DashboardService {
             } else {
                 // Fall back: fetch from kpi-sla catalogue and count the list
                 const { data: kpis } = await lastValueFrom(
-                    this.httpService.get(`${this.kpiSlaUrl}/api/kpis?include_inactive=false`, {
+                    this.httpService.get(`${this.kpiSlaUrl}/api/kpis?include_inactive=false&limit=100`, {
                         headers: {
                             Authorization: `Bearer service-token`,
                             'x-office': isOverall ? 'unknown-office' : targetOffice,

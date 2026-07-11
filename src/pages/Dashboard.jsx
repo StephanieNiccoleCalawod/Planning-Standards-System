@@ -264,10 +264,8 @@ export default function Dashboard() {
   });
 
   const totalServices = officeServices.filter(s => !s.archived).length;
-  // Prefer the API summary count; fall back to counting active services from the local store
-  const activeServices = summaryData
-    ? summaryData.active_services_count
-    : officeServices.filter(s => s.active && !s.archived).length;
+  // Always use the local count, as the frontend strictly holds the full unpaginated list
+  const activeServices = officeServices.filter(s => s.active && !s.archived).length;
   const inactiveServices = totalServices - activeServices;
   const naFlaggedServicesCount = officeServices.filter(s => s.naFlag && !s.archived).length;
 
