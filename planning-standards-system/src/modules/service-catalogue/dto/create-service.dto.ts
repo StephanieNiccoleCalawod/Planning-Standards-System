@@ -6,6 +6,7 @@ import {
     IsNumber,
     IsInt,
     IsArray,
+    IsUUID,
     Min,
     MinLength,
     MaxLength,
@@ -90,4 +91,19 @@ export class CreateServiceDto {
     @IsOptional()
     @IsEnum(ReferralStatus)
     with_referral?: ReferralStatus;
+
+    // TT4: links this service to one or more standard service_modes
+    // (Walk-in, Online, Email, Referral, Non-Referral, Phone) via the
+    // service_service_modes join table. Distinct from the free-text
+    // `service_mode` field above — this references the ServiceMode
+    // reference table by id.
+    @ApiPropertyOptional({
+        type: [String],
+        description: 'IDs of ServiceMode records to associate with this service (see GET /api/service-modes)',
+        example: ['b3f1c2a0-1111-4a2b-9c3d-000000000001'],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsUUID('4', { each: true, message: 'Each mode id must be a valid UUID.' })
+    mode_ids?: string[];
 }

@@ -2,42 +2,55 @@
  * TT1 — DB Seed: Administrative, Academic, OSAS Services
  * PSS Service Catalogue Microservice (Sprint 4 — BE Dev 1 - Steph)
  *
- * Fixes applied over the original SEEDING_INSTRUCTIONS.md, based on an audit
- * of the actual data in CHARTER SEEDER/output/*.json:
+ * v2 — service_mode fix
+ * ----------------------------------------------------------------------
+ * The Service entity now has a real `service_mode` column (VARCHAR(150))
+ * with a DB-level unique constraint on (office, name, service_mode) —
+ * confirmed via service.entity.ts:
+ *   @Unique('uq_service_office_name_mode', ['office', 'name', 'service_mode'])
+ *   @Column({ type: 'varchar', length: 150, nullable: true }) service_mode
  *
- *  FIX 1 — Dedupe key changed from (office, name) to (office, name, service_mode).
- *          The raw data has multiple real, distinct services sharing the same
- *          `name` (e.g. "Processing of Request for Credentials Service" x4),
- *          differentiated only by `service_mode`. A name-only dedupe check
- *          would wrongly skip 3 of those 4 as "already exists".
+ * This supersedes the v1 workaround, which predated that column and instead
+ * mangled the `name` field (appending "— <service_mode>") to fake
+ * uniqueness client-side. That's no longer necessary or correct — v2:
+ *   - Sends `service_mode` directly in the POST payload
+ *   - Leaves `name` clean (only hard-truncated at 100 chars if a raw name
+ *     is independently too long — 13 records in the current data are,
+ *     regardless of service_mode)
+ *   - Dedupes/checks existing records on (office, name, service_mode),
+ *     matching the DB's own constraint exactly
  *
- *  FIX 2 — with_referral is derived from `service_mode`, not parsed out of
- *          `name`. Zero records in the actual data have "(With Referral)" /
- *          "(Without Referral)" in the name string, so the original
- *          name-parsing rule would always fall through to "Non-Referral" and
- *          silently discard the real referral data.
- *
- *  FIX 3 — Name disambiguation. When several records share the same
- *          (office, name) but different service_mode values, the mode is
- *          appended to the name on insert (e.g. "... — Transcript of
- *          Records") so they don't collide as indistinguishable rows in the
- *          `service` table. Only applied when the name is actually ambiguous
- *          — untouched otherwise.
- *
- * Everything else follows SEEDING_INSTRUCTIONS.md as written:
- *   - service_mode itself is still omitted from the POST payload (not a DB column)
+ * Everything else from v1 still applies:
+ *   - with_referral is derived from service_mode, not parsed from name
  *   - required_documents string -> array parsing
- *   - sla_target_unit always sent as "minutes"
- *   - status "Active", created_by "system_seed"
- *   - office header read per-record from the "office" field
- *   - intake_fields posted only for services actually created (not skipped)
+ *   - sla_target_unit sent as "Minutes" (enum-correct casing)
+ *   - office/status/created_by are NOT sent in the body — office comes from
+ *     the x-office header, created_by from x-actor-id, status defaults
+ *     server-side (confirmed via live 400s against the real DTO)
+ *   - field_type uppercased for intake fields (CHECKBOX, not checkbox)
+ *   - 409 Conflict on POST is treated as "already exists" (skip), since the
+ *     GET /api/services listing endpoint has a known pagination bug
+ *     (na_flags join + skip/take) that makes it unreliable as a pre-check
+ *   - auth headers: x-actor-id / x-office / x-role: Admin (not the
+ *     nonexistent x-mock-role / x-mock-office scheme from the original docs)
+ *
+ * IMPORTANT — before running this against a database that already has the
+ * v1-seeded 74 services (mangled names, blank service_mode), clean those up
+ * first so this doesn't create 74 *additional* rows alongside the old ones:
+ *
+ *   DELETE FROM service WHERE created_by = 'system_seed';
+ *
+ * service_intake_field / service_na_flag / service_version all cascade on
+ * delete (onDelete: 'CASCADE'), so this cleanly removes their old intake
+ * fields too. Run this once, then run this script fresh.
  *
  * Usage:
  *   node seed-services.js --dry-run     # audit + preview only, no API calls
  *   node seed-services.js               # actually seed against the running API
  *
  * Env vars:
- *   API_BASE   default: http://localhost:3000
+ *   API_BASE   default: http://localhost:3000 (use 3010 for direct access —
+ *              see docker-compose.yml port mapping)
  */
 
 const fs = require('fs');
@@ -73,11 +86,11 @@ function loadRecords() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. FIX 1 — build a dedupe key on (office, name, service_mode) and drop
-//    exact cross-file overlaps (e.g. 3 records identical in batch1 + batch2)
+// 2. Drop exact cross-file duplicates — key is (office, name, service_mode),
+//    matching the DB's own unique constraint exactly.
 // ---------------------------------------------------------------------------
 function dedupeExactOverlaps(records) {
-  const seen = new Map(); // key -> first record kept
+  const seen = new Map();
   const kept = [];
   const droppedExactOverlaps = [];
 
@@ -95,78 +108,23 @@ function dedupeExactOverlaps(records) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. FIX 3 — detect ambiguous (office, name) groups (same name, different
-//    service_mode) and mark which records need the mode appended to the name
+// 3. Truncate name ONLY if it's independently too long (>100 chars) — no
+//    suffix-appending anymore, service_mode has its own column now.
 // ---------------------------------------------------------------------------
-function markDisambiguation(records) {
-  const groups = new Map(); // "office||name" -> [records]
-  for (const r of records) {
-    const key = `${r.office}||${r.name}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
-  }
-
-  const disambiguated = [];
-  for (const r of records) {
-    const key = `${r.office}||${r.name}`;
-    const group = groups.get(key);
-    const isAmbiguous = group.length > 1;
-    const finalName = r.name; // Stop appending service_mode to name
-    disambiguated.push({ ...r, _finalName: finalName, _wasDisambiguated: isAmbiguous });
-  }
-  return disambiguated;
+function truncatePlainName(name, maxLen = 100) {
+  if (name.length <= maxLen) return name;
+  return name.slice(0, maxLen - 1) + '…';
 }
 
-// (FIX 2 — with_referral is derived from service_mode, not parsed from the
-// name. The actual derivation function is defined further below alongside
-// FIX 6, which also corrects the enum values to match the live API.)
-
 // ---------------------------------------------------------------------------
-// FIX 4 — the live CreateServiceDto does NOT accept office / status /
-// created_by in the body at all (whitelist-stripped/rejected — confirmed via
-// live 400 errors: "property office should not exist", etc). The controller
-// derives office from the x-office header and created_by from x-actor-id
-// server-side. status defaults automatically. Only send what the DTO allows.
+// 4. with_referral is derived from service_mode, not parsed from the name —
+//    zero names in this dataset actually contain "(With Referral)" text.
+//    Enum values are With / Without / N/A (not "Non-Referral").
 // ---------------------------------------------------------------------------
-
-// FIX 5 — sla_target_unit enum is capitalized: 'Minutes' | 'Hours' | 'Days'
-// (SlaUnit enum in service-catalogue/enums), not lowercase 'minutes'.
-const SLA_UNIT = 'Minutes';
-
-// FIX 6 — with_referral enum is 'With' | 'Without' | 'N/A' (ReferralStatus
-// enum), NOT 'Non-Referral'. The seeding docs' default value was invalid.
 function deriveWithReferral(serviceMode) {
   if (serviceMode === 'With Referral') return 'With';
   if (serviceMode === 'Without Referral') return 'Without';
   return 'N/A';
-}
-
-// FIX 7 — name has a hard 100-char DB/DTO limit (MaxLength(100)). Several
-// raw names already exceed 100 chars on their own, and disambiguation
-// (appending " — service_mode") pushes many more over the limit. When
-// truncating, preserve the full disambiguating suffix (it's what keeps the
-// row unique) and trim the base name instead, so two same-named services
-// don't collapse back into identical truncated strings.
-function truncateName(name, maxLen = 100) {
-  if (name.length <= maxLen) return name;
-
-  const sepIndex = name.indexOf(' — ');
-  if (sepIndex === -1) {
-    // No disambiguation suffix — just hard truncate with an ellipsis marker.
-    return name.slice(0, maxLen - 1) + '…';
-  }
-
-  const suffix = name.slice(sepIndex); // " — <service_mode>", keep in full
-  const base = name.slice(0, sepIndex);
-  const maxBaseLen = maxLen - suffix.length - 1; // -1 for the ellipsis char
-
-  if (maxBaseLen < 10) {
-    // Suffix alone is too long to leave meaningful room for the base name —
-    // fall back to a plain hard truncate of the whole string.
-    return name.slice(0, maxLen - 1) + '…';
-  }
-
-  return base.slice(0, maxBaseLen) + '…' + suffix;
 }
 
 function parseRequiredDocuments(raw) {
@@ -176,15 +134,18 @@ function parseRequiredDocuments(raw) {
   return raw.split('; ').map((s) => s.trim()).filter(Boolean);
 }
 
+const SLA_UNIT = 'Minutes'; // SlaUnit enum — capitalized
+
 // ---------------------------------------------------------------------------
-// Build the POST payload for a single record. office/status/created_by are
-// intentionally NOT included — the live API rejects them; office comes from
-// the x-office header, created_by from x-actor-id, status defaults server-side.
+// Build the POST payload. office/status/created_by are NOT included — the
+// live API rejects them (office comes from x-office header, created_by from
+// x-actor-id, status defaults server-side). service_mode IS now included —
+// it's a real column with its own DB uniqueness constraint.
 // ---------------------------------------------------------------------------
 function buildServicePayload(record) {
   return {
-    name: truncateName(record._finalName),
-    service_mode: record.service_mode || null,
+    name: truncatePlainName(record.name),
+    service_mode: record.service_mode || undefined, // omit entirely if null/empty, DTO field is optional
     responsible_unit: record.responsible_unit,
     classification: record.classification,
     sla_target_value: Number(record.sla_target_value),
@@ -197,14 +158,9 @@ function buildServicePayload(record) {
 }
 
 // ---------------------------------------------------------------------------
-// API helpers
+// Auth headers — the shared JwtAuthGuard trusts these as if forwarded by the
+// API Gateway. x-role: Admin has both SERVICES_READ and SERVICES_WRITE.
 // ---------------------------------------------------------------------------
-// NOTE: The commitment/service-catalogue JwtAuthGuard (src/common/guards/jwt-auth.guard.ts)
-// does NOT use x-mock-role / x-mock-office (that scheme is outdated — it predates the
-// current guard). Instead it trusts requests carrying x-actor-id and/or x-office,
-// treating them as if they were already validated + forwarded by the API Gateway.
-// RolesGuard then checks x-role against RolePermissions — 'Admin' has both
-// SERVICES_READ and SERVICES_WRITE (see src/common/rbac/role-permissions.ts).
 function authHeaders(office) {
   return {
     'x-actor-id': 'system_seed',
@@ -252,19 +208,14 @@ async function apiPost(pathname, office, body) {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch existing service names per office (idempotency lookup)
+// Fetch existing services per office — paginated properly (GET /api/services
+// defaults to limit=20; looping avoids missing anything beyond page 1).
+// Keyed by (name, service_mode) now, matching the real DB constraint.
 // ---------------------------------------------------------------------------
 async function fetchAllServicesForOffice(office) {
-  // BUG FIX — GET /api/services defaults to limit=20, sorted newest-first
-  // (see pagination.dto.ts). Any office with more than 20 services had
-  // older entries silently fall onto page 2+, which a single unpaginated
-  // call never saw — causing this script to think they didn't exist yet
-  // and re-POST them, hitting a real 409 Conflict from the DB. Loop through
-  // all pages explicitly, using the max allowed page size (100), so this
-  // holds regardless of how many services an office ends up with.
   const all = [];
   let page = 1;
-  const limit = 100; // DTO max — see pagination.dto.ts @Max(100)
+  const limit = 100; // DTO max
   while (true) {
     const res = await apiGet(`/api/services?page=${page}&limit=${limit}`, office);
     const list = Array.isArray(res) ? res : (res?.data ?? []);
@@ -276,15 +227,16 @@ async function fetchAllServicesForOffice(office) {
   return all;
 }
 
+function existingKey(name, serviceMode) {
+  return [name, serviceMode || null].join('||');
+}
+
 async function fetchExistingServicesByOffice(offices) {
-  const lookup = new Map(); // office -> Map(name -> id)
+  const lookup = new Map(); // office -> Map((name||service_mode) -> id)
   for (const office of offices) {
     const list = await fetchAllServicesForOffice(office);
-    // Map name -> id, so already-existing services can still be checked/
-    // backfilled for intake fields (needed because a prior buggy run could
-    // have created services successfully but failed on their intake fields).
-    const byName = new Map(list.map((s) => [s.name, s.id]));
-    lookup.set(office, byName);
+    const byKey = new Map(list.map((s) => [existingKey(s.name, s.service_mode), s.id]));
+    lookup.set(office, byKey);
   }
   return lookup;
 }
@@ -295,7 +247,7 @@ async function getIntakeFieldCount(serviceId, office) {
   return list.length;
 }
 
-async function createIntakeFields(serviceId, office, intakeFields, results, finalName) {
+async function createIntakeFields(serviceId, office, intakeFields, results, label) {
   for (const field of intakeFields) {
     try {
       await apiPost(`/api/services/${serviceId}/intake-fields`, office, {
@@ -307,7 +259,7 @@ async function createIntakeFields(serviceId, office, intakeFields, results, fina
       });
       results.intakeFieldsCreated += 1;
     } catch (fieldErr) {
-      results.errors.push({ service: finalName, stage: 'intake_field', error: fieldErr.message });
+      results.errors.push({ service: label, stage: 'intake_field', error: fieldErr.message });
     }
   }
 }
@@ -316,7 +268,7 @@ async function createIntakeFields(serviceId, office, intakeFields, results, fina
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
-  console.log(`\n=== TT1 Seed — Service Catalogue ===`);
+  console.log(`\n=== TT1 Seed v2 — Service Catalogue (service_mode fix) ===`);
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no API calls)' : 'LIVE'}`);
   console.log(`API base: ${API_BASE}\n`);
 
@@ -329,22 +281,17 @@ async function main() {
     console.log(`  - [${d._sourceFile}] "${d.name}" (${d.office}, mode: ${d.service_mode ?? 'null'})`);
   }
 
-  const records = markDisambiguation(kept);
-  const disambiguatedCount = records.filter((r) => r._wasDisambiguated).length;
-  console.log(`\n${disambiguatedCount} record(s) had their name disambiguated with service_mode suffix.`);
-  if (disambiguatedCount > 0) {
-    console.log('Examples:');
-    records
-      .filter((r) => r._wasDisambiguated)
-      .slice(0, 5)
-      .forEach((r) => console.log(`  - "${r.name}" -> "${r._finalName}"`));
-  }
+  console.log(`\nFinal unique record count to attempt: ${kept.length}`);
 
-  console.log(`\nFinal unique record count to attempt: ${records.length}`);
+  const longNames = kept.filter((r) => r.name.length > 100);
+  if (longNames.length > 0) {
+    console.log(`\n${longNames.length} record(s) have a raw name over 100 chars and will be truncated:`);
+    longNames.forEach((r) => console.log(`  - "${r.name}" (${r.name.length} chars)`));
+  }
 
   if (DRY_RUN) {
     console.log('\n--- DRY RUN: sample payloads ---');
-    records.slice(0, 3).forEach((r, i) => {
+    kept.slice(0, 3).forEach((r, i) => {
       console.log(`\n[${i + 1}] office header: ${r.office}`);
       console.log(JSON.stringify(buildServicePayload(r), null, 2));
     });
@@ -352,12 +299,12 @@ async function main() {
     return;
   }
 
-  const offices = [...new Set(records.map((r) => r.office))];
+  const offices = [...new Set(kept.map((r) => r.office))];
   console.log(`\nFetching existing services for offices: ${offices.join(', ')}`);
   const existingByOffice = await fetchExistingServicesByOffice(offices);
 
   const results = {
-    attempted: records.length,
+    attempted: kept.length,
     created: 0,
     skipped: 0,
     intakeFieldsCreated: 0,
@@ -365,28 +312,26 @@ async function main() {
     errors: [],
   };
 
-  for (const record of records) {
+  for (const record of kept) {
     const office = record.office;
-    const finalName = record._finalName;
+    const name = truncatePlainName(record.name);
+    const label = record.service_mode ? `${name} (${record.service_mode})` : name;
     const officeMap = existingByOffice.get(office) || new Map();
     const intakeFields = record.intake_fields || [];
+    const key = existingKey(name, record.service_mode);
 
-    const existingId = officeMap.get(finalName);
+    const existingId = officeMap.get(key);
     if (existingId) {
       results.skipped += 1;
-      // Recovery path: the service exists (created in a prior run), but that
-      // run may have failed partway through its intake fields (e.g. the
-      // field_type casing bug). Check if it actually has fields yet, and
-      // backfill only if it doesn't — never duplicate on a true re-run.
       if (intakeFields.length > 0) {
         try {
           const currentCount = await getIntakeFieldCount(existingId, office);
           if (currentCount === 0) {
-            await createIntakeFields(existingId, office, intakeFields, results, finalName);
+            await createIntakeFields(existingId, office, intakeFields, results, label);
             results.intakeFieldsBackfilled += 1;
           }
         } catch (err) {
-          results.errors.push({ service: finalName, stage: 'intake_field_check', error: err.message });
+          results.errors.push({ service: label, stage: 'intake_field_check', error: err.message });
         }
       }
       continue;
@@ -396,35 +341,30 @@ async function main() {
       const payload = buildServicePayload(record);
       const created = await apiPost('/api/services', office, payload);
       results.created += 1;
-      officeMap.set(finalName, created.id); // prevent re-creating within this same run
+      officeMap.set(key, created.id);
 
-      await createIntakeFields(created.id, office, intakeFields, results, finalName);
+      await createIntakeFields(created.id, office, intakeFields, results, label);
     } catch (err) {
       if (err.status === 409) {
-        // The listing endpoint's pagination is unreliable (see comments on
-        // fetchAllServicesForOffice / a backend na_flags join bug), so it
-        // can miss services that genuinely exist. A 409 here is the DB's
-        // own source of truth: this service really does already exist.
-        // Treat it as a skip instead of a hard error, and try to recover
-        // its id via the search filter so intake fields can still be
-        // backfilled if needed.
+        // DB's own constraint says it already exists — trust that over our
+        // (possibly stale/paginated) local lookup.
         results.skipped += 1;
         try {
-          const searchRes = await apiGet(`/api/services?search=${encodeURIComponent(finalName)}&limit=100`, office);
+          const searchRes = await apiGet(`/api/services?search=${encodeURIComponent(name)}&limit=100`, office);
           const list = Array.isArray(searchRes) ? searchRes : (searchRes?.data ?? []);
-          const match = list.find((s) => s.name === finalName);
+          const match = list.find((s) => s.name === name && (s.service_mode || null) === (record.service_mode || null));
           if (match && intakeFields.length > 0) {
             const currentCount = await getIntakeFieldCount(match.id, office);
             if (currentCount === 0) {
-              await createIntakeFields(match.id, office, intakeFields, results, finalName);
+              await createIntakeFields(match.id, office, intakeFields, results, label);
               results.intakeFieldsBackfilled += 1;
             }
           }
         } catch (lookupErr) {
-          results.errors.push({ service: finalName, stage: 'conflict_lookup', error: lookupErr.message });
+          results.errors.push({ service: label, stage: 'conflict_lookup', error: lookupErr.message });
         }
       } else {
-        results.errors.push({ service: finalName, stage: 'service', error: err.message });
+        results.errors.push({ service: label, stage: 'service', error: err.message });
       }
     }
   }

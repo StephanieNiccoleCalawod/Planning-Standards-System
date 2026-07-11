@@ -15,6 +15,7 @@ import { Service } from '../database/service.entity';
 import { ServiceVersion } from '../database/service-version.entity';
 import { IntakeField } from '../database/service-intake-field.entity';
 import { NaFlag } from '../database/service-na-flag.entity';
+import { ServiceMode } from '../database/service-mode.entity';
 import { ServiceStatus, ReferralStatus } from '../enums';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
@@ -47,6 +48,9 @@ export class ServiceCatalogueService {
 
         @InjectRepository(NaFlag, 'catalogue_db')
         private readonly naFlagRepo: Repository<NaFlag>,
+
+        @InjectRepository(ServiceMode, 'catalogue_db')
+        private readonly serviceModeRepo: Repository<ServiceMode>,
 
         private readonly http: HttpService,
         private readonly config: ConfigService,
@@ -127,6 +131,27 @@ export class ServiceCatalogueService {
         return { total_active_services };
     }
 
+    // TT4: resolves an array of ServiceMode ids into entities, throwing if
+    // any id doesn't exist or points to an inactive mode. An empty/undefined
+    // array resolves to an empty list (no modes attached / all cleared).
+    private async resolveModeIds(modeIds: string[] | undefined): Promise<ServiceMode[]> {
+        if (!modeIds || modeIds.length === 0) return [];
+        const modes = await this.serviceModeRepo.find({
+            where: modeIds.map((id) => ({ id, is_active: true })) as any,
+        });
+        // TypeORM's find-by-array-of-where doesn't validate "IN" membership
+        // cleanly with per-row conditions, so double-check every requested
+        // id actually resolved to a real, active mode.
+        const foundIds = new Set(modes.map((m) => m.id));
+        const missing = modeIds.filter((id) => !foundIds.has(id));
+        if (missing.length > 0) {
+            throw new BadRequestException(
+                `Invalid or inactive service mode id(s): ${missing.join(', ')}`,
+            );
+        }
+        return modes;
+    }
+
     async create(office: string, dto: CreateServiceDto, actor: string): Promise<Service> {
         if (dto.classification) {
             dto.classification = normalizeClassification(dto.classification);
@@ -149,7 +174,11 @@ export class ServiceCatalogueService {
                 `A service with this name and service mode already exists in your office's catalogue.`,
             );
         }
-        const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
+
+        const { mode_ids, ...serviceFields } = dto;
+        const modes = await this.resolveModeIds(mode_ids);
+
+        const service = this.serviceRepo.create({ ...serviceFields, office, created_by: actor, modes });
         const saved = await this.serviceRepo.save(service);
         this.logAudit({
             event_type: 'SERVICE_CREATED',
@@ -220,7 +249,16 @@ export class ServiceCatalogueService {
 
         const slaChanged = dto.sla_target_value !== undefined && service.sla_target_value !== dto.sla_target_value;
 
-        Object.assign(service, dto);
+        const { mode_ids, ...serviceFields } = dto;
+        Object.assign(service, serviceFields);
+
+        // TT4: only touch the modes relation if mode_ids was actually sent —
+        // omitting the field leaves existing modes untouched, while sending
+        // [] explicitly clears all modes.
+        if (mode_ids !== undefined) {
+            service.modes = await this.resolveModeIds(mode_ids);
+        }
+
         const saved = await this.serviceRepo.save(service);
 
         this.logAudit({
@@ -453,7 +491,7 @@ export class ServiceCatalogueService {
     }
 
     private async findOneOrFail(id: string, office: string, isCrossOffice: boolean = false): Promise<Service> {
-        const service = await this.serviceRepo.findOne({ where: { id } });
+        const service = await this.serviceRepo.findOne({ where: { id }, relations: { modes: true } });
         if (!service) throw new NotFoundException(`Service ${id} not found`);
         if (!isCrossOffice && service.office !== office) {
             throw new ForbiddenException('You cannot access services from another office');
