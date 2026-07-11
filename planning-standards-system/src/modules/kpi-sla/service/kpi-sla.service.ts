@@ -469,10 +469,10 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
+        // Global check — periods reflect across all offices
         const overlapping = await this.periodRepo
             .createQueryBuilder('p')
-            .where('p.office = :office', { office })
-            .andWhere('p.is_active = true')
+            .where('p.is_active = true')
             .andWhere('p.start_date <= :end', { end: dto.end_date })
             .andWhere('p.end_date >= :start', { start: dto.start_date })
             .getOne();
@@ -483,8 +483,9 @@ export class KpiSlaService {
             );
         }
 
+        // Global check — only one OPEN period allowed system-wide
         const activePeriod = await this.periodRepo.findOne({
-            where: { office, status: PeriodStatus.OPEN, is_active: true },
+            where: { status: PeriodStatus.OPEN, is_active: true },
         });
 
         const newStatus = activePeriod ? PeriodStatus.QUEUED : PeriodStatus.OPEN;
@@ -573,10 +574,9 @@ export class KpiSlaService {
             timestamp: new Date().toISOString(),
         });
 
+        // Global — promote the earliest QUEUED period regardless of office
         const nextQueued = await this.periodRepo.findOne({
-            where: isCrossOffice
-                ? { status: PeriodStatus.QUEUED, is_active: true }
-                : { office, status: PeriodStatus.QUEUED, is_active: true },
+            where: { status: PeriodStatus.QUEUED, is_active: true },
             order: { created_at: 'ASC' },
         });
 
