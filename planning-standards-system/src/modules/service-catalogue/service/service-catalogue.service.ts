@@ -136,17 +136,17 @@ export class ServiceCatalogueService {
             .where('service.office = :office', { office })
             .andWhere('LOWER(service.name) = LOWER(:name)', { name: dto.name });
 
-        if (dto.classification) {
-            existsQuery.andWhere('service.classification = :classification', { classification: dto.classification });
+        if (dto.service_mode) {
+            existsQuery.andWhere('service.service_mode = :service_mode', { service_mode: dto.service_mode });
         } else {
-            existsQuery.andWhere('service.classification IS NULL');
+            existsQuery.andWhere('service.service_mode IS NULL');
         }
 
         const exists = await existsQuery.getOne();
 
         if (exists) {
             throw new ConflictException(
-                `A service with this name and classification already exists in your office's catalogue.`,
+                `A service with this name and service mode already exists in your office's catalogue.`,
             );
         }
         const service = this.serviceRepo.create({ ...dto, office, created_by: actor });
@@ -168,32 +168,32 @@ export class ServiceCatalogueService {
             dto.classification = normalizeClassification(dto.classification);
         }
 
-        if (dto.name !== undefined || dto.classification !== undefined) {
+        if (dto.name !== undefined || dto.service_mode !== undefined) {
             const checkName = dto.name !== undefined ? dto.name : service.name;
-            const checkClassification = dto.classification !== undefined ? dto.classification : service.classification;
+            const checkServiceMode = dto.service_mode !== undefined ? dto.service_mode : service.service_mode;
 
             const existsQuery = this.serviceRepo.createQueryBuilder('service')
                 .where('service.office = :office', { office })
                 .andWhere('LOWER(service.name) = LOWER(:name)', { name: checkName })
                 .andWhere('service.id != :id', { id: service.id });
 
-            if (checkClassification) {
-                existsQuery.andWhere('service.classification = :classification', { classification: checkClassification });
+            if (checkServiceMode) {
+                existsQuery.andWhere('service.service_mode = :service_mode', { service_mode: checkServiceMode });
             } else {
-                existsQuery.andWhere('service.classification IS NULL');
+                existsQuery.andWhere('service.service_mode IS NULL');
             }
 
             const exists = await existsQuery.getOne();
 
             if (exists) {
                 throw new ConflictException(
-                    `A service with this name and classification already exists in your office's catalogue.`,
+                    `A service with this name and service mode already exists in your office's catalogue.`,
                 );
             }
         }
 
         const trackedFields = [
-            'name', 'classification', 'sla_target_value', 'sla_target_unit',
+            'name', 'classification', 'service_mode', 'sla_target_value', 'sla_target_unit',
             'responsible_unit', 'required_documents', 'processing_steps', 'expected_output',
         ];
 

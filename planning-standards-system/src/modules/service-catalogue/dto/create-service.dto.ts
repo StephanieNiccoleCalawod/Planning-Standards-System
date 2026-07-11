@@ -29,6 +29,12 @@ export class CreateServiceDto {
     @Matches(/^[^<>"\\`]+$/, { message: 'Service name contains invalid characters.' }) // BE1-4
     name: string;
 
+    @ApiPropertyOptional({ example: 'For Follow-up', description: 'Service mode to distinguish same-named services' })
+    @IsOptional()
+    @IsString()
+    @MaxLength(150, { message: 'Service mode must not exceed 150 characters.' })
+    service_mode?: string;
+
     @ApiPropertyOptional({ example: 'OSAS' })
     @IsOptional()
     @IsString()

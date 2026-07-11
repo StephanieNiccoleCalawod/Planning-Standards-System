@@ -564,15 +564,14 @@ export default function ServiceCatalogue() {
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      const artaClass = getArtaClassification(svc);
-                      const val = svc.classification;
-                      if (!val || val.trim() === "" || val.toLowerCase() === artaClass.toLowerCase()) {
+                      const mode = svc.service_mode;
+                      if (!mode || mode.trim() === "") {
                         return <Typography color="text.disabled">—</Typography>;
                       }
 
                       return (
-                        <Typography sx={{ color: 'text.primary', fontSize: '0.8125rem' }}>
-                          {val}
+                        <Typography sx={{ color: '#580000', fontSize: '0.8125rem', fontWeight: 600, bgcolor: '#fdf2f2', display: 'inline-block', px: 1, py: 0.25, borderRadius: 1, border: '1px solid #fca5a5' }}>
+                          {mode}
                         </Typography>
                       );
                     })()}

@@ -7,6 +7,9 @@ import { IntakeField } from './database/service-intake-field.entity';
 import { NaFlag } from './database/service-na-flag.entity';
 import { ServiceCatalogueController } from './controller/service-catalogue.controller';
 import { ServiceCatalogueService } from './service/service-catalogue.service';
+import { ServiceMode } from './database/service-mode.entity';
+import { ServiceModeController } from './controller/service-mode.controller';
+import { ServiceModeService } from './service/service-mode.service';
 import { HttpModule } from '@nestjs/axios';
 import { RequestContextMiddleware } from '../../common/context/request-context';
 
@@ -25,16 +28,16 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
         username: config.get('DB_USERNAME'),
           password: String(config.get('DB_PASSWORD')),
         database: config.get('DB_NAME'),
-        entities: [Service, ServiceVersion, IntakeField, NaFlag],
+        entities: [Service, ServiceVersion, IntakeField, NaFlag, ServiceMode],
         synchronize: true,
       }),
       inject: [ConfigService],
     }),
 
-    TypeOrmModule.forFeature([Service, ServiceVersion, IntakeField, NaFlag], 'catalogue_db'),
+    TypeOrmModule.forFeature([Service, ServiceVersion, IntakeField, NaFlag, ServiceMode], 'catalogue_db'),
   ],
-  controllers: [ServiceCatalogueController],
-  providers: [ServiceCatalogueService],
+  controllers: [ServiceCatalogueController, ServiceModeController],
+  providers: [ServiceCatalogueService, ServiceModeService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

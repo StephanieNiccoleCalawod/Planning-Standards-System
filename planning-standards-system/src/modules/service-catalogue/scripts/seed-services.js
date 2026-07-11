@@ -111,10 +111,7 @@ function markDisambiguation(records) {
     const key = `${r.office}||${r.name}`;
     const group = groups.get(key);
     const isAmbiguous = group.length > 1;
-    const finalName =
-      isAmbiguous && r.service_mode
-        ? `${r.name} — ${r.service_mode}`
-        : r.name;
+    const finalName = r.name; // Stop appending service_mode to name
     disambiguated.push({ ...r, _finalName: finalName, _wasDisambiguated: isAmbiguous });
   }
   return disambiguated;
@@ -187,6 +184,7 @@ function parseRequiredDocuments(raw) {
 function buildServicePayload(record) {
   return {
     name: truncateName(record._finalName),
+    service_mode: record.service_mode || null,
     responsible_unit: record.responsible_unit,
     classification: record.classification,
     sla_target_value: Number(record.sla_target_value),

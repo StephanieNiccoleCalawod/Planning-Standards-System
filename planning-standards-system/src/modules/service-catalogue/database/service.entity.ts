@@ -5,16 +5,19 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
+  JoinTable,
   Index,
   Unique,
 } from 'typeorm';
 import { ServiceVersion } from './service-version.entity';
 import { IntakeField } from './service-intake-field.entity';
 import { NaFlag } from './service-na-flag.entity';
+import { ServiceMode } from './service-mode.entity';
 import { ServiceStatus, SlaUnit, ReferralStatus } from '../enums';
 
 @Entity('service')
-@Unique('uq_service_office_name_classification', ['office', 'name', 'classification'])
+@Unique('uq_service_office_name_mode', ['office', 'name', 'service_mode'])
 export class Service {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -28,6 +31,10 @@ export class Service {
   @Index('idx_service_name')
   @Column({ length: 300 })
   name: string;
+
+  @Index('idx_service_mode')
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  service_mode: string | null;
 
   // Task 4: was `@Column({ type: 'enum', enum: ServiceClassification })`.
   // Converted to free text so offices outside Medical (Registrar, OSAS,
@@ -85,4 +92,12 @@ export class Service {
 
   @OneToMany(() => NaFlag, (n) => n.service)
   na_flags: NaFlag[];
+
+  @ManyToMany(() => ServiceMode)
+  @JoinTable({
+    name: 'service_service_modes',
+    joinColumn: { name: 'service_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'mode_id', referencedColumnName: 'id' },
+  })
+  modes: ServiceMode[];
 }
