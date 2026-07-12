@@ -8,22 +8,38 @@ import { ProxyService } from '../service/proxy.service';
 @ApiTags('Service Catalogue (proxied)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('api/services')
+@Controller('api')
 export class CatalogueProxyController {
     constructor(
         private readonly proxy: ProxyService,
         private readonly config: ConfigService,
     ) { }
 
-    @All()
-    @ApiOperation({ summary: 'Proxies to service-catalogue: /api/services' })
-    base(@Req() req: Request, @Res() res: Response) {
-        return this.proxy.forward(req, res, this.config.get<string>('SERVICE_CATALOGUE_URL'));
+    private get target(): string {
+        return this.config.get<string>('SERVICE_CATALOGUE_URL');
     }
 
-    @All('*')
+    @All('services')
+    @ApiOperation({ summary: 'Proxies to service-catalogue: /api/services' })
+    services(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
+    }
+
+    @All('services/*')
     @ApiOperation({ summary: 'Proxies to service-catalogue: /api/services/*' })
-    wildcard(@Req() req: Request, @Res() res: Response) {
-        return this.proxy.forward(req, res, this.config.get<string>('SERVICE_CATALOGUE_URL'));
+    servicesWildcard(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
+    }
+
+    @All('service-modes')
+    @ApiOperation({ summary: 'Proxies to service-catalogue: /api/service-modes' })
+    serviceModes(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
+    }
+
+    @All('service-modes/*')
+    @ApiOperation({ summary: 'Proxies to service-catalogue: /api/service-modes/*' })
+    serviceModesWildcard(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
     }
 }

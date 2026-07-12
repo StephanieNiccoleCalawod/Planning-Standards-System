@@ -31,6 +31,17 @@ function DevBypassScreen() {
     const [searchQuery, setSearchQuery] = useState("");
 
     const handleLoginAs = (user) => {
+        // Store the default landing page based on ARMS role before reloading
+        // Default landing page per role (per Module Access Matrix)
+        const ROLE_DEFAULT_PAGE = {
+            'SUPER_ADMIN': 'dashboard',        // /admin/dashboard — full overview
+            'PLANNING_OFFICER': 'planningTimeline', // /planning/timeline — primary workspace
+            'SUBSYSTEM_ADMIN': 'dashboard',        // /dashboard — office overview
+            'STAFF': 'serviceCatalogue', // /services — only accessible module
+            'OPCR_EVALUATOR': 'opcrCommitments',  // /campus-opcr — only job is to review
+        };
+        const defaultPage = ROLE_DEFAULT_PAGE[user.armsRole] || 'dashboard';
+        localStorage.setItem('pss_default_page', defaultPage);
         loginAsMockUser(user);
     };
 
@@ -71,7 +82,8 @@ function DevBypassScreen() {
 
     return (
         <div className="bypass-bg">
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
                 .bypass-bg {
@@ -359,6 +371,8 @@ function DevBypassScreen() {
                 .badge.role-staff { background: #EEF0F3; color: #4B5563; }
                 .badge.role-head { background: var(--office-soft, #EEF0F3); color: var(--office-color, var(--ink-muted)); }
                 .badge.role-dept { background: #F3F4F6; color: #6B7280; }
+                .badge.role-planner { background: #EFF6FF; color: #1D4ED8; }
+                .badge.role-superadmin { background: #FEF3C7; color: #92400E; }
 
                 .token-line {
                     font-family: 'JetBrains Mono', monospace;
@@ -514,14 +528,16 @@ function DevBypassScreen() {
                                                             <div className="handle">@{user.username}</div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="badges">
                                                         {user.roleLabel === 'Staff' && <span className="badge role-staff">Staff</span>}
                                                         {user.roleLabel === 'Office Head' && <span className="badge role-head">Office Head</span>}
                                                         {user.roleLabel === 'Campus Director / Evaluator' && <span className="badge role-head">Director</span>}
+                                                        {user.roleLabel === 'Planning Officer' && <span className="badge role-planner">Planning Officer</span>}
+                                                        {user.roleLabel === 'Super Admin' && <span className="badge role-superadmin">Super Admin</span>}
                                                         <span className="badge role-dept">{user.office}</span>
                                                     </div>
-                                                    
+
                                                     <div className="token-line">{token}</div>
                                                 </button>
                                             );
@@ -550,7 +566,16 @@ function DevBypassScreen() {
 }
 
 export default function App() {
-    const [active, setActive] = useState("dashboard");
+    // Read default page set by Developer Bypass role-redirect, then clear it
+    const initialPage = (() => {
+        const saved = localStorage.getItem('pss_default_page');
+        if (saved) {
+            localStorage.removeItem('pss_default_page');
+            return saved;
+        }
+        return 'dashboard';
+    })();
+    const [active, setActive] = useState(initialPage);
     const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions } = useAppStore();
 
     if (!isAuthenticated()) {

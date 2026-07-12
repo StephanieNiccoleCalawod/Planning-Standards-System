@@ -4,6 +4,7 @@ import {
     ConflictException,
     BadRequestException,
     ForbiddenException,
+    UnprocessableEntityException,
     Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,11 +22,30 @@ import { PaginationDto } from '../dto/pagination.dto';
 import { AuditService } from './audit.service';
 import { RequestContext } from '../../../common/context/request-context';
 
-/** Optional actor metadata used to enrich audit/Kafka events. */
+
 export interface ActorContext {
     actor_role?: string;
     actor_username?: string;
     ip_address?: string;
+}
+export interface CommitmentExportData {
+    meta: {
+        office: string;
+        period_id: string;
+        status: string;
+        is_draft: boolean;
+        version_number: number;
+        submitted_by: string | null;
+        submitted_at: string | null;
+        exported_at: string;
+    };
+    items: Array<{
+        index: number;
+        service_id: string;
+        kpi_id: string | null;
+        target_value: number | null;
+        unit: string | null;
+    }>;
 }
 
 @Injectable()
@@ -47,16 +67,7 @@ export class CommitmentService {
         private readonly auditService: AuditService,
     ) { }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * Builds the headers needed for service-to-service calls to kpi-sla /
-     * service-catalogue so their JwtAuthGuard can authenticate the request
-     * and apply correct office-scoping, mirroring the original caller's
-     * identity (office + cross-office flag) from RequestContext.
-     */
+  
     private downstreamHeaders(): Record<string, string> {
         const ctx = RequestContext.get();
         return {
@@ -78,11 +89,6 @@ export class CommitmentService {
         }
     }
 
-    /**
-     * Task 2: Fetch the period and throw 403 if it is Closed.
-     * Called before any update operation so locked/closed periods
-     * cannot have their drafts edited via the API.
-     */
     private async validatePeriodIsOpen(period_id: string): Promise<void> {
         const baseUrl = this.config.get<string>('KPI_SLA_URL');
         try {
@@ -92,7 +98,6 @@ export class CommitmentService {
                 }),
             );
 
-            // Accept whatever casing the kpi-sla service returns
             const status: string = (period?.status ?? '').toLowerCase();
 
             if (status === 'closed') {
@@ -101,7 +106,6 @@ export class CommitmentService {
                 );
             }
         } catch (err) {
-            // Re-throw ForbiddenException as-is; treat anything else as not found
             if (err instanceof ForbiddenException) throw err;
             throw new NotFoundException(`Period ${period_id} not found in kpi-sla service`);
         }
@@ -132,10 +136,6 @@ export class CommitmentService {
             // non-blocking — kpi validation is best-effort
         }
     }
-
-    // -------------------------------------------------------------------------
-    // Public methods
-    // -------------------------------------------------------------------------
 
     async createCommitment(
         office: string,
@@ -218,8 +218,6 @@ export class CommitmentService {
             .createQueryBuilder('commitment')
             .leftJoinAndSelect('commitment.items', 'items');
 
-        // Cross-office roles (SUPER_ADMIN, OPCR_EVALUATOR) see commitments
-        // across all offices. Everyone else is scoped to their own office.
         if (isCrossOffice) {
             query.where('1=1');
         } else {
@@ -257,10 +255,6 @@ export class CommitmentService {
         return commitment;
     }
 
-    /**
-     * Task 2: Check period status before allowing any edit.
-     * Throws 403 if the period is Closed.
-     */
     async updateCommitment(
         id: string,
         office: string,
@@ -270,7 +264,6 @@ export class CommitmentService {
     ): Promise<Commitment> {
         const commitment = await this.findOneCommitment(id, office, isCrossOffice);
 
-        // ── Task 2: Block edits when the period is closed ──────────────────
         await this.validatePeriodIsOpen(commitment.period_id);
 
         if (commitment.status === CommitmentStatus.LOCKED) {
@@ -380,6 +373,152 @@ export class CommitmentService {
         });
 
         return this.findOneCommitment(id, office);
+    }
+
+    // ── Story 7: Request Revision ──────────────────────────────────────────
+    async requestRevision(
+        id: string,
+        office: string,
+        actor: string,
+        reason: string,
+        ctx: ActorContext = {},
+        isCrossOffice: boolean = false,
+    ): Promise<Commitment> {
+        const locked = await this.findOneCommitment(id, office, isCrossOffice);
+
+        if (locked.status !== CommitmentStatus.LOCKED) {
+            throw new UnprocessableEntityException(
+                'Only Locked commitments can be revised. Draft commitments cannot request a revision.',
+            );
+        }
+
+        const existingDraft = await this.commitmentRepo.findOne({
+            where: {
+                office: locked.office,
+                period_id: locked.period_id,
+                status: CommitmentStatus.DRAFT,
+            },
+        });
+
+        if (existingDraft) {
+            throw new ConflictException(
+                `A Draft revision already exists for this commitment (${existingDraft.id}). ` +
+                `Only one revision can be in progress at a time.`,
+            );
+        }
+
+        const revision = this.commitmentRepo.create({
+            office: locked.office,
+            period_id: locked.period_id,
+            status: CommitmentStatus.DRAFT,
+            version_number: locked.version_number + 1,
+            created_by: actor,
+        });
+
+        const savedRevision = await this.commitmentRepo.save(revision);
+
+        if (locked.items?.length > 0) {
+            const copiedItems = locked.items.map((item) =>
+                this.itemRepo.create({
+                    commitment_id: savedRevision.id,
+                    service_id: item.service_id,
+                    kpi_id: item.kpi_id,
+                    target_value: item.target_value,
+                    unit: item.unit,
+                }),
+            );
+            await this.itemRepo.save(copiedItems);
+        }
+
+        await this.versionRepo.save(
+            this.versionRepo.create({
+                commitment_id: savedRevision.id,
+                version_number: locked.version_number,
+                status: locked.status,
+                revision_reason: `Revision requested: ${reason}`,
+                revised_by: actor,
+                snapshot: {
+                    source_commitment_id: locked.id,
+                    office: locked.office,
+                    period_id: locked.period_id,
+                    status: locked.status,
+                    version_number: locked.version_number,
+                    items: locked.items?.map((item) => ({
+                        id: item.id,
+                        service_id: item.service_id,
+                        kpi_id: item.kpi_id,
+                        target_value: item.target_value,
+                        unit: item.unit,
+                    })) ?? [],
+                },
+            }),
+        );
+
+        this.auditService.log({
+            event_type: 'COMMITMENT_REVISION_REQUESTED',
+            actor_id: actor,
+            office_id: office,
+            resource_id: savedRevision.id,
+            details: {
+                source_commitment_id: locked.id,
+                revision_reason: reason,
+                new_draft_id: savedRevision.id,
+                item_count: locked.items?.length ?? 0,
+            },
+            timestamp: new Date().toISOString(),
+            actor_role: ctx.actor_role,
+            actor_username: ctx.actor_username,
+            ip_address: ctx.ip_address,
+            service_name: 'pss-commitment',
+        });
+
+        return this.findOneCommitment(savedRevision.id, office, isCrossOffice);
+    }
+
+    // ── Story 8: Export Commitment (JSON — FE handles PDF/CSV rendering) ───
+    async exportCommitment(
+        id: string,
+        office: string,
+        isCrossOffice: boolean = false,
+        actor: string = 'system',
+        ctx: ActorContext = {},
+    ): Promise<CommitmentExportData> {
+        const commitment = await this.findOneCommitment(id, office, isCrossOffice);
+
+        this.auditService.log({
+            event_type: 'COMMITMENT_EXPORTED',
+            actor_id: actor,
+            office_id: office,
+            resource_id: id,
+            details: { status: commitment.status },
+            timestamp: new Date().toISOString(),
+            actor_role: ctx.actor_role,
+            actor_username: ctx.actor_username,
+            ip_address: ctx.ip_address,
+            service_name: 'pss-commitment',
+        });
+
+        return {
+            meta: {
+                office: commitment.office,
+                period_id: commitment.period_id,
+                status: commitment.status,
+                is_draft: commitment.status === CommitmentStatus.DRAFT,
+                version_number: commitment.version_number,
+                submitted_by: commitment.submitted_by ?? null,
+                submitted_at: commitment.submitted_at
+                    ? new Date(commitment.submitted_at).toISOString()
+                    : null,
+                exported_at: new Date().toISOString(),
+            },
+            items: (commitment.items ?? []).map((item, idx) => ({
+                index: idx + 1,
+                service_id: item.service_id,
+                kpi_id: item.kpi_id ?? null,
+                target_value: item.target_value ?? null,
+                unit: item.unit ?? null,
+            })),
+        };
     }
 
     async findLockedCommitments(
