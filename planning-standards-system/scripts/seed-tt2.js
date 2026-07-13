@@ -68,7 +68,7 @@ function authHeaders(office) {
     'x-actor-id': 'system_seed',
     'x-actor-username': 'system_seed',
     'x-office': office,
-    'x-role': 'OPCREvaluator',
+      'x-role': 'SuperAdmin',
     'x-is-cross-office': 'true',
   };
 }
