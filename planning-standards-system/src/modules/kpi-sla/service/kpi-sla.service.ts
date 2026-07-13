@@ -27,29 +27,12 @@ import { UpdatePeriodDto } from '../dto/update-period.dto';
 import { PaginationDto } from '../dto/pagination.dto';
 import { RequestContext } from '../../../common/context/request-context';
 
-// ─── BE2-1: shared time-ordering guard ──────────────────────────────────────
-
-/**
- * Throws BadRequestException when work_end_time <= work_start_time.
- * Called from both createSlaRule and updateSlaRule so the check lives in
- * exactly one place. Both callers must pass the *effective* (merged) times.
- */
 function assertWorkEndAfterStart(start: string, end: string): void {
     if (end <= start) {
         throw new BadRequestException('work_end_time must be after work_start_time');
     }
 }
 
-// ─── BE2-2: shared working-days non-empty guard ──────────────────────────────
-
-/**
- * Throws BadRequestException when work_schedule_config is present but empty.
- * Called from both createSlaRule and updateSlaRule.
- *
- * Only validates when the value is actually provided — absence is allowed
- * (WEEKDAYS / MONDAY_TO_SATURDAY do not require it). The CUSTOM-type
- * requirement check remains a separate guard in the service methods.
- */
 function assertWorkScheduleConfigNotEmpty(config: object[] | null | undefined): void {
     if (config !== undefined && config !== null && config.length === 0) {
         throw new BadRequestException('At least one working day must be configured.');
@@ -66,7 +49,6 @@ function normalizeClassification(value: string | null | undefined): string {
         .trim();
 }
 
-// ────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class KpiSlaService {
@@ -151,7 +133,6 @@ export class KpiSlaService {
     async createKpi(office: string, actor: string, dto: CreateKpiDto): Promise<Kpi> {
         const trimmedName = dto.name.trim();
 
-        // duplicate check: same name + same category + same service = not allowed
         const dupExact = await this.kpiRepo
             .createQueryBuilder('kpi')
             .where('kpi.office = :office', { office })
@@ -214,7 +195,6 @@ export class KpiSlaService {
     async updateKpi(id: string, office: string, dto: UpdateKpiDto): Promise<Kpi> {
         const kpi = await this.findOneKpiOrFail(id, office);
 
-        // prevent duplicate KPI names + classification per office (case-insensitive, trimmed)
         if (dto.name !== undefined || dto.service_id !== undefined) {
             const checkName = dto.name !== undefined ? dto.name.trim() : kpi.name;
             const checkServiceId = dto.service_id !== undefined ? dto.service_id : kpi.service_id;
@@ -266,13 +246,8 @@ export class KpiSlaService {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
-        // ── BE2-2: defensive working-days non-empty guard ─────────────────
         assertWorkScheduleConfigNotEmpty(dto.work_schedule_config);
-        // ─────────────────────────────────────────────────────────────────
-
-        // ── BE2-1: defensive time-ordering guard ──────────────────────────
         assertWorkEndAfterStart(dto.work_start_time, dto.work_end_time);
-        // ─────────────────────────────────────────────────────────────────
 
         const existingActive = await this.slaRepo.findOne({ where: { office, is_active: true } });
         if (existingActive) {
@@ -284,7 +259,6 @@ export class KpiSlaService {
     }
 
     async findAllSlaRules(office: string, isCrossOffice: boolean = false): Promise<SlaRule[]> {
-        // SLA rules are global — all users can view regardless of office
         return this.slaRepo.find({
             relations: { versions: true },
             order: { created_at: 'DESC' },
@@ -300,16 +274,11 @@ export class KpiSlaService {
             throw new BadRequestException('work_schedule_config is required when work_schedule_type is CUSTOM');
         }
 
-        // ── BE2-2: defensive working-days non-empty guard ─────────────────
-        // Only validates when dto.work_schedule_config is explicitly supplied.
         assertWorkScheduleConfigNotEmpty(dto.work_schedule_config);
-        // ─────────────────────────────────────────────────────────────────
 
-        // ── BE2-1: defensive time-ordering guard ──────────────────────────
         const effectiveStart = dto.work_start_time ?? existing.work_start_time;
         const effectiveEnd = dto.work_end_time ?? existing.work_end_time;
         assertWorkEndAfterStart(effectiveStart, effectiveEnd);
-        // ─────────────────────────────────────────────────────────────────
 
         await this.slaVersionRepo.save(
             this.slaVersionRepo.create({
@@ -331,7 +300,6 @@ export class KpiSlaService {
 
     async getSlaRuleVersions(id: string, office: string, isCrossOffice: boolean = false): Promise<SlaRuleVersion[]> {
         const rule = await this.findOneSlaRuleOrFail(id, office, isCrossOffice);
-
         return this.slaVersionRepo.find({
             where: { sla_rule_id: id },
             order: { changed_at: 'DESC' },
@@ -380,7 +348,7 @@ export class KpiSlaService {
 
         const now = new Date();
         const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1; // 1-12
+        const currentMonth = now.getMonth() + 1;
         const currentDay = now.getDate();
 
         const holidaysToSave: Holiday[] = [];
@@ -469,7 +437,6 @@ export class KpiSlaService {
             throw new BadRequestException('start_date must be before end_date');
         }
 
-        // Global check — periods reflect across all offices
         const overlapping = await this.periodRepo
             .createQueryBuilder('p')
             .where('p.is_active = true')
@@ -483,7 +450,6 @@ export class KpiSlaService {
             );
         }
 
-        // Global check — only one OPEN period allowed system-wide
         const activePeriod = await this.periodRepo.findOne({
             where: { status: PeriodStatus.OPEN, is_active: true },
         });
@@ -512,7 +478,6 @@ export class KpiSlaService {
         pagination: PaginationDto = new PaginationDto(),
         isCrossOffice: boolean = false,
     ): Promise<{ data: any[]; total: number; page: number; limit: number }> {
-        // Evaluation periods are global — all users can view all periods
         const [periods, total] = await this.periodRepo.findAndCount({
             where: { is_active: true },
             order: { start_date: pagination.sort_order === 'ASC' ? 'ASC' : 'DESC' },
@@ -537,7 +502,6 @@ export class KpiSlaService {
     }
 
     async getPeriodWarnings(office: string, isCrossOffice: boolean = false): Promise<any[]> {
-        // Global — show warnings for all offices
         const periods = await this.periodRepo.find({
             where: { status: PeriodStatus.OPEN, is_active: true },
         });
@@ -574,7 +538,6 @@ export class KpiSlaService {
             timestamp: new Date().toISOString(),
         });
 
-        // Global — promote the earliest QUEUED period regardless of office
         const nextQueued = await this.periodRepo.findOne({
             where: { status: PeriodStatus.QUEUED, is_active: true },
             order: { created_at: 'ASC' },
@@ -607,6 +570,86 @@ export class KpiSlaService {
         await this.periodRepo.save(period);
         return { message: `Period ${id} deleted` };
     }
+
+    // ── Story 4: Schedule Next Period ──────────────────────────────────────
+    async scheduleNextPeriod(
+        id: string,
+        office: string,
+        actor: string,
+        isCrossOffice: boolean = false,
+    ): Promise<EvaluationPeriod> {
+        const source = await this.findOnePeriodOrFail(id, office, isCrossOffice);
+
+        if (source.status !== PeriodStatus.CLOSED) {
+            throw new ForbiddenException(
+                'Only Completed (Closed) periods can have a next cycle scheduled.',
+            );
+        }
+
+        const existingQueued = await this.periodRepo.findOne({
+            where: {
+                period_type: source.period_type,
+                status: PeriodStatus.QUEUED,
+                is_active: true,
+            },
+        });
+
+        if (existingQueued) {
+            throw new ConflictException(
+                `A Queued period of type "${source.period_type}" already exists. ` +
+                `Cannot schedule another until the existing one is activated or deleted.`,
+            );
+        }
+
+        const sourceStart = new Date(source.start_date);
+        const sourceEnd = new Date(source.end_date);
+        const durationMs = sourceEnd.getTime() - sourceStart.getTime();
+
+        const nextStart = new Date(sourceEnd);
+        nextStart.setDate(nextStart.getDate() + 1);
+        const nextEnd = new Date(nextStart.getTime() + durationMs);
+
+        const toDateStr = (d: Date) => d.toISOString().split('T')[0];
+
+        const activePeriod = await this.periodRepo.findOne({
+            where: { status: PeriodStatus.OPEN, is_active: true },
+        });
+        const newStatus = activePeriod ? PeriodStatus.QUEUED : PeriodStatus.OPEN;
+
+        const nextName = `${source.name} — Next Cycle`;
+
+        const next = this.periodRepo.create({
+            name: nextName,
+            period_type: source.period_type,
+            start_date: toDateStr(nextStart),
+            end_date: toDateStr(nextEnd),
+            office: source.office,
+            status: newStatus,
+            is_active: true,
+            created_by: actor,
+        });
+
+        const saved = await this.periodRepo.save(next);
+
+        this.logAudit({
+            event_type: 'PERIOD_NEXT_CYCLE_SCHEDULED',
+            actor_id: actor,
+            office_id: source.office,
+            resource_id: saved.id,
+            details: {
+                source_period_id: source.id,
+                source_period_name: source.name,
+                next_start: toDateStr(nextStart),
+                next_end: toDateStr(nextEnd),
+                status: newStatus,
+            },
+            timestamp: new Date().toISOString(),
+        });
+
+        return saved;
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────
     private async findOneKpiOrFail(id: string, office: string): Promise<Kpi> {
         const kpi = await this.kpiRepo.findOne({ where: { id } });
         if (!kpi) throw new NotFoundException(`KPI ${id} not found`);
