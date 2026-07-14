@@ -18,6 +18,18 @@ const ARMS_ROLE_MAP: Record<string, string> = {
     STAFF: 'Staff',
 };
 
+const OFFICE_NAME_MAP: Record<string, string> = {
+    ACAD: 'Campus Academic Office',
+    OSAS: 'Campus Student Services and Affairs Office',
+    ADMIN: 'Campus Administrative Office',
+    ALL: 'ALL',
+};
+
+function resolveOfficeName(office: string | undefined): string {
+    if (!office) return 'ACAD';
+    return OFFICE_NAME_MAP[office] ?? office;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
     constructor(
@@ -63,7 +75,7 @@ export class JwtAuthGuard implements CanActivate {
                 userId: claims.userId || 'mock-user',
                 username: claims.username || 'mock_user',
                 displayName: claims.displayName || claims.username || 'Mock User',
-                office: claims.office || 'ACAD',
+                office: resolveOfficeName(claims.office),
                 isCrossOffice: !!claims.isCrossOffice,
                 armsRole,
                 role: ARMS_ROLE_MAP[armsRole] ?? 'Staff',
@@ -71,7 +83,7 @@ export class JwtAuthGuard implements CanActivate {
             return true;
         }
 
-     
+
         const armsAuthUrl = this.config.get<string>('ARMS_AUTH_URL');
 
         let response;
@@ -96,7 +108,7 @@ export class JwtAuthGuard implements CanActivate {
             userId: claims.userId,
             username: claims.username,
             displayName: claims.displayName || claims.username,
-            office: claims.office,
+            office: resolveOfficeName(claims.office),
             isCrossOffice: !!claims.isCrossOffice,
             armsRole,
             role: ARMS_ROLE_MAP[armsRole] ?? 'Staff',

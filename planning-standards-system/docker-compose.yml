@@ -14,7 +14,7 @@ services:
       DB_HOST: postgres-catalogue
       DB_PORT: 5432
       DB_USERNAME: postgres
-      DB_PASSWORD: steph123gd
+      DB_PASSWORD: YEONA2805jhaz@
       DB_NAME: service-catalogue-db
     depends_on:
       postgres-catalogue:
@@ -28,7 +28,7 @@ services:
     container_name: pss-postgres-catalogue
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: steph123gd
+      POSTGRES_PASSWORD: YEONA2805jhaz@
       POSTGRES_DB: service-catalogue-db
     ports:
       - '5442:5432'

@@ -7,6 +7,8 @@ export interface RequestContextData {
     actorRole?: string;
     /** ARMS username — from x-actor-username */
     actorUsername?: string;
+    /** Actor ID — from x-actor-id */
+    actorId?: string;
     /** Real client IP — from x-client-ip (set by gateway's ForwardedIpInterceptor) */
     clientIp?: string;
     /** Requesting user's office — from x-office */
@@ -38,8 +40,9 @@ export class RequestContextMiddleware implements NestMiddleware {
     use(req: Request, res: Response, next: NextFunction): void {
         RequestContext.run(
             {
-                actorRole: (req.headers['x-arms-role'] as string) || undefined,
+                actorRole: (req.headers['x-arms-role'] as string) || (req.headers['x-role'] as string) || undefined,
                 actorUsername: (req.headers['x-actor-username'] as string) || undefined,
+                actorId: (req.headers['x-actor-id'] as string) || undefined,
                 clientIp: (req.headers['x-client-ip'] as string) || undefined,
                 office: (req.headers['x-office'] as string) || undefined,
                 isCrossOffice: req.headers['x-is-cross-office'] === 'true',

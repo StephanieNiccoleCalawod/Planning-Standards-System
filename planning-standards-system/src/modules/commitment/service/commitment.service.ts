@@ -67,12 +67,15 @@ export class CommitmentService {
         private readonly auditService: AuditService,
     ) { }
 
-  
+
     private downstreamHeaders(): Record<string, string> {
         const ctx = RequestContext.get();
         return {
             'x-office': ctx?.office ?? 'unknown-office',
             'x-is-cross-office': ctx?.isCrossOffice ? 'true' : 'false',
+            'x-role': ctx?.actorRole ?? '',
+            'x-actor-id': ctx?.actorId ?? 'system',
+            'x-actor-username': ctx?.actorUsername ?? '',
         };
     }
 
