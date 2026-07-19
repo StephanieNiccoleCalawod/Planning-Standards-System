@@ -7,14 +7,15 @@ services:
       dockerfile: src/modules/service-catalogue/Dockerfile
     container_name: pss-service-catalogue
     ports:
-      - '3010:3000'
+      - '3010:3000'                      # merged code now listens on 3000 (dati 4000)
     env_file:
       - ./src/modules/service-catalogue/.env
     environment:
+      PORT: 3000                         # pinned here para hindi ma-override ng lumang .env
       DB_HOST: postgres-catalogue
       DB_PORT: 5432
       DB_USERNAME: postgres
-      DB_PASSWORD: steph123gd
+      DB_PASSWORD: YEONA2805jhaz@        # KEPT — match sa existing postgres_catalogue_data volume mo
       DB_NAME: service-catalogue-db
     depends_on:
       postgres-catalogue:
@@ -28,13 +29,13 @@ services:
     container_name: pss-postgres-catalogue
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: steph123gd
+      POSTGRES_PASSWORD: YEONA2805jhaz@  # KEPT — same as your original init
       POSTGRES_DB: service-catalogue-db
     ports:
       - '5442:5432'
     volumes:
       - postgres_catalogue_data:/var/lib/postgresql/data
-      - ./docker/postgres-catalogue/init-readonly-role.sql:/docker-entrypoint-initdb.d/init-readonly-role.sql   # add this line
+      - ./docker/postgres-catalogue/init-readonly-role.sql:/docker-entrypoint-initdb.d/init-readonly-role.sql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d service-catalogue-db']
       interval: 5s
@@ -51,10 +52,11 @@ services:
       dockerfile: src/modules/kpi-sla/Dockerfile
     container_name: pss-kpi-sla
     ports:
-      - '3011:3001'
+      - '3011:3001'                      # merged code now listens on 3001 (dati 4001)
     env_file:
       - ./src/modules/kpi-sla/.env
     environment:
+      PORT: 3001
       DB_HOST: postgres-kpi-sla
       DB_PORT: 5432
       DB_USERNAME: postgres
@@ -97,10 +99,11 @@ services:
       dockerfile: src/modules/commitment/Dockerfile
     container_name: pss-commitment
     ports:
-      - '3012:3002'
+      - '3012:3002'                      # merged code now listens on 3002 (dati 4002)
     env_file:
       - ./src/modules/commitment/.env
     environment:
+      PORT: 3002
       DB_HOST: postgres-commitment
       DB_PORT: 5432
       DB_USERNAME: postgres

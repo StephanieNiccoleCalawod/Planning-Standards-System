@@ -378,7 +378,6 @@ export class CommitmentService {
         return this.findOneCommitment(id, office);
     }
 
-    // ── Story 7: Request Revision ──────────────────────────────────────────
     async requestRevision(
         id: string,
         office: string,
@@ -478,7 +477,6 @@ export class CommitmentService {
         return this.findOneCommitment(savedRevision.id, office, isCrossOffice);
     }
 
-    // ── Story 8: Export Commitment (JSON — FE handles PDF/CSV rendering) ───
     async exportCommitment(
         id: string,
         office: string,

@@ -2,6 +2,26 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
+// ── FIX (Sprint 4): normalize ARMS-style role names to PSS role names ──────
+// Internal service-to-service calls (e.g. commitment → kpi-sla period
+// validation) forward x-role using the ARMS format (SUPER_ADMIN,
+// SUBSYSTEM_ADMIN, ...), but RolesGuard's RolePermissions map is keyed by
+// PSS role names (SuperAdmin, Admin, ...). Without this mapping the guard
+// throws "Unrecognized role" (403), which the caller's blanket catch then
+// masks as "Period ... not found in kpi-sla service".
+const ROLE_NORMALIZE: Record<string, string> = {
+    SUPER_ADMIN: 'SuperAdmin',
+    PLANNING_OFFICER: 'PlanningOfficer',
+    SUBSYSTEM_ADMIN: 'Admin',
+    OPCR_EVALUATOR: 'OPCREvaluator',
+    STAFF: 'Staff',
+};
+
+function normalizeRole(role: string | undefined): string {
+    if (!role) return 'Staff';
+    return ROLE_NORMALIZE[role] ?? role;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
     constructor(private readonly config: ConfigService) { }
@@ -20,7 +40,7 @@ export class JwtAuthGuard implements CanActivate {
                 sub: req.headers['x-actor-id'] ?? 'system',
                 username: req.headers['x-actor-username'] ?? req.headers['x-actor-id'] ?? 'system',
                 office: req.headers['x-office'] ?? 'unknown-office',
-                role: req.headers['x-role'] ?? 'Staff',
+                role: normalizeRole(req.headers['x-role'] as string),
                 armsRole: req.headers['x-arms-role'] ?? req.headers['x-role'] ?? 'STAFF',
                 isCrossOffice: req.headers['x-is-cross-office'] === 'true',
             };
@@ -56,7 +76,7 @@ export class JwtAuthGuard implements CanActivate {
                     sub: payload.sub,
                     username: payload.username ?? payload.sub,
                     office: payload.office,
-                    role: payload.role || 'Staff',
+                    role: normalizeRole(payload.role),
                     armsRole: payload.armsRole ?? payload.role,
                     isCrossOffice: !!payload.isCrossOffice,
                 };
