@@ -26,8 +26,18 @@ function DevBypassScreen() {
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
 
-    const handleLoginAs = (user) => {
-        loginAsMockUser(user);
+    const groupedOffices = ['ACAD', 'OSAS', 'ADMIN', 'Cross-Office'];
+
+    const officeFullNames = {
+        'ACAD': 'Academic Affairs Office',
+        'OSAS': 'Student Affairs Office (OSAS)',
+        'ADMIN': 'Administration Office',
+        'Cross-Office': 'Cross-Office Access',
+    };
+
+    const getOfficeColors = (office) => {
+        switch (office) {
+            case 'ACAD':
                 return { color: 'var(--acad)', soft: 'var(--acad-soft)' };
             case 'OSAS':
                 return { color: 'var(--osas)', soft: 'var(--osas-soft)' };
@@ -36,6 +46,10 @@ function DevBypassScreen() {
             default:
                 return { color: 'var(--accent)', soft: 'var(--accent-soft)' };
         }
+    };
+
+    const handleLoginAs = (user) => {
+        loginAsMockUser(user);
     };
 
     const getFilteredUsers = (officeKey) => {
