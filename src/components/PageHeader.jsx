@@ -6,8 +6,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import CircleIcon from "@mui/icons-material/Circle";
-import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import { clearToken } from "../services/auth";
+import { ROLE_LABELS } from "../rbac-config";
 
 export default function PageHeader({ breadcrumb, title, subtitle, action }) {
     const {
@@ -19,7 +19,8 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
         sidebarCollapsed,
         setSidebarCollapsed,
         sidebarMobileOpen,
-        setSidebarMobileOpen
+        setSidebarMobileOpen,
+        loginAsMockUser
     } = useAppStore();
 
     const [activePeriod, setActivePeriod] = useState("");
@@ -70,11 +71,8 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
     }, []);
 
     // Derive display info from the decoded activeUser (real token data)
-    const displayName = activeUser?.displayName || activeUser?.username || (userRole === "Staff" ? "Staff User" : userRole === "OPCREvaluator" ? "OPCR Evaluator" : "Admin User");
-    const displayRole = activeUser?.armsRole === 'OPCR_EVALUATOR' ? 'Campus Director'
-        : activeUser?.armsRole === 'SUBSYSTEM_ADMIN' ? 'Office Head'
-            : activeUser?.armsRole === 'STAFF' ? 'Staff'
-                : userRole;
+    const displayName = activeUser?.displayName || activeUser?.username || "Admin User";
+    const displayRole = activeUser?.armsRole ? (ROLE_LABELS[activeUser.armsRole] || activeUser.armsRole) : userRole;
     const displayOffice = activeUser?.office && activeUser.office !== 'ALL' ? activeUser.office : (activeUser?.isCrossOffice ? 'All Offices' : '');
     const initials = displayName
         .split(' ')
@@ -95,6 +93,10 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
         clearToken();
         window.location.reload();
     };
+
+
+
+    const isMockEnabled = import.meta.env.VITE_MOCK_JWT_ENABLED !== 'false' && import.meta.env.VITE_MOCK_JWT_ENABLED !== false;
 
     return (
         <>
@@ -296,6 +298,8 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
                             </div>
                         )}
                     </div>
+
+
 
                     {/* Profile Dropdown */}
                     <div ref={profileRef} style={{ position: "relative" }}>

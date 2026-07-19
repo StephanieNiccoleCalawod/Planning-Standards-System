@@ -64,6 +64,7 @@ export default function EvaluationPeriods() {
         updatePeriod,
         closePeriod,
         deletePeriod,
+        scheduleNextPeriod,
         commitments = [],
         fetchCommitments,
         permissions,
@@ -86,14 +87,14 @@ export default function EvaluationPeriods() {
 
     // Edit Form states
     const [editName, setEditName] = useState("");
-    const [editType, setEditType] = useState("Semestral");
+    const [editType, setEditType] = useState("Bi-Annual");
     const [editStartDate, setEditStartDate] = useState("");
     const [editEndDate, setEditEndDate] = useState("");
     const [editErrors, setEditErrors] = useState({});
 
     // Add Form states
     const [name, setName] = useState("");
-    const [type, setType] = useState("Semestral");
+    const [type, setType] = useState("Bi-Annual");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [activeState, setActiveState] = useState(true);
@@ -120,7 +121,7 @@ export default function EvaluationPeriods() {
 
     const handleOpenAdd = () => {
         setName("");
-        setType("Semestral");
+        setType("Bi-Annual");
         setStartDate("");
         setEndDate("");
         setActiveState(true);
@@ -315,6 +316,25 @@ export default function EvaluationPeriods() {
             });
         }
     };
+
+    const handleScheduleNext = async (p) => {
+        try {
+            await scheduleNextPeriod(p.id);
+            setResultModal({
+                type: "success",
+                title: "Next Cycle Scheduled",
+                message: `The next cycle for '${p.name}' has been scheduled successfully.`
+            });
+        } catch (err) {
+            console.error(err);
+            setResultModal({
+                type: "error",
+                title: "Failed to Schedule Next Cycle",
+                message: err.message || "Failed to schedule next cycle."
+            });
+        }
+    };
+
     const filteredPeriods = periods.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -383,7 +403,7 @@ export default function EvaluationPeriods() {
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>START DATE</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>END DATE</TableCell>
                                 <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>STATUS</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 200 }}>ACTIONS</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -494,11 +514,44 @@ export default function EvaluationPeriods() {
                                                             </IconButton>
                                                         </Tooltip>
                                                     )}
-                                                    {isClosed && (
-                                                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', py: 0.5, px: 1 }}>
-                                                            Completed
-                                                        </Typography>
-                                                    )}
+                                                     {isClosed && (
+                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                             {canWritePeriods ? (
+                                                                  <Tooltip title={periods.some(q => q.status === "Queued" && q.type === p.type) ? "Next cycle already scheduled" : "Schedule next evaluation period cycle"}>
+                                                                      <span>
+                                                                          <Button
+                                                                              variant="contained"
+                                                                              size="small"
+                                                                              disabled={periods.some(q => q.status === "Queued" && q.type === p.type)}
+                                                                              onClick={() => handleScheduleNext(p)}
+                                                                              sx={{
+                                                                                  bgcolor: '#800000',
+                                                                                  color: '#ffffff',
+                                                                                  '&:hover': { bgcolor: '#990000' },
+                                                                                  '&.Mui-disabled': {
+                                                                                      bgcolor: '#F1F5F9',
+                                                                                      color: '#94A3B8'
+                                                                                  },
+                                                                                  textTransform: 'none',
+                                                                                  fontWeight: 600,
+                                                                                  fontSize: '0.75rem',
+                                                                                  borderRadius: 1.5,
+                                                                                  px: 2,
+                                                                                  py: 0.5,
+                                                                                  whiteSpace: 'nowrap'
+                                                                              }}
+                                                                          >
+                                                                              Schedule Next Cycle
+                                                                          </Button>
+                                                                      </span>
+                                                                  </Tooltip>
+                                                             ) : (
+                                                                 <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', py: 0.5, px: 1 }}>
+                                                                     Completed
+                                                                 </Typography>
+                                                             )}
+                                                         </Box>
+                                                     )}
                                                     {!canWritePeriods && !isClosed && (
                                                         <Typography variant="caption" sx={{ color: 'text.secondary', py: 0.5, px: 1 }}>—</Typography>
                                                     )}

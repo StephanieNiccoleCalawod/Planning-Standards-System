@@ -27,6 +27,7 @@ const PSS_TOKEN_KEY = 'pss_token';
 // ---------------------------------------------------------------------------
 const ARMS_ROLE_MAP = {
     SUPER_ADMIN: 'Admin',
+    PLANNING_OFFICER: 'PlanningOfficer',
     SUBSYSTEM_ADMIN: 'Admin',
     STAFF: 'Staff',
     OPCR_EVALUATOR: 'OPCREvaluator',

@@ -671,7 +671,7 @@ export class KpiSlaService {
     private async findOnePeriodOrFail(id: string, office?: string, isCrossOffice: boolean = false): Promise<EvaluationPeriod> {
         const period = await this.periodRepo.findOne({ where: { id } });
         if (!period) throw new NotFoundException(`Period ${id} not found`);
-        if (!isCrossOffice && office && period.office !== office) {
+        if (!isCrossOffice && office && period.office !== office && period.office !== 'ALL') {
             throw new ForbiddenException('You cannot access Evaluation Periods from another office');
         }
         return period;

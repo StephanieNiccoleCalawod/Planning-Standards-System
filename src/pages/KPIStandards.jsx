@@ -484,7 +484,7 @@ export default function KPIStandards() {
                 setCategoryFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
+              slotProps={{ select: { displayEmpty: true } }}
               sx={{
                 width: 180,
                 '& .MuiOutlinedInput-root': {
@@ -519,7 +519,7 @@ export default function KPIStandards() {
                 setServiceFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
+              slotProps={{ select: { displayEmpty: true } }}
               sx={{
                 width: 220,
                 '& .MuiOutlinedInput-root': {
@@ -662,23 +662,27 @@ export default function KPIStandards() {
                       })()}
                     </TableCell>
                     {canWriteKpi && (
-                    <TableCell align="center">
-                      <Tooltip title="Actions" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, kpi)}
-                          sx={{
-                            '&:hover': {
-                              bgcolor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                            width: 32,
-                            height: 32
-                          }}
-                        >
-                          <MoreHorizIcon sx={{ fontSize: 20 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
+                      <TableCell align="center">
+                        {(!svc || isInScope(svc.office, activeUser?.office, permissions)) ? (
+                          <Tooltip title="Actions" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => handleMenuOpen(e, kpi)}
+                              sx={{
+                                '&:hover': {
+                                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                                },
+                                width: 32,
+                                height: 32
+                              }}
+                            >
+                              <MoreHorizIcon sx={{ fontSize: 20 }} />
+                            </IconButton>
+                          </Tooltip>
+                        ) : (
+                          <Typography color="text.disabled">—</Typography>
+                        )}
+                      </TableCell>
                     )}
                   </TableRow>
                 );

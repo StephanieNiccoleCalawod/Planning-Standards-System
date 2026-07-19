@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import ServiceCatalogue from "./pages/ServiceCatalogue";
@@ -9,14 +9,10 @@ import EvaluationPeriods from "./pages/EvaluationPeriods";
 import OPCRCommitments from "./pages/OPCRCommitments";
 import { isAuthenticated, PREDEFINED_MOCK_USERS, encodeMockToken } from "./services/auth";
 import { useAppStore } from "./store/useAppStore";
+import { ROLE_COLORS, ROLE_LABELS, ROLE_DEFAULT_PAGE, PAGE_ACCESS, RBACContext } from "./rbac-config";
 
 const ARMS_URL = import.meta.env.VITE_ARMS_URL || 'http://localhost:5173';
-
-const ROLE_COLORS = {
-    'Staff': { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
-    'Office Head': { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
-    'Campus Director / Evaluator': { bg: '#FDF4FF', text: '#7E22CE', border: '#E9D5FF' },
-};
+const isMockEnabled = import.meta.env.VITE_MOCK_JWT_ENABLED !== 'false' && import.meta.env.VITE_MOCK_JWT_ENABLED !== false;
 
 const OFFICE_COLORS = {
     'ACAD': { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
@@ -31,32 +27,7 @@ function DevBypassScreen() {
     const [searchQuery, setSearchQuery] = useState("");
 
     const handleLoginAs = (user) => {
-        // Store the default landing page based on ARMS role before reloading
-        // Default landing page per role (per Module Access Matrix)
-        const ROLE_DEFAULT_PAGE = {
-            'SUPER_ADMIN': 'dashboard',        // /admin/dashboard — full overview
-            'PLANNING_OFFICER': 'planningTimeline', // /planning/timeline — primary workspace
-            'SUBSYSTEM_ADMIN': 'dashboard',        // /dashboard — office overview
-            'STAFF': 'serviceCatalogue', // /services — only accessible module
-            'OPCR_EVALUATOR': 'opcrCommitments',  // /campus-opcr — only job is to review
-        };
-        const defaultPage = ROLE_DEFAULT_PAGE[user.armsRole] || 'dashboard';
-        localStorage.setItem('pss_default_page', defaultPage);
         loginAsMockUser(user);
-    };
-
-    const groupedOffices = ['ACAD', 'OSAS', 'ADMIN', 'Cross-Office'];
-
-    const officeFullNames = {
-        'ACAD': 'Academic Affairs Office',
-        'OSAS': 'Student Affairs Office (OSAS)',
-        'ADMIN': 'Administration Office',
-        'Cross-Office': 'Cross-Office Access',
-    };
-
-    const getOfficeColors = (office) => {
-        switch (office) {
-            case 'ACAD':
                 return { color: 'var(--acad)', soft: 'var(--acad-soft)' };
             case 'OSAS':
                 return { color: 'var(--osas)', soft: 'var(--osas-soft)' };
@@ -530,11 +501,9 @@ function DevBypassScreen() {
                                                     </div>
 
                                                     <div className="badges">
-                                                        {user.roleLabel === 'Staff' && <span className="badge role-staff">Staff</span>}
-                                                        {user.roleLabel === 'Office Head' && <span className="badge role-head">Office Head</span>}
-                                                        {user.roleLabel === 'Campus Director / Evaluator' && <span className="badge role-head">Director</span>}
-                                                        {user.roleLabel === 'Planning Officer' && <span className="badge role-planner">Planning Officer</span>}
-                                                        {user.roleLabel === 'Super Admin' && <span className="badge role-superadmin">Super Admin</span>}
+                                                        <span className={`badge ${ROLE_COLORS[user.armsRole]?.badgeClass || 'role-staff'}`}>
+                                                            {ROLE_LABELS[user.armsRole] || user.roleLabel}
+                                                        </span>
                                                         <span className="badge role-dept">{user.office}</span>
                                                     </div>
 
@@ -576,16 +545,32 @@ export default function App() {
         return 'dashboard';
     })();
     const [active, setActive] = useState(initialPage);
-    const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions } = useAppStore();
+    const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions, activeUser, loginAsMockUser } = useAppStore();
+
+    const handleSwitchRole = (role) => {
+        const user = PREDEFINED_MOCK_USERS.find(u => u.armsRole === role);
+        if (user) {
+            loginAsMockUser(user);
+        }
+    };
+
+    // Auto-navigate to default landing page when switching users/roles dynamically
+    useEffect(() => {
+        if (activeUser?.armsRole) {
+            const defaultPage = ROLE_DEFAULT_PAGE[activeUser.armsRole] || 'dashboard';
+            setActive(defaultPage);
+        }
+    }, [activeUser?.userId, activeUser?.armsRole]);
 
     if (!isAuthenticated()) {
         return <DevBypassScreen />;
     }
 
-    // Staff users cannot access opcrCommitments — redirect to dashboard silently
-    const safeActive = (active === 'opcrCommitments' && !permissions.canViewCommitments)
-        ? 'dashboard'
-        : active;
+    // Centralized role-based page gating
+    const requiredPermission = PAGE_ACCESS[active];
+    const isAllowed = !requiredPermission || (permissions && !!permissions[requiredPermission]);
+    const defaultPage = activeUser?.armsRole ? ROLE_DEFAULT_PAGE[activeUser.armsRole] : 'dashboard';
+    const safeActive = isAllowed ? active : defaultPage;
 
     const PAGES = {
         dashboard: <Dashboard />,
@@ -594,93 +579,142 @@ export default function App() {
         slaConfiguration: <SLAConfiguration />,
         holidayCalendar: <HolidayCalendar />,
         evaluationPeriods: <EvaluationPeriods />,
-        opcrCommitments: permissions.canViewCommitments ? <OPCRCommitments /> : <Dashboard />,
+        opcrCommitments: <OPCRCommitments />,
     };
 
     const handleNavigate = (pageKey) => {
-        // Block Staff from navigating to opcrCommitments
-        if (pageKey === 'opcrCommitments' && !permissions.canViewCommitments) return;
+        const reqPerm = PAGE_ACCESS[pageKey];
+        if (reqPerm && (!permissions || !permissions[reqPerm])) return;
         setActive(pageKey);
         setSidebarMobileOpen(false);
     };
 
     return (
-        <div className="lib-page" style={{ height: "100vh", overflow: "hidden", display: "flex", width: "100vw" }}>
-            <style dangerouslySetInnerHTML={{
-                __html: `
-        .main-container {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          height: 100vh;
-          overflow: hidden;
-          min-width: 0;
-        }
-        @media (max-width: 960px) {
-          .main-container {
-            margin-left: 0 !important;
-          }
-        }
-        .mobile-header {
-          display: none;
-          height: 56px;
-          background: #500000;
-          color: #ffffff;
-          align-items: center;
-          padding: 0 16px;
-          flex-shrink: 0;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-          z-index: 99;
-          gap: 16px;
-        }
-        @media (max-width: 960px) {
-          .mobile-header {
-            display: flex;
-          }
-        }
-        .menu-btn {
-          background: none;
-          border: none;
-          color: #ffffff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px;
-          border-radius: 4px;
-          transition: background 0.15s ease;
-        }
-        .menu-btn:hover {
-          background: rgba(255, 255, 255, 0.12);
-        }
-      `}} />
-            <Sidebar
-                active={safeActive}
-                setActive={handleNavigate}
-                isOpen={sidebarMobileOpen}
-                onClose={() => setSidebarMobileOpen(false)}
-            />
-            <div
-                className="main-container"
-                style={{
-                    marginLeft: sidebarCollapsed ? '64px' : '256px',
-                    transition: 'margin-left 0.3s ease-in-out'
-                }}
-            >
-                <div className="mobile-header">
-                    <button className="menu-btn" onClick={() => setSidebarMobileOpen(true)}>
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12" />
-                            <line x1="3" y1="6" x2="21" y2="6" />
-                            <line x1="3" y1="18" x2="15" y2="18" />
-                        </svg>
-                    </button>
-                    <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.5px', fontFamily: '"DM Sans", sans-serif' }}>PUP Caloocan</span>
+        <RBACContext.Provider value={permissions}>
+            <div className="lib-page" style={{ height: "100vh", overflow: "hidden", display: "flex", width: "100vw" }}>
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+            .main-container {
+              display: flex;
+              flex-direction: column;
+              flex: 1;
+              height: 100vh;
+              overflow: hidden;
+              min-width: 0;
+            }
+            @media (max-width: 960px) {
+              .main-container {
+                margin-left: 0 !important;
+              }
+            }
+            .mobile-header {
+              display: none;
+              height: 56px;
+              background: #500000;
+              color: #ffffff;
+              align-items: center;
+              padding: 0 16px;
+              flex-shrink: 0;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+              z-index: 99;
+              gap: 16px;
+            }
+            @media (max-width: 960px) {
+              .mobile-header {
+                display: flex;
+              }
+            }
+            .menu-btn {
+              background: none;
+              border: none;
+              color: #ffffff;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 8px;
+              border-radius: 4px;
+              transition: background 0.15s ease;
+            }
+            .menu-btn:hover {
+              background: rgba(255, 255, 255, 0.12);
+            }
+          `}} />
+                <Sidebar
+                    active={safeActive}
+                    setActive={handleNavigate}
+                    isOpen={sidebarMobileOpen}
+                    onClose={() => setSidebarMobileOpen(false)}
+                />
+                <div
+                    className="main-container"
+                    style={{
+                        marginLeft: sidebarCollapsed ? '64px' : '256px',
+                        transition: 'margin-left 0.3s ease-in-out'
+                    }}
+                >
+                    <div className="mobile-header">
+                        <button className="menu-btn" onClick={() => setSidebarMobileOpen(true)}>
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="3" y1="12" x2="21" y2="12" />
+                                <line x1="3" y1="6" x2="21" y2="6" />
+                                <line x1="3" y1="18" x2="15" y2="18" />
+                            </svg>
+                        </button>
+                        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.5px', fontFamily: '"DM Sans", sans-serif' }}>PUP Caloocan</span>
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
+                        {PAGES[safeActive] || PAGES.dashboard}
+                    </div>
                 </div>
-                <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
-                    {PAGES[safeActive] || PAGES.dashboard}
-                </div>
+
+                {/* DEV ONLY — Role Switcher Floating Dropdown */}
+                {isMockEnabled && (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: 24,
+                        right: 24,
+                        zIndex: 9999,
+                        background: '#1E293B',
+                        color: '#FFFFFF',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+                        border: '1px solid #475569',
+                        fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6
+                    }}>
+                        <div style={{ fontSize: '10px', fontWeight: 800, color: '#C8960C', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            DEV ONLY — Role Switcher
+                        </div>
+                        <select
+                            id="dev-role-switcher"
+                            value={activeUser?.armsRole || 'STAFF'}
+                            onChange={(e) => handleSwitchRole(e.target.value)}
+                            style={{
+                                background: '#0F172A',
+                                color: '#FFFFFF',
+                                border: '1px solid #475569',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                outline: 'none',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="SUPER_ADMIN">Superadmin</option>
+                            <option value="PLANNING_OFFICER">PlanningOfficer</option>
+                            <option value="SUBSYSTEM_ADMIN">SubsystemAdmin</option>
+                            <option value="STAFF">Staff</option>
+                            <option value="OPCR_EVALUATOR">OPCREvaluator</option>
+                        </select>
+                    </div>
+                )}
             </div>
-        </div>
+        </RBACContext.Provider>
     );
 }

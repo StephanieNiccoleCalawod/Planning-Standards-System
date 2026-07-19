@@ -71,6 +71,7 @@ export const api = {
   archiveService: (id) => request(`/services/${id}/archive`, { method: 'PATCH' }),
   activateService: (id) => request(`/services/${id}/activate`, { method: 'PATCH' }),
   deactivateService: (id) => request(`/services/${id}/deactivate`, { method: 'PATCH' }),
+  getServiceModes: () => request('/service-modes'),
 
   // Service Intake Fields
   getIntakeFields: (serviceId) => request(`/services/${serviceId}/intake-fields`),
@@ -137,6 +138,7 @@ export const api = {
   updatePeriod: (id, data) => request(`/periods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   closePeriod: (id) => request(`/periods/${id}/complete`, { method: 'PATCH' }),
   deletePeriod: (id) => request(`/periods/${id}`, { method: 'DELETE' }),
+  scheduleNextPeriod: (id) => request(`/periods/${id}/schedule-next`, { method: 'POST' }),
 
   // Commitments
   getCommitments: (params = {}) => {

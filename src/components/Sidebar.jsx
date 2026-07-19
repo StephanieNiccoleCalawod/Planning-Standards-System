@@ -1,26 +1,7 @@
 import { useAppStore } from "../store/useAppStore";
 import logo from "../logo/image 2.svg";
 import { Tooltip } from "@mui/material";
-
-const NAV_TREE = [
-  {
-    section: "Main",
-    items: [
-      { key: "dashboard", label: "Dashboard", routeKey: "dashboard", icon: "dashboard" },
-      { key: "serviceCatalogue", label: "Service Catalogue", routeKey: "serviceCatalogue", icon: "catalogue" },
-      { key: "kpiStandards", label: "KPI Standards", routeKey: "kpiStandards", icon: "target" },
-      { key: "slaConfiguration", label: "SLA Configuration", routeKey: "slaConfiguration", icon: "sliders" },
-      { key: "holidayCalendar", label: "Holiday Calendar", routeKey: "holidayCalendar", icon: "calendar" },
-      { key: "evaluationPeriods", label: "Evaluation Periods", routeKey: "evaluationPeriods", icon: "clock" },
-    ],
-  },
-  {
-    section: "Insights",
-    items: [
-      { key: "opcrCommitments", label: "OPCR Commitments", routeKey: "opcrCommitments", icon: "file" },
-    ],
-  },
-];
+import { SIDEBAR_STRUCTURE, useRBAC } from "../rbac-config";
 
 const ICONS = {
   dashboard: (
@@ -75,14 +56,14 @@ const ICONS = {
 };
 
 export default function Sidebar({ active, setActive, isOpen, onClose }) {
-  const { sidebarCollapsed, permissions } = useAppStore();
+  const { sidebarCollapsed } = useAppStore();
+  const { hasPermission } = useRBAC();
 
   // Derive visible nav tree based on permissions
-  const visibleNavTree = NAV_TREE.map(section => ({
+  const visibleNavTree = SIDEBAR_STRUCTURE.map(section => ({
     ...section,
     items: section.items.filter(item => {
-      if (item.key === 'opcrCommitments') return permissions?.canSeeCommitmentsInSidebar !== false;
-      return true;
+      return !item.requiredPermission || hasPermission(item.requiredPermission);
     })
   })).filter(section => section.items.length > 0);
 

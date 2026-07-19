@@ -15,6 +15,7 @@ import {
   Card
 } from "@mui/material";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useAppStore } from "../store/useAppStore";
 import PageHeader from "../components/PageHeader";
 
@@ -40,10 +41,13 @@ export default function ViewCommitmentDetail({ commitmentId, onBack }) {
     fetchCommitmentById,
     fetchServices,
     fetchKpis,
-    fetchPeriods
+    fetchPeriods,
+    permissions
   } = useAppStore();
 
   const [loading, setLoading] = useState(true);
+
+  const canExport = permissions?.canExportOpcr || false;
 
   useEffect(() => {
     if (commitmentId) {
@@ -70,6 +74,104 @@ export default function ViewCommitmentDetail({ commitmentId, onBack }) {
   const period = periods.find(p => p.id === activeCommitment?.period_id);
   const periodName = period ? period.name : "—";
   const items = activeCommitment?.items || [];
+
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank');
+    const tableHtml = document.getElementById('opcr-table-container')?.innerHTML || '';
+    
+    const styledTableHtml = tableHtml.replace(/<thead[^>]*>[\s\S]*?<\/thead>/i, `
+      <thead>
+        <tr>
+          <th style="width: 45px; text-align: center;">#</th>
+          <th>SERVICE CHARTER</th>
+          <th>CLASSIFICATION</th>
+          <th>KPI INDICATOR</th>
+          <th>CATEGORY</th>
+          <th style="text-align: right;">OPCR TARGET VALUE</th>
+        </tr>
+      </thead>
+    `);
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>OPCR Commitment Registry Sheet</title>
+        <style>
+          body { font-family: 'DM Sans', sans-serif; padding: 32px; color: #1E293B; }
+          h2 { color: #800000; margin-bottom: 4px; font-size: 20px; font-weight: 700; text-transform: uppercase; }
+          .period { color: #64748B; font-size: 13px; font-weight: 600; margin-bottom: 24px; text-transform: uppercase; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; border: 1px solid #CBD5E1; }
+          th, td { border: 1px solid #CBD5E1; padding: 12px 14px; text-align: left; font-size: 12px; }
+          th { background-color: #580000 !important; color: #ffffff !important; font-weight: 700; }
+          td:last-child, th:last-child { text-align: right; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <h2>OPCR COMMITMENT REGISTRY SHEET</h2>
+        <div class="period">Evaluation Period: ${periodName}</div>
+        <table>
+          ${styledTableHtml}
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(() => window.close(), 500);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['#', 'Service Charter', 'Classification', 'KPI Indicator', 'Category', 'OPCR Target Value'];
+    const rows = items.map((item, index) => {
+      const svc = services.find(s => String(s.id) === String(item.service_id));
+      const kpi = kpis.find(k => String(k.id) === String(item.kpi_id));
+      const classification = svc?.classification || "Simple";
+      const kpiName = kpi?.name || "Target Value";
+      const category = kpi?.category || "Timeliness";
+      
+      const isDuration = kpi ? ((kpi.category === "Timeliness" || kpi.category === "Efficiency") && kpi.unit !== "/ 5") : false;
+      let targetValue = "—";
+      if (item.target_value !== null && item.target_value !== undefined) {
+        if (isDuration) {
+          targetValue = formatDuration(item.target_value);
+        } else if (kpi?.unit === "/ 5") {
+          targetValue = `${parseFloat(item.target_value)} / 5`;
+        } else if (kpi?.unit === "%" || kpi?.category === "Quality") {
+          targetValue = `${parseFloat(item.target_value)}%`;
+        } else {
+          targetValue = String(parseFloat(item.target_value));
+        }
+      }
+
+      const safeName = (svc?.name || '').replace(/"/g, '""');
+
+      return [
+        index + 1,
+        `"${safeName}"`,
+        `"${classification}"`,
+        `"${kpiName}"`,
+        `"${category}"`,
+        `"${targetValue}"`
+      ];
+    });
+    
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `OPCR_Commitment_${periodName.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
@@ -112,10 +214,50 @@ export default function ViewCommitmentDetail({ commitmentId, onBack }) {
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             OPCR Commitment Registry Sheet
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography variant="caption" sx={{ color: 'var(--maroon, #580000)', fontWeight: 800, fontSize: '0.8rem', bgcolor: 'var(--maroon-muted, #f2e8e8)', px: 2, py: 0.75, borderRadius: '9999px', border: '1px solid rgba(88,0,0,0.12)' }}>
               Evaluation Period: {periodName}
             </Typography>
+            {canExport && (
+              <>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleExportCSV}
+                  startIcon={<DownloadIcon />}
+                  sx={{
+                    borderColor: 'var(--maroon, #580000)',
+                    color: 'var(--maroon, #580000)',
+                    '&:hover': { bgcolor: 'rgba(88,0,0,0.04)', borderColor: 'var(--maroon, #580000)' },
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    height: '32px'
+                  }}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleExportPDF}
+                  startIcon={<DownloadIcon />}
+                  sx={{
+                    borderColor: 'var(--maroon, #580000)',
+                    color: 'var(--maroon, #580000)',
+                    '&:hover': { bgcolor: 'rgba(88,0,0,0.04)', borderColor: 'var(--maroon, #580000)' },
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    height: '32px'
+                  }}
+                >
+                  Export PDF
+                </Button>
+              </>
+            )}
           </Box>
         </Box>
 
@@ -124,7 +266,7 @@ export default function ViewCommitmentDetail({ commitmentId, onBack }) {
             <Typography color="text.secondary" variant="body2">No commitments defined for this period.</Typography>
           </Paper>
         ) : (
-          <TableContainer component={Paper} sx={{ borderRadius: '8px', border: '1px solid #CBD5E1', boxShadow: 'none', overflow: 'hidden' }}>
+          <TableContainer id="opcr-table-container" component={Paper} sx={{ borderRadius: '8px', border: '1px solid #CBD5E1', boxShadow: 'none', overflow: 'hidden' }}>
             <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: 0 }}>
               <TableHead>
                 {/* Spreadsheet Column Name Row (No A-F letter headers, index cell is blank) */}

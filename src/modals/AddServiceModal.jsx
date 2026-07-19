@@ -17,7 +17,9 @@ import {
   Typography,
   Box,
   Alert,
-  MenuItem
+  MenuItem,
+  Autocomplete,
+  Chip
 } from '@mui/material';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
@@ -76,12 +78,53 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
   const [intakeDocuments, setIntakeDocuments] = useState(service && service.intakeDocuments ? service.intakeDocuments : "");
   const [stepsTimeline, setStepsTimeline] = useState(service && service.stepsTimeline ? service.stepsTimeline : "");
   const [expectedOutput, setExpectedOutput] = useState(service && service.expectedOutput ? service.expectedOutput : "");
-  const [classification, setClassification] = useState(service ? (service.classification || "") : "");
-  const [active, setActive] = useState(service ? service.active : true);
+  const [classification, setClassification] = useState(() => {
+    if (service && service.classification) {
+      return service.classification;
+    }
+    return "";
+  });
   
+  const [selectedModeId, setSelectedModeId] = useState(() => {
+    if (service && service.classification && service.classification.trim() !== "") {
+      return 'other';
+    }
+    if (service && Array.isArray(service.modes) && service.modes.length > 0) {
+      return service.modes[0].id;
+    }
+    return '';
+  });
+  const [availableModes, setAvailableModes] = useState([]);
+  const [loadingModes, setLoadingModes] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchModes = async () => {
+      setLoadingModes(true);
+      try {
+        const res = await api.getServiceModes();
+        if (isMounted) {
+          setAvailableModes(res || []);
+        }
+      } catch (err) {
+        console.error("Failed to load service modes:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingModes(false);
+        }
+      }
+    };
+    fetchModes();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const [active, setActive] = useState(service ? service.active : true);
+
   const [showSlaWarning, setShowSlaWarning] = useState(false);
   const [pendingServiceData, setPendingServiceData] = useState(null);
-  
+
   const [errors, setErrors] = useState({});
   const [offices, setOffices] = useState([]);
 
@@ -199,8 +242,16 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
       }
     }
 
-    if (classification && classification.length > 150) {
-      e.classification = "Service mode must not exceed 150 characters.";
+    if (selectedModeId === 'other') {
+      if (!classification || !classification.trim()) {
+        e.classification = "Please specify the service delivery mode.";
+      } else if (classification.length > 150) {
+        e.classification = "Service mode must not exceed 150 characters.";
+      }
+    }
+
+    if (!selectedModeId) {
+      e.modeIds = "Service delivery mode is required.";
     }
 
     if (Object.keys(e).length > 0) {
@@ -213,12 +264,18 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
     const daysPart = slaDays.trim() ? `${slaDays}d` : "";
     const hoursPart = slaHours.trim() ? `${slaHours}h` : "";
     const minsPart = slaMinutes.trim() ? `${slaMinutes}m` : "";
-    
+
     const timeParts = [daysPart, hoursPart, minsPart].filter(Boolean);
     slaTarget = timeParts.length > 0 ? timeParts.join(" ") : "—";
 
-    // Handle classification: prioritize user input, store null if empty
-    let finalClassification = classification && classification.trim() !== "" ? classification.trim() : null;
+    // Handle classification: prioritize user input, store null if empty (only if 'other' is selected)
+    let finalClassification = null;
+    if (selectedModeId === 'other') {
+      finalClassification = classification && classification.trim() !== "" ? classification.trim() : null;
+    }
+
+    // Map single mode ID to an array format expected by the backend
+    const finalModeIds = selectedModeId && selectedModeId !== 'other' ? [selectedModeId] : [];
 
     // Format last updated date and time
     const today = new Date();
@@ -242,6 +299,7 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
       stepsTimeline,
       expectedOutput,
       lastUpdated: formattedDate,
+      mode_ids: finalModeIds,
     };
 
     // Intercept SLA target changes for warning confirmation
@@ -276,6 +334,7 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
         stepsTimeline,
         expectedOutput,
         lastUpdated: formattedDate,
+        mode_ids: finalModeIds,
       };
       // If onNext is provided, hand off to the next step (Intake Field Builder)
       if (onNext) {
@@ -418,22 +477,54 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
               sx={{ mt: 1, '& .MuiFormLabel-asterisk': { color: '#ef4444' } }}
             />
 
-            {/* Service Mode */}
+            {/* Service Delivery Mode (Single-select Dropdown) */}
             <TextField
-              label="Service Mode (optional)"
-              placeholder="e.g. Walk-in, Online"
-              fullWidth
-              value={classification}
-              error={!!errors.classification}
-              helperText={errors.classification}
+              select
+              label={availableModes.length === 0 ? "No modes configured" : "Service Delivery Mode *"}
+              value={selectedModeId}
               onChange={(e) => {
-                setClassification(e.target.value);
-                clearError("classification");
+                const val = e.target.value;
+                setSelectedModeId(val);
+                if (val !== 'other') {
+                  setClassification('');
+                }
+                setErrors(prev => ({ ...prev, modeIds: false }));
               }}
-              inputProps={{ maxLength: 150 }}
-              variant="outlined"
+              disabled={availableModes.length === 0}
+              fullWidth
               size="small"
-            />
+              error={!!errors.modeIds}
+              helperText={errors.modeIds}
+              required={availableModes.length > 0}
+              sx={{ '& .MuiFormLabel-asterisk': { color: '#ef4444' } }}
+            >
+              {[...availableModes, { id: 'other', name: 'Other' }].map((option) => (
+                <MenuItem key={option.id} value={option.id}>
+                  {option.name}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            {/* Custom Delivery Mode Specification */}
+            {selectedModeId === 'other' && (
+              <TextField
+                label="Please specify"
+                placeholder="e.g. Walk-in, Mobile App, Courier"
+                required
+                fullWidth
+                value={classification}
+                error={!!errors.classification}
+                helperText={errors.classification}
+                onChange={(e) => {
+                  setClassification(e.target.value);
+                  clearError("classification");
+                }}
+                inputProps={{ maxLength: 150 }}
+                variant="outlined"
+                size="small"
+                sx={{ '& .MuiFormLabel-asterisk': { color: '#ef4444' } }}
+              />
+            )}
 
             {/* SLA Inputs */}
             <Box>
@@ -510,7 +601,7 @@ export default function AddServiceModal({ onClose, onAdd, onEdit, onNext, servic
               helperText={errors.responsibleUnit}
               variant="outlined"
               size="small"
-              sx={{ 
+              sx={{
                 '& .MuiFormLabel-asterisk': { color: '#ef4444' },
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: '#f8fafc',

@@ -234,6 +234,10 @@ export default function ServiceCatalogue() {
   // Derive write permission and office scope from the permissions object
   const canWrite = permissions?.canWriteServices || false;
   const canAddService = permissions?.canSeeAddServiceBtn || false;
+  const canShowActions = permissions?.canWriteServices || 
+    activeUser?.armsRole === 'SUPER_ADMIN' || 
+    activeUser?.armsRole === 'SUBSYSTEM_ADMIN' || 
+    activeUser?.armsRole === 'STAFF';
 
   const handleToggle = async (id) => {
     const svc = services.find(s => s.id === id);
@@ -419,7 +423,7 @@ export default function ServiceCatalogue() {
               size="small"
               value={typeFilter}
               onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
-              SelectProps={{ displayEmpty: true }}
+              slotProps={{ select: { displayEmpty: true } }}
               sx={{
                 width: 180,
                 '& .MuiOutlinedInput-root': {
@@ -452,7 +456,7 @@ export default function ServiceCatalogue() {
                 size="small"
                 value={responsibleUnitFilter}
                 onChange={(e) => handleFilterChange(setResponsibleUnitFilter, e.target.value)}
-                SelectProps={{ displayEmpty: true }}
+                slotProps={{ select: { displayEmpty: true } }}
                 sx={{
                   width: 180,
                   '& .MuiOutlinedInput-root': {
@@ -539,7 +543,7 @@ export default function ServiceCatalogue() {
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>RESPONSIBLE UNIT</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>N/A FLAG</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff' }}>LAST UPDATED</TableCell>
-              {canWrite && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
+              {canShowActions && <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#ffffff', width: 140 }}>ACTIONS</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -564,6 +568,27 @@ export default function ServiceCatalogue() {
                   </TableCell>
                   <TableCell>
                     {(() => {
+                      if (Array.isArray(svc.modes) && svc.modes.length > 0) {
+                        return (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {svc.modes.map((m) => (
+                              <Chip
+                                key={m.id}
+                                label={m.name}
+                                size="small"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                  bgcolor: '#eff6ff',
+                                  color: '#1d4ed8',
+                                  border: '1px solid rgba(29, 78, 216, 0.15)'
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        );
+                      }
+
                       const mode = svc.service_mode;
                       if (!mode || mode.trim() === "") {
                         return <Typography color="text.disabled">—</Typography>;
@@ -616,23 +641,30 @@ export default function ServiceCatalogue() {
                   <TableCell>
                     {renderDateTimeCell(svc.updated_at || svc.lastUpdated)}
                   </TableCell>
-                  {canWrite && (
+                  {canShowActions && (
                     <TableCell align="center">
-                      <Tooltip title="Actions" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, svc)}
-                          sx={{
-                            '&:hover': {
-                              bgcolor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                            width: 32,
-                            height: 32
-                          }}
-                        >
-                          <MoreHorizIcon sx={{ fontSize: 20 }} />
-                        </IconButton>
-                      </Tooltip>
+                      {((permissions?.canWriteServices || 
+                         activeUser?.armsRole === 'SUPER_ADMIN' || 
+                         activeUser?.armsRole === 'SUBSYSTEM_ADMIN') ||
+                        (activeUser?.armsRole === 'STAFF' && isInScope(svc.office, activeUser?.office, permissions))) ? (
+                        <Tooltip title="Actions" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, svc)}
+                            sx={{
+                              '&:hover': {
+                                bgcolor: 'rgba(0, 0, 0, 0.04)',
+                              },
+                              width: 32,
+                              height: 32
+                            }}
+                          >
+                            <MoreHorizIcon sx={{ fontSize: 20 }} />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Typography color="text.disabled">—</Typography>
+                      )}
                     </TableCell>
                   )}
                 </TableRow>
@@ -783,6 +815,7 @@ export default function ServiceCatalogue() {
                 required_documents: updatedSvc.intakeDocuments ? updatedSvc.intakeDocuments.split("\n").filter(Boolean) : [],
                 processing_steps: updatedSvc.stepsTimeline ? updatedSvc.stepsTimeline.split("\n").filter(Boolean) : [],
                 expected_output: updatedSvc.expectedOutput,
+                mode_ids: updatedSvc.mode_ids || [],
               };
 
               await updateService(updatedSvc.id, payload);
@@ -866,6 +899,7 @@ export default function ServiceCatalogue() {
                   required_documents: updatedSvc.intakeDocuments ? updatedSvc.intakeDocuments.split("\n").filter(Boolean) : [],
                   processing_steps: updatedSvc.stepsTimeline ? updatedSvc.stepsTimeline.split("\n").filter(Boolean) : [],
                   expected_output: updatedSvc.expectedOutput,
+                  mode_ids: updatedSvc.mode_ids || [],
                 };
 
                 const createdSvc = await createService(servicePayload);
@@ -994,19 +1028,27 @@ export default function ServiceCatalogue() {
           }
         }}
       >
-        <MenuItem onClick={handleEditClick} disabled={selectedService?.archived}>
-          <EditIcon sx={{ mr: 1.5, color: '#800000', fontSize: 18 }} />
-          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Edit Service</Typography>
-        </MenuItem>
+        {permissions?.canWriteServices && (
+          <MenuItem onClick={handleEditClick} disabled={selectedService?.archived}>
+            <EditIcon sx={{ mr: 1.5, color: '#800000', fontSize: 18 }} />
+            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Edit Service</Typography>
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={handleManageFieldsClick} disabled={selectedService?.archived}>
-          <DynamicFormIcon sx={{ mr: 1.5, color: '#0284c7', fontSize: 18 }} />
-          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Manage Fields</Typography>
-        </MenuItem>
+        {permissions?.canWriteServices && (
+          <MenuItem onClick={handleManageFieldsClick} disabled={selectedService?.archived}>
+            <DynamicFormIcon sx={{ mr: 1.5, color: '#0284c7', fontSize: 18 }} />
+            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Manage Fields</Typography>
+          </MenuItem>
+        )}
 
-        <Divider sx={{ my: 0.5 }} />
+        {permissions?.canWriteServices && <Divider sx={{ my: 0.5 }} />}
 
         {selectedService?.active && activePeriod && (
+          (activeUser?.armsRole === 'SUPER_ADMIN' ||
+           activeUser?.armsRole === 'SUBSYSTEM_ADMIN' ||
+           (activeUser?.armsRole === 'STAFF' && isInScope(selectedService?.office, activeUser?.office, permissions)))
+        ) && (
           selectedService.naFlag ? (
             <MenuItem onClick={handleUnflagClick}>
               <FlagIcon sx={{ mr: 1.5, color: '#ed6c02', fontSize: 18 }} />
@@ -1020,16 +1062,18 @@ export default function ServiceCatalogue() {
           )
         )}
 
-        {selectedService?.active ? (
-          <MenuItem onClick={handleDeactivateClick}>
-            <BlockIcon sx={{ mr: 1.5, color: '#d32f2f', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Deactivate Service</Typography>
-          </MenuItem>
-        ) : (
-          <MenuItem onClick={handleActivateClick}>
-            <CheckCircleIcon sx={{ mr: 1.5, color: '#2e7d32', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Activate Service</Typography>
-          </MenuItem>
+        {permissions?.canWriteServices && (
+          selectedService?.active ? (
+            <MenuItem onClick={handleDeactivateClick}>
+              <BlockIcon sx={{ mr: 1.5, color: '#d32f2f', fontSize: 18 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Deactivate Service</Typography>
+            </MenuItem>
+          ) : (
+            <MenuItem onClick={handleActivateClick}>
+              <CheckCircleIcon sx={{ mr: 1.5, color: '#2e7d32', fontSize: 18 }} />
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Activate Service</Typography>
+            </MenuItem>
+          )
         )}
 
 

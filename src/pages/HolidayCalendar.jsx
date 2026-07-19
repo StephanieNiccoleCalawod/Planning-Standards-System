@@ -370,7 +370,7 @@ export default function HolidayCalendar() {
               size="small"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
+              slotProps={{ select: { displayEmpty: true } }}
               sx={{
                 width: 180,
                 '& .MuiOutlinedInput-root': {
@@ -402,7 +402,7 @@ export default function HolidayCalendar() {
               size="small"
               value={monthFilter}
               onChange={(e) => setMonthFilter(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
+              slotProps={{ select: { displayEmpty: true } }}
               sx={{
                 width: 150,
                 '& .MuiOutlinedInput-root': {

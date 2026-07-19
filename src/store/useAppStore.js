@@ -143,6 +143,7 @@ export const useAppStore = create((set, get) => ({
                     naFlag: Array.isArray(s.na_flags) && s.na_flags.length > 0,
                     archived: s.archived || s.status === 'ARCHIVED' || s.status === 'Archived',
                     withReferral: referral,
+                    modes: s.modes || [],
                     lastUpdated: s.updated_at ? (() => {
                         const d = new Date(s.updated_at);
                         const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -498,9 +499,19 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
+    scheduleNextPeriod: async (id) => {
+        try {
+            const res = await api.scheduleNextPeriod(id);
+            await get().fetchPeriods();
+            return res;
+        } catch (err) {
+            console.error("useAppStore.scheduleNextPeriod failed:", err);
+            throw err;
+        }
+    },
+
     // Commitments Actions
     fetchCommitments: async (params = {}) => {
-        set({ loadingCommitments: true });
         try {
             const res = await api.getCommitments({ limit: 100, ...params });
             const data = res?.data || [];
@@ -574,10 +585,6 @@ export const useAppStore = create((set, get) => ({
         set({ sidebarMobileOpen: open });
     },
 
-    /**
-     * Login as one of the predefined mock users (by user object from PREDEFINED_MOCK_USERS).
-     * Encodes a base64 token, stores it, and reloads.
-     */
     loginAsMockUser: (mockUser) => {
         const claims = {
             userId: mockUser.id,
@@ -589,7 +596,15 @@ export const useAppStore = create((set, get) => ({
         };
         const token = encodeMockToken(claims);
         localStorage.setItem('pss_token', token);
-        window.location.reload();
+
+        // Update the user session state dynamically (without reloading the page)
+        const decoded = decodeCurrentUser();
+        const perms = getPermissions(decoded);
+        set({
+            activeUser: decoded,
+            userRole: decoded?.role || 'Admin',
+            permissions: perms,
+        });
     },
 
     /**
