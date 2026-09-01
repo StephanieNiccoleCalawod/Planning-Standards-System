@@ -29,7 +29,13 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
           password: String(config.get('DB_PASSWORD')),
         database: config.get('DB_NAME'),
         entities: [Service, ServiceVersion, IntakeField, NaFlag, ServiceMode],
-        synchronize: true,
+        // Migrations are now the source of truth for schema changes.
+        // synchronize: false prevents TypeORM from auto-diffing entities on boot,
+        // which would conflict with explicit migration runs.
+        synchronize: false,
+        migrations: [__dirname + '/database/migrations/*.{ts,js}'],
+        migrationsTableName: 'typeorm_migrations',
+        migrationsRun: true,  // auto-apply pending migrations on startup
       }),
       inject: [ConfigService],
     }),

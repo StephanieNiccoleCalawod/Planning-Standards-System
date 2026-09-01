@@ -31,13 +31,11 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
                 password: config.get('DB_PASSWORD'),
                 database: config.get('DB_NAME'),
                 entities: [Commitment, CommitmentItem, CommitmentVersion, PendingAuditEvent],
-                // ── Migration-only mode ────────────────────────────────────
-                // synchronize: false in production prevents accidental schema drift.
-                // Run `npm run migration:run` to apply migrations explicitly.
+                // synchronize: true — schema is managed at runtime by TypeORM.
+                // No migrations folder exists for this service yet.
+                // When migrations are added, set synchronize: false and add
+                // migrationsRun: true to avoid race conditions on boot.
                 synchronize: true,
-                migrations: [__dirname + '/database/migrations/*.{ts,js}'],
-                migrationsTableName: 'typeorm_migrations',
-                migrationsRun: true,   // auto-apply pending migrations on startup
                 logging: config.get('NODE_ENV') !== 'production',
             }),
             inject: [ConfigService],
