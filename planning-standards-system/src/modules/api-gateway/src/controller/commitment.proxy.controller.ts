@@ -1,4 +1,4 @@
-import { All, Controller, Req, Res, UseGuards } from '@nestjs/common';
+﻿import { All, Controller, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
@@ -60,6 +60,19 @@ export class CommitmentProxyController {
 
     @All('opcr/*')
     opcrWildcard(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
+    }
+
+    // ── Story 2 (PS018) — Report Export ──────────────────────────────────
+    @All('reports/generate')
+    @ApiOperation({ summary: 'Proxies to commitment: POST /api/reports/generate' })
+    reportsGenerate(@Req() req: Request, @Res() res: Response) {
+        return this.proxy.forward(req, res, this.target);
+    }
+
+    @All('reports/*')
+    @ApiOperation({ summary: 'Proxies to commitment: /api/reports/* (e.g. download)' })
+    reportsWildcard(@Req() req: Request, @Res() res: Response) {
         return this.proxy.forward(req, res, this.target);
     }
 }

@@ -4,4 +4,6 @@ export enum Role {
     OPCR_EVALUATOR = 'OPCREvaluator',
     PLANNING_OFFICER = 'PlanningOfficer',
     SUPER_ADMIN = 'SuperAdmin',
+    CAMPUS_DIRECTOR = 'CampusDirector', 
 }
+

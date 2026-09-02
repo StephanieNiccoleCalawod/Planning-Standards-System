@@ -10,17 +10,10 @@ export class ProxyService {
     /**
      * Forwards the incoming request to a downstream PSS microservice.
      *
-     * - Strips the incoming Authorization header (downstream services don't
-     *   validate JWTs themselves — that's the gateway's job).
-     * - Injects headers derived from the validated req.user (set by
-     *   JwtAuthGuard) so downstream guards / audit logging keep working:
-     *     x-office     -> office for office-scoping (existing pattern)
-     *     x-role       -> PSS role (Admin/Staff) for RolesGuard
-     *     x-actor-id        -> ARMS userId
-     *     x-actor-username  -> ARMS username (for Kafka audit userName)
-     *     x-arms-role       -> original ARMS role (for Kafka audit userRole)
-     *     x-is-cross-office -> true/false
-     *     x-client-ip       -> real client IP (for audit ip_address)
+     * Story 2 note: responseType is 'arraybuffer' so binary report
+     * downloads (PDF/CSV) pass through untouched. This is safe for the
+     * existing JSON routes too — content-type is carried over as-is and
+     * the raw bytes are byte-identical to the original JSON body.
      */
     async forward(req: Request, res: Response, targetBaseUrl: string): Promise<void> {
         const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
@@ -49,11 +42,17 @@ export class ProxyService {
                     url: targetUrl,
                     data: req.body,
                     headers,
+                    responseType: 'arraybuffer', // Story 2 — lets binary report downloads pass through untouched
                     validateStatus: () => true, // pass through downstream status codes as-is
                 }),
             );
 
-            res.status(response.status).json(response.data);
+            res.status(response.status);
+            const contentType = response.headers['content-type'] as string | undefined;
+            if (contentType) res.setHeader('content-type', contentType);
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            if (contentDisposition) res.setHeader('content-disposition', contentDisposition);
+            res.send(Buffer.from(response.data));
         } catch (err) {
             throw new HttpException(
                 'Upstream service unreachable',
