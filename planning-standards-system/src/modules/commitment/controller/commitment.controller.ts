@@ -53,7 +53,7 @@ export class CommitmentController {
     @Roles(Permission.COMMITMENTS_READ)
     @ApiOperation({ summary: 'Get all commitments for the authenticated office (paginated). Cross-office roles see all offices.' })
     @ApiQuery({ name: 'period_id', required: false })
-    @ApiQuery({ name: 'status', required: false, enum: ['Draft', 'Locked'] })
+    @ApiQuery({ name: 'status', required: false, enum: ['Draft', 'Locked', 'Revision Requested'] })
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     @ApiQuery({ name: 'sort_by', required: false })
@@ -105,11 +105,13 @@ export class CommitmentController {
         }, isCrossOffice);
     }
 
-    // Story 7 — Request a formal revision on a locked commitment
-    @Post('commitments/:id/request-revision')
+    // Story PS015 — Request a formal revision on a locked commitment
+    // A.1: renamed from /request-revision → /revision-request to match spec (AC1).
+    // FE had not yet built against either path (confirmed by codebase search).
+    @Post('commitments/:id/revision-request')
     @HttpCode(HttpStatus.CREATED)
     @Roles(Permission.COMMITMENTS_WRITE)
-    @ApiOperation({ summary: 'Story 7 — Request a revision on a Locked commitment (creates new Draft, preserves original)' })
+    @ApiOperation({ summary: 'PS015 AC1 — Request a revision on a Locked commitment (creates new Draft, marks original as Revision Requested)' })
     requestRevision(
         @Request() req,
         @Param('id') id: string,
@@ -142,6 +144,19 @@ export class CommitmentController {
             ip_address: req.headers['x-client-ip'] as string,
         };
         return this.svc.exportCommitment(id, office, isCrossOffice, actor, ctx);
+    }
+
+    // Story PS015 AC8 — Standalone versions list
+    // NOTE (PM/FE open question): wired per spec; confirm with FE whether the
+    // nested `versions` array on GET /commitments/:id is sufficient, in which
+    // case this route can be removed without any other code changes.
+    @Get('commitments/:id/versions')
+    @Roles(Permission.COMMITMENTS_READ)
+    @ApiOperation({ summary: 'AC8 — Get all version records for a commitment, ordered by version_number ascending' })
+    getCommitmentVersions(@Request() req, @Param('id') id: string) {
+        const office = req.user?.office ?? 'unknown-office';
+        const isCrossOffice = req.user?.isCrossOffice ?? false;
+        return this.svc.getCommitmentVersions(id, office, isCrossOffice);
     }
 
     @Get('opcr/commitments')

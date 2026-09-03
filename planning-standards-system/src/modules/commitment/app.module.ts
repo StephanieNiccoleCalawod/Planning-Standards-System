@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/c
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
+import { ScheduleModule } from '@nestjs/schedule';
 import { Commitment } from './database/commitment.entity';
 import { CommitmentItem } from './database/commitment-item.entity';
 import { CommitmentVersion } from './database/commitment-version.entity';
@@ -12,12 +13,14 @@ import { AuditController } from './controller/audit.controller';
 import { CommitmentService } from './service/commitment.service';
 import { DashboardService } from './service/dashboard-data.service';
 import { AuditService } from './service/audit.service';
+import { AuditDispatcherService } from './service/audit-dispatcher.service';
 import { KafkaAuditProducer } from '../../common/kafka/kafka-audit.producer';
 import { RequestContextMiddleware } from '../../common/context/request-context';
 
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        ScheduleModule.forRoot(),
         HttpModule,
         TypeOrmModule.forRootAsync({
             name: 'commitment_db',
@@ -31,11 +34,14 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
                 password: config.get('DB_PASSWORD'),
                 database: config.get('DB_NAME'),
                 entities: [Commitment, CommitmentItem, CommitmentVersion, PendingAuditEvent],
-                // synchronize: true — schema is managed at runtime by TypeORM.
-                // No migrations folder exists for this service yet.
-                // When migrations are added, set synchronize: false and add
-                // migrationsRun: true to avoid race conditions on boot.
-                synchronize: true,
+                migrations: [__dirname + '/database/migrations/*.{ts,js}'],
+                migrationsTableName: 'typeorm_migrations',
+                // Migrations are now the source of truth for this service.
+                // migrationsRun: true applies pending migrations automatically
+                // on boot; synchronize: false prevents TypeORM from modifying
+                // the schema outside of the controlled migration path.
+                synchronize: false,
+                migrationsRun: true,
                 logging: config.get('NODE_ENV') !== 'production',
             }),
             inject: [ConfigService],
@@ -46,7 +52,13 @@ import { RequestContextMiddleware } from '../../common/context/request-context';
         ),
     ],
     controllers: [CommitmentController, DashboardController, AuditController],
-    providers: [CommitmentService, DashboardService, AuditService, KafkaAuditProducer],
+    providers: [
+        CommitmentService,
+        DashboardService,
+        AuditService,
+        AuditDispatcherService,
+        KafkaAuditProducer,
+    ],
 })
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {

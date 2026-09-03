@@ -32,6 +32,10 @@ export class PendingAuditEvent {
     @Column({ length: 100 })
     actor_id: string;
 
+    /** ARMS role of the actor, e.g. ADMIN, PLANNING_OFFICER, STAFF */
+    @Column({ type: 'varchar', length: 50, nullable: true })
+    actor_role: string | null;
+
     /** Office that owns the affected record */
     @Index('idx_pae_office_id')
     @Column({ length: 100 })

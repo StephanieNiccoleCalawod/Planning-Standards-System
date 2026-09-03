@@ -275,6 +275,13 @@ export class CommitmentService {
             );
         }
 
+        if (commitment.status === CommitmentStatus.REVISION_REQUESTED) {
+            throw new ForbiddenException(
+                'This commitment has a revision in progress and cannot be modified directly. ' +
+                'Edit the new Draft revision instead.',
+            );
+        }
+
         if (dto.items?.length > 0) {
             const invalidItems = dto.items
                 .map((item, index) => ({ item, index }))
@@ -389,6 +396,13 @@ export class CommitmentService {
     ): Promise<Commitment> {
         const locked = await this.findOneCommitment(id, office, isCrossOffice);
 
+        if (locked.status === CommitmentStatus.REVISION_REQUESTED) {
+            throw new ConflictException(
+                'A revision is already in progress for this commitment. ' +
+                'Only one revision can be in progress at a time.',
+            );
+        }
+
         if (locked.status !== CommitmentStatus.LOCKED) {
             throw new UnprocessableEntityException(
                 'Only Locked commitments can be revised. Draft commitments cannot request a revision.',
@@ -456,6 +470,12 @@ export class CommitmentService {
                 },
             }),
         );
+
+        // AC1/AC3: update the original Locked commitment to 'Revision Requested'.
+        // This preserves the record (AC3 — status never reverts to Draft) while
+        // reflecting that a revision is actively in progress.
+        locked.status = CommitmentStatus.REVISION_REQUESTED;
+        await this.commitmentRepo.save(locked);
 
         this.auditService.log({
             event_type: 'COMMITMENT_REVISION_REQUESTED',
@@ -531,6 +551,33 @@ export class CommitmentService {
     ): Promise<{ data: Commitment[]; total: number; page: number; limit: number }> {
         return this.findAllCommitments(office, { status: CommitmentStatus.LOCKED }, pagination, isCrossOffice);
     }
+
+    // ── Story PS015 AC8: Standalone versions endpoint ─────────────────────
+    // NOTE (PM/FE open question): confirm whether this endpoint is needed or
+    // whether the nested `versions` array in GET /commitments/:id is sufficient.
+    // Built per spec — skip wiring the route if FE confirms nested array is enough.
+    async getCommitmentVersions(
+        id: string,
+        office: string,
+        isCrossOffice: boolean = false,
+    ): Promise<CommitmentVersion[]> {
+        // Reuse findOneCommitment for access control (office-scoping + existence check)
+        await this.findOneCommitment(id, office, isCrossOffice);
+
+        return this.versionRepo.find({
+            where: { commitment_id: id },
+            order: { version_number: 'ASC' },
+        });
+    }
+
+    // ── DESIGN NOTE — Locking after revision (WHAT-BE #3 ambiguity) ────────
+    // The spec says "Locking the revised draft sets commitment back to Locked"
+    // but is ambiguous between:
+    //   (a) the NEW Draft row becomes Locked (implemented here — lockCommitment()
+    //       locks whichever row ID is passed, so no extra logic is needed)
+    //   (b) the ORIGINAL Revision Requested row reverts to Locked and the draft
+    //       is merged into it (requires new merge logic, not currently specified)
+    // Option (a) is implemented as the default. RAISE WITH PM/FE BEFORE CLOSING.
 
     private async createVersionSnapshot(
         commitment: Commitment,

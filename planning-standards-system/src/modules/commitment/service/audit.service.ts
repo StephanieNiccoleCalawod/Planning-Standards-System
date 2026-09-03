@@ -53,9 +53,15 @@ export class AuditService {
      * - Validates required fields before writing; skips silently when
      *   data is unusable.
      * - Accepts undefined / null / empty payloads gracefully.
-     * - After a successful local write, best-effort pushes the same event
-     *   to ARMS via Kafka (topic: arms.audit.events). If Kafka is down,
-     *   the local pending_audit_event row remains the source of truth.
+     *
+     * NOTE (Sprint 5, TT5 — Transactional Outbox Pattern, PM-confirmed):
+     * log() intentionally does NOT call ARMS/Kafka directly. Writing the
+     * row here with is_synced=false and letting AuditDispatcherService
+     * deliver it asynchronously (with a real broker ACK before marking
+     * synced) is what guarantees zero audit-log loss if ARMS/Kafka is
+     * temporarily unreachable. Do not re-add a direct Kafka call here —
+     * that reintroduces the original fire-and-forget data-loss bug this
+     * pattern was built to fix.
      */
     async log(payload: AuditEventPayload | null | undefined): Promise<void> {
         try {
@@ -92,12 +98,20 @@ export class AuditService {
                 }
             }
 
+            if (payload.actor_username) {
+                safeMetadata = {
+                    ...(safeMetadata ?? {}),
+                    actor_username: payload.actor_username,
+                };
+            }
+
             const timestamp = payload.timestamp ? new Date(payload.timestamp) : new Date();
 
             await this.auditRepo.save(
                 this.auditRepo.create({
                     event:         event_type.substring(0, 100),
                     actor_id:      actor_id.substring(0, 100),
+                    actor_role:    safeStr(payload.actor_role, 50),
                     office_id:     office_id.substring(0, 100),
                     target_entity: undefined,
                     target_id:     safeStr(payload.resource_id, 100)     ?? undefined,
@@ -108,9 +122,10 @@ export class AuditService {
                 }),
             );
 
-            // ── Best-effort push to ARMS via Kafka ─────────────────────────
-            // Never blocks / never throws back to the caller — local row above
-            // is already saved regardless of Kafka availability.
+            // ── TT5 Transactional Outbox: Direct Kafka call disabled ───────
+            // Delivery is handled exclusively by AuditDispatcherService's scheduled cycle
+            // to ensure broker ACK is confirmed before marking is_synced=true.
+            /*
             void this.kafkaProducer.emit({
                 serviceName: safeStr(payload.service_name, 100) ?? 'pss-commitment',
                 entityType:  'unknown',
@@ -123,6 +138,7 @@ export class AuditService {
                 office:      office_id,
                 metadata:    safeMetadata ?? undefined,
             });
+            */
         } catch (err: unknown) {
             // Log but NEVER re-throw – audit must never crash the caller
             this.logger.error(

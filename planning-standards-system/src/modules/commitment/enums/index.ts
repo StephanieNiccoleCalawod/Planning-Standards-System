@@ -2,6 +2,7 @@
 export enum CommitmentStatus {
   DRAFT = 'Draft',
   LOCKED = 'Locked',
+  REVISION_REQUESTED = 'Revision Requested',
 }
 
 export enum CommitmentItemUnit {

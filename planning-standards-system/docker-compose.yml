@@ -145,6 +145,33 @@ services:
       - pss-network
 
 
+  # ── planning ──────────────────────────────────────────────────────────────
+  planning:
+    build:
+      context: .
+      dockerfile: src/modules/planning/Dockerfile
+    container_name: pss-planning
+    ports:
+      - '3013:4005'
+    env_file:
+      - ./src/modules/planning/.env
+    environment:
+      PORT: 4005
+      KPI_SLA_URL: http://kpi-sla:4001
+      SERVICE_CATALOGUE_URL: http://service-catalogue:4000
+      COMMITMENT_URL: http://commitment:4002
+      API_GATEWAY_URL: http://api-gateway:4003
+      ARMS_AUTH_URL: http://host.docker.internal:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - service-catalogue
+      - kpi-sla
+      - commitment
+    networks:
+      - pss-network
+    restart: unless-stopped
+
   # ── api-gateway ────────────────────────────────────────────────────────────
   api-gateway:
     build:
@@ -157,6 +184,7 @@ services:
       SERVICE_CATALOGUE_URL: http://service-catalogue:4000
       KPI_SLA_URL: http://kpi-sla:4001
       COMMITMENT_URL: http://commitment:4002
+      PLANNING_URL: http://planning:4005
       ARMS_AUTH_URL: http://host.docker.internal:3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -164,6 +192,7 @@ services:
       - service-catalogue
       - kpi-sla
       - commitment
+      - planning
     networks:
       - pss-network
     restart: unless-stopped

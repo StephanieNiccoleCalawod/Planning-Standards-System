@@ -1,4 +1,4 @@
-﻿import { Role } from './role.enum';
+import { Role } from './role.enum';
 import { Permission } from './permission.enum';
 
 export const RolePermissions: Record<Role, Permission[]> = {
@@ -32,6 +32,7 @@ export const RolePermissions: Record<Role, Permission[]> = {
         Permission.COMMITMENTS_READ,        // Office Target Submissions — view all
         Permission.COMMITMENTS_WRITE,       // Campus OPCR — Compile
         Permission.COMMITMENTS_LOCK,        // Campus OPCR — Lock
+        Permission.PLANNING_HUB_READ,       // PS-P01 Planning Hub + PS-P06 OPCR Tracker
     ],
 
     [Role.ADMIN]: [
@@ -46,6 +47,7 @@ export const RolePermissions: Record<Role, Permission[]> = {
         Permission.SERVICE_MODES_READ,      // read-only service modes
         Permission.COMMITMENTS_READ,        // Campus OPCR — view-only
         Permission.COMMITMENTS_WRITE,       // Office Target Submissions — submit own
+        Permission.AUDIT_LOGS_READ,         // Gated audit log inspection
     ],
 
     [Role.OPCR_EVALUATOR]: [
@@ -54,5 +56,20 @@ export const RolePermissions: Record<Role, Permission[]> = {
 
     [Role.STAFF]: [
         Permission.SERVICES_READ,
+    ],
+
+    // TT3 (AC7): CampusDirector — GET all data campus-wide, no write access.
+    // isCrossOffice is set true by JwtAuthGuard for this role so all queries
+    // bypass the office_id WHERE clause automatically.
+    // FE removes ALL write buttons from DOM for this role (TT3 AC8).
+    [Role.CAMPUS_DIRECTOR]: [
+        Permission.SERVICES_READ,
+        Permission.KPIS_READ,
+        Permission.HOLIDAYS_READ,
+        Permission.PERIODS_READ,
+        Permission.COMMITMENTS_READ,
+        Permission.SERVICE_MODES_READ,
+        Permission.PLANNING_TIMELINE_READ,
+        Permission.PLANNING_HUB_READ,       // Campus-wide planning view
     ],
 };

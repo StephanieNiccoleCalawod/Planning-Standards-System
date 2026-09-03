@@ -6,14 +6,12 @@ import {
     UpdateDateColumn,
     OneToMany,
     Index,
-    Unique,
 } from 'typeorm';
 import { CommitmentStatus } from '../enums';
 import { CommitmentItem } from './commitment-item.entity';
 import { CommitmentVersion } from './commitment-version.entity';
 
 @Entity('commitment')
-@Unique('uq_commitment_office_period_draft', ['office', 'period_id'])
 export class Commitment {
     @PrimaryGeneratedColumn('uuid')
     id: string;

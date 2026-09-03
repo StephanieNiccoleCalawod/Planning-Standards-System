@@ -13,4 +13,8 @@ export enum Permission {
     SERVICE_MODES_READ = 'service-modes.read',
     SERVICE_MODES_WRITE = 'service-modes.write',
     PLANNING_TIMELINE_READ = 'planning-timeline.read',
+    // PS-P01 / PS-P06 — Planning Hub & OPCR Tracker (Planning Officer only)
+    PLANNING_HUB_READ = 'planning-hub.read',
+    // Gated audit log inspection (restricted read access)
+    AUDIT_LOGS_READ = 'audit-logs.read',
 }

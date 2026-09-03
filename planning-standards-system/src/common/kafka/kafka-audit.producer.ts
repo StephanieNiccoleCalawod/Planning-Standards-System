@@ -52,22 +52,32 @@ export class KafkaAuditProducer implements OnModuleDestroy {
     }
 
     /**
-     * Fire-and-forget emit to ARMS. Never throws — Kafka being down must
-     * never block PSS's main request flow (local audit log is the source
-     * of truth; this is best-effort real-time forwarding).
+     * Publishes an audit event to the ARMS Kafka topic.
+     *
+     * Waits for acknowledgment from all in-sync replicas (acks: -1).
+     * Returns true if ARMS acknowledged receipt, false if the broker is
+     * unreachable, not connected, or the request timed out.
+     *
+     * The caller is responsible for retry/backoff logic (e.g. Transactional
+     * Outbox pattern); this method's job is only to report whether ARMS
+     * acknowledged receipt.
      */
-    async emit(event: ArmsAuditEvent): Promise<void> {
+    async emit(event: ArmsAuditEvent): Promise<boolean> {
         if (!this.connected) {
-            this.logger.warn(`Kafka not connected — skipping ARMS push for action=${event.action}`);
-            return;
+            this.logger.warn(`Kafka not connected — cannot deliver audit event action=${event.action}`);
+            return false;
         }
         try {
             await this.producer.send({
                 topic: ARMS_AUDIT_TOPIC,
                 messages: [{ value: JSON.stringify(event) }],
+                acks: -1,       // wait for ALL in-sync replicas to acknowledge, not just the leader
+                timeout: 10_000, // fail fast rather than hang the outbox worker indefinitely
             });
+            return true;
         } catch (err: any) {
-            this.logger.error(`Failed to emit audit event to Kafka: ${err.message}`, err.stack);
+            this.logger.error(`Failed to deliver audit event to Kafka (no ACK received): ${err.message}`, err.stack);
+            return false;
         }
     }
 
