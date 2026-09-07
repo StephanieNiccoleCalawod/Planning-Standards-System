@@ -216,4 +216,5 @@ export const api = {
     return request(`/sla-computation-logs${queryString ? `?${queryString}` : ''}`);
   },
   getServiceUtilization: () => request('/service-utilization'),
+  getSyncVersion: () => request('/sync/version'),
 };

@@ -643,43 +643,29 @@ export default function App() {
         sidebarMobileOpen,
         setSidebarMobileOpen,
         permissions,
-        fetchServiceModes,
-        fetchServices,
-        fetchKpis,
-        fetchPeriods,
-        fetchHolidays,
-        fetchCommitments,
+        checkAndSyncFromCloud,
     } = useAppStore();
 
-    // Live Real-Time Multi-Device Cloud Sync
+    // Live Real-Time Multi-Device Cloud Sync (Traffic-Free & Flicker-Free)
     useEffect(() => {
-        const syncCloudData = () => {
-            fetchServiceModes(true);
-            fetchServices();
-            fetchKpis();
-            fetchPeriods();
-            fetchHolidays();
-            fetchCommitments();
-        };
+        checkAndSyncFromCloud();
 
-        syncCloudData();
-
-        const handleFocus = () => syncCloudData();
+        const handleFocus = () => checkAndSyncFromCloud();
         const handleVisibility = () => {
-            if (document.visibilityState === 'visible') syncCloudData();
+            if (document.visibilityState === 'visible') checkAndSyncFromCloud();
         };
 
         window.addEventListener('focus', handleFocus);
         document.addEventListener('visibilitychange', handleVisibility);
 
-        const timer = setInterval(syncCloudData, 3500);
+        const timer = setInterval(checkAndSyncFromCloud, 3000);
 
         return () => {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibility);
             clearInterval(timer);
         };
-    }, [fetchServiceModes, fetchServices, fetchKpis, fetchPeriods, fetchHolidays, fetchCommitments]);
+    }, [checkAndSyncFromCloud]);
 
     useEffect(() => {
         const handlePopState = () => {

@@ -376,9 +376,11 @@ export const useAppStore = create((set, get) => ({
     loadingCommitments: false,
     loadingServiceModes: false,
 
+    lastSyncVersion: 0,
+
     // Services CRUD Actions
-    fetchServices: async () => {
-        set({ loadingServices: true });
+    fetchServices: async (silent = false) => {
+        if (!silent && get().services.length === 0) set({ loadingServices: true });
         try {
             const res = await api.getServices({ limit: 100, include_archived: true });
             const servicesArray = Array.isArray(res) ? res : (res?.data || []);
@@ -542,8 +544,8 @@ export const useAppStore = create((set, get) => ({
     },
 
     // KPIs CRUD Actions
-    fetchKpis: async () => {
-        set({ loadingKpis: true });
+    fetchKpis: async (silent = false) => {
+        if (!silent && get().kpis.length === 0) set({ loadingKpis: true });
         try {
             const res = await api.getKpis({ limit: 100, include_inactive: true });
             const kpisArray = res?.data || [];
@@ -634,8 +636,8 @@ export const useAppStore = create((set, get) => ({
     },
 
     // SLA Rules CRUD Actions
-    fetchSlaRules: async () => {
-        set({ loadingSlaRules: true });
+    fetchSlaRules: async (silent = false) => {
+        if (!silent && get().slaRules.length === 0) set({ loadingSlaRules: true });
         try {
             const res = await api.getSlaRules();
             set({ slaRules: res || [], loadingSlaRules: false });
@@ -652,7 +654,7 @@ export const useAppStore = create((set, get) => ({
     updateSlaRule: async (id, payload) => {
         try {
             const res = await api.updateSlaRule(id, payload);
-            await get().fetchSlaRules();
+            await get().fetchSlaRules(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] updateSlaRule falling back to local storage:', err?.message);
@@ -666,7 +668,7 @@ export const useAppStore = create((set, get) => ({
     createSlaRule: async (payload) => {
         try {
             const res = await api.createSlaRule(payload);
-            await get().fetchSlaRules();
+            await get().fetchSlaRules(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] createSlaRule falling back to local storage:', err?.message);
@@ -681,7 +683,7 @@ export const useAppStore = create((set, get) => ({
     restoreSlaVersion: async (id, versionId) => {
         try {
             const res = await api.restoreSlaVersion(id, versionId);
-            await get().fetchSlaRules();
+            await get().fetchSlaRules(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] restoreSlaVersion falling back:', err?.message);
@@ -690,8 +692,8 @@ export const useAppStore = create((set, get) => ({
     },
 
     // Holidays CRUD Actions
-    fetchHolidays: async (params = {}) => {
-        set({ loadingHolidays: true });
+    fetchHolidays: async (params = {}, silent = false) => {
+        if (!silent && get().holidays.length === 0) set({ loadingHolidays: true });
         try {
             const res = await api.getHolidays({ limit: 100, ...params });
             const holidaysArray = res?.data || [];
@@ -738,7 +740,7 @@ export const useAppStore = create((set, get) => ({
     createHoliday: async (payload) => {
         try {
             const res = await api.createHoliday(payload);
-            await get().fetchHolidays();
+            await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] createHoliday falling back to local storage:', err?.message);
@@ -759,7 +761,7 @@ export const useAppStore = create((set, get) => ({
     updateHoliday: async (id, payload) => {
         try {
             const res = await api.updateHoliday(id, payload);
-            await get().fetchHolidays();
+            await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] updateHoliday falling back to local storage:', err?.message);
@@ -779,7 +781,7 @@ export const useAppStore = create((set, get) => ({
     deleteHoliday: async (id) => {
         try {
             const res = await api.deleteHoliday(id);
-            await get().fetchHolidays();
+            await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] deleteHoliday falling back to local storage:', err?.message);
@@ -791,8 +793,8 @@ export const useAppStore = create((set, get) => ({
     },
 
     // Evaluation Periods CRUD Actions
-    fetchPeriods: async () => {
-        set({ loadingPeriods: true });
+    fetchPeriods: async (silent = false) => {
+        if (!silent && get().periods.length === 0) set({ loadingPeriods: true });
         try {
             const res = await api.getPeriods({ limit: 100 });
             const periodsArray = res?.data || [];
@@ -840,7 +842,7 @@ export const useAppStore = create((set, get) => ({
     createPeriod: async (payload) => {
         try {
             const res = await api.createPeriod(payload);
-            await get().fetchPeriods();
+            await get().fetchPeriods(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] createPeriod falling back to local storage:', err?.message);
@@ -863,7 +865,7 @@ export const useAppStore = create((set, get) => ({
     updatePeriod: async (id, payload) => {
         try {
             const res = await api.updatePeriod(id, payload);
-            await get().fetchPeriods();
+            await get().fetchPeriods(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] updatePeriod falling back to local storage:', err?.message);
@@ -881,7 +883,7 @@ export const useAppStore = create((set, get) => ({
     closePeriod: async (id) => {
         try {
             const res = await api.closePeriod(id);
-            await get().fetchPeriods();
+            await get().fetchPeriods(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] closePeriod falling back to local storage:', err?.message);
@@ -895,7 +897,7 @@ export const useAppStore = create((set, get) => ({
     deletePeriod: async (id) => {
         try {
             const res = await api.deletePeriod(id);
-            await get().fetchPeriods();
+            await get().fetchPeriods(true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] deletePeriod falling back to local storage:', err?.message);
@@ -907,8 +909,8 @@ export const useAppStore = create((set, get) => ({
     },
 
     // Commitments Actions
-    fetchCommitments: async (params = {}) => {
-        set({ loadingCommitments: true });
+    fetchCommitments: async (params = {}, silent = false) => {
+        if (!silent && get().commitments.length === 0) set({ loadingCommitments: true });
         try {
             const res = await api.getCommitments({ limit: 100, ...params });
             const data = res?.data || [];
@@ -944,7 +946,7 @@ export const useAppStore = create((set, get) => ({
         try {
             const res = await api.createCommitment(payload);
             set({ activeCommitment: res });
-            await get().fetchCommitments();
+            await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] createCommitmentDraft falling back to local storage:', err?.message);
@@ -970,7 +972,7 @@ export const useAppStore = create((set, get) => ({
         try {
             const res = await api.updateCommitment(id, payload);
             set({ activeCommitment: res });
-            await get().fetchCommitments();
+            await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] updateCommitmentDraft falling back to local storage:', err?.message);
@@ -986,7 +988,7 @@ export const useAppStore = create((set, get) => ({
         try {
             const res = await api.lockCommitment(id);
             set({ activeCommitment: res });
-            await get().fetchCommitments();
+            await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] lockCommitment falling back to local storage:', err?.message);
@@ -1001,7 +1003,7 @@ export const useAppStore = create((set, get) => ({
     requestRevision: async (id, reason) => {
         try {
             const res = await api.requestRevision(id, reason);
-            await get().fetchCommitments();
+            await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
             console.warn('[useAppStore] requestRevision falling back to local storage:', err?.message);
@@ -1025,9 +1027,41 @@ export const useAppStore = create((set, get) => ({
         set({ sidebarMobileOpen: open });
     },
 
+    checkAndSyncFromCloud: async () => {
+        try {
+            const syncInfo = await api.getSyncVersion();
+            const cloudVersion = syncInfo?.version || 0;
+            if (cloudVersion > 0) {
+                if (get().lastSyncVersion === 0) {
+                    set({ lastSyncVersion: cloudVersion });
+                    await Promise.all([
+                        get().fetchServiceModes(true, true),
+                        get().fetchServices(true),
+                        get().fetchKpis(true),
+                        get().fetchPeriods(true),
+                        get().fetchHolidays({}, true),
+                        get().fetchCommitments({}, true),
+                    ]);
+                } else if (cloudVersion !== get().lastSyncVersion) {
+                    set({ lastSyncVersion: cloudVersion });
+                    await Promise.all([
+                        get().fetchServiceModes(true, true),
+                        get().fetchServices(true),
+                        get().fetchKpis(true),
+                        get().fetchPeriods(true),
+                        get().fetchHolidays({}, true),
+                        get().fetchCommitments({}, true),
+                    ]);
+                }
+            }
+        } catch {
+            // silent catch - network poll
+        }
+    },
+
     // Service Modes CRUD Actions
-    fetchServiceModes: async (includeInactive = false) => {
-        set({ loadingServiceModes: true });
+    fetchServiceModes: async (includeInactive = false, silent = false) => {
+        if (!silent && get().serviceModes.length === 0) set({ loadingServiceModes: true });
         try {
             const res = await api.getServiceModes(includeInactive ? { include_inactive: true } : {});
             const modesArray = Array.isArray(res) ? res : (res?.data || []);
