@@ -1030,7 +1030,7 @@ export const useAppStore = create((set, get) => ({
         set({ loadingServiceModes: true });
         try {
             const res = await api.getServiceModes(includeInactive ? { include_inactive: true } : {});
-            const modesArray = Array.isArray(res) ? res : [];
+            const modesArray = Array.isArray(res) ? res : (res?.data || []);
             if (modesArray.length > 0) {
                 set({ serviceModes: modesArray, loadingServiceModes: false });
                 setCached('pss_service_modes', modesArray);
