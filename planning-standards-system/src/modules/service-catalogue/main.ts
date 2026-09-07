@@ -24,9 +24,9 @@ async function bootstrap() {
     res.redirect('/service-catalogue/api/docs');
   });
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`service-catalogue running → http://localhost:${port}`);
+  const port = process.env.PORT ?? 4000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`service-catalogue running → http://0.0.0.0:${port}`);
   console.log(`Swagger                   → http://localhost:${port}/service-catalogue/api/docs`);
 }
 bootstrap();

@@ -24,9 +24,9 @@ async function bootstrap() {
     res.redirect('/kpi-sla/api/docs');
   });
 
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  console.log(`kpi-sla running → http://localhost:${port}`);
+  const port = process.env.PORT ?? 4001;
+  await app.listen(port, '0.0.0.0');
+  console.log(`kpi-sla running → http://0.0.0.0:${port}`);
   console.log(`Swagger         → http://localhost:${port}/kpi-sla/api/docs`);
 }
 bootstrap();

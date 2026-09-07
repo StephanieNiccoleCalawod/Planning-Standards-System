@@ -24,9 +24,9 @@ async function bootstrap() {
     res.redirect('/commitment/api/docs');
   });
 
-  const port = process.env.PORT ?? 3002;
-  await app.listen(port);
-  console.log(`commitment running → http://localhost:${port}`);
+  const port = process.env.PORT ?? 4002;
+  await app.listen(port, '0.0.0.0');
+  console.log(`commitment running → http://0.0.0.0:${port}`);
   console.log(`Swagger         → http://localhost:${port}/commitment/api/docs`);
 }
 bootstrap();
