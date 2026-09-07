@@ -646,9 +646,28 @@ export default function App() {
         checkAndSyncFromCloud,
     } = useAppStore();
 
-    // Live Real-Time Multi-Device Cloud Sync (Traffic-Free & Flicker-Free)
+    // Live Real-Time Multi-Device Cloud Sync (Instant SSE Stream + 1.5s Fallback)
     useEffect(() => {
         checkAndSyncFromCloud();
+
+        let eventSource = null;
+        try {
+            const apiBase = (import.meta.env.VITE_API_URL || 'https://icsa-api.onrender.com').replace(/\/$/, '');
+            eventSource = new EventSource(`${apiBase}/sync/stream`);
+            eventSource.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload && payload.version) {
+                        checkAndSyncFromCloud();
+                    }
+                } catch (_) {
+                    checkAndSyncFromCloud();
+                }
+            };
+            eventSource.onerror = () => {
+                // Silently fallback to interval timer if SSE is interrupted
+            };
+        } catch (_) { }
 
         const handleFocus = () => checkAndSyncFromCloud();
         const handleVisibility = () => {
@@ -658,9 +677,10 @@ export default function App() {
         window.addEventListener('focus', handleFocus);
         document.addEventListener('visibilitychange', handleVisibility);
 
-        const timer = setInterval(checkAndSyncFromCloud, 3000);
+        const timer = setInterval(checkAndSyncFromCloud, 1500);
 
         return () => {
+            if (eventSource) eventSource.close();
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibility);
             clearInterval(timer);
