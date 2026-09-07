@@ -452,10 +452,18 @@ function DevBypassScreen() {
                 .continue-bar button:hover { background: var(--accent-deep); }
 
                 @media (max-width: 600px) {
-                    .bypass-bg { padding: 40px 16px 130px; }
-                    .bypass-title { font-size: 30px; }
-                    .panel { padding: 26px 20px 20px; }
-                    .cards { grid-template-columns: 1fr; }
+                    .bypass-bg { padding: 28px 12px 130px; }
+                    .bypass-title { font-size: 26px; }
+                    .panel { padding: 20px 12px 16px; }
+                    .cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+                    .card { padding: 12px 10px 10px; }
+                    .card-top { gap: 8px; margin-bottom: 8px; }
+                    .avatar { width: 32px; height: 32px; font-size: 11px; }
+                    .name-block .name { font-size: 13px; line-height: 1.2; }
+                    .name-block .handle { font-size: 10px; }
+                    .badges { gap: 4px; margin-bottom: 6px; }
+                    .badge { font-size: 9px; padding: 2px 6px; }
+                    .card.selected::after { top: 8px; right: 8px; width: 18px; height: 18px; font-size: 10px; }
                 }
             `}} />
 
