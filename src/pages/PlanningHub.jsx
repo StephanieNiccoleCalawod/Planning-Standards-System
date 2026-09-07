@@ -152,15 +152,15 @@ function ExpandableText({ text, maxLines = 2 }) {
           color: "text.primary",
           ...(!expanded
             ? {
-                display: "-webkit-box",
-                WebkitLineClamp: maxLines,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }
+              display: "-webkit-box",
+              WebkitLineClamp: maxLines,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }
             : {
-                display: "inline",
-              }),
+              display: "inline",
+            }),
         }}
       >
         {text}
@@ -271,7 +271,7 @@ export default function PlanningHub({ onNavigate }) {
   const handleOpenEditKpi = (kpi) => {
     setEditingKpi(kpi);
     setKpiName(kpi.name || "");
-    
+
     // Normalize category
     let cat = kpi.category || "Timeliness";
     if (cat === "CUSTOMER") cat = "Timeliness";
@@ -537,7 +537,7 @@ export default function PlanningHub({ onNavigate }) {
               </Typography>
             </Box>
 
-            <Grid container spacing={2.5}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
               {hubData.officeCards.map((card, idx) => {
                 const meta = OFFICE_METAS[card.office] || {
                   short: card.office.slice(0, 4).toUpperCase(),
@@ -554,34 +554,35 @@ export default function PlanningHub({ onNavigate }) {
                   bg: "#F1F5F9",
                   color: "#475569",
                   border: "rgba(100, 116, 139, 0.15)",
-                  icon: <BlockIcon style={{ fontSize: 13, color: "#64748B", marginRight: 4 }} />,
+                  icon: <BlockIcon style={{ fontSize: 12, color: "#64748B", marginRight: 3 }} />,
                 };
                 if (status === "Locked" || status === "Submitted") {
                   statusBadge = {
                     bg: "#DCFCE7",
                     color: "#15803D",
                     border: "rgba(21, 128, 61, 0.2)",
-                    icon: <LockOutlinedIcon style={{ fontSize: 13, color: "#15803D", marginRight: 4 }} />,
+                    icon: <LockOutlinedIcon style={{ fontSize: 12, color: "#15803D", marginRight: 3 }} />,
                   };
                 } else if (status === "Draft" || status === "In Progress" || status === "Revision Requested") {
                   statusBadge = {
                     bg: "#FEF3C7",
                     color: "#B45309",
                     border: "rgba(180, 83, 9, 0.2)",
-                    icon: <AccessTimeIcon style={{ fontSize: 13, color: "#B45309", marginRight: 4 }} />,
+                    icon: <AccessTimeIcon style={{ fontSize: 12, color: "#B45309", marginRight: 3 }} />,
                   };
                 }
 
                 return (
-                  <Grid item xs={12} sm={6} lg={3} key={card.office || idx}>
+                  <Grid item xs={6} sm={6} md={4} lg={3} key={card.office || idx}>
                     <Box
                       sx={{
                         bgcolor: "#FFFFFF",
                         borderRadius: "8px",
                         border: "1px solid #E2E8F0",
-                        p: "20px 24px",
-                        pt: "22px",
-                        minHeight: 210,
+                        p: { xs: "12px 12px", sm: "16px 18px", md: "20px 24px" },
+                        pt: { xs: "14px", sm: "18px", md: "22px" },
+                        minHeight: { xs: 180, sm: 200, md: 210 },
+                        height: "100%",
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "space-between",
@@ -597,17 +598,17 @@ export default function PlanningHub({ onNavigate }) {
                       <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: meta.accent }} />
 
                       {/* Header: Office Short Tag + Commitment Status */}
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, gap: 0.5, flexWrap: "wrap" }}>
                         <Chip
                           label={meta.short}
                           size="small"
                           sx={{
                             fontWeight: 800,
-                            fontSize: "0.72rem",
+                            fontSize: { xs: "0.62rem", sm: "0.72rem" },
                             backgroundColor: meta.bg,
                             color: meta.color,
                             border: `1px solid ${meta.border}`,
-                            height: 22,
+                            height: { xs: 20, sm: 22 },
                           }}
                         />
                         <Chip
@@ -616,12 +617,12 @@ export default function PlanningHub({ onNavigate }) {
                           size="small"
                           sx={{
                             fontWeight: 700,
-                            fontSize: "0.7rem",
+                            fontSize: { xs: "0.6rem", sm: "0.7rem" },
                             backgroundColor: statusBadge.bg,
                             color: statusBadge.color,
                             border: `1px solid ${statusBadge.border}`,
-                            height: 22,
-                            "& .MuiChip-icon": { ml: 0.5 },
+                            height: { xs: 20, sm: 22 },
+                            "& .MuiChip-icon": { ml: 0.25 },
                           }}
                         />
                       </Box>
@@ -631,10 +632,10 @@ export default function PlanningHub({ onNavigate }) {
                         sx={{
                           fontWeight: 700,
                           color: "#0F172A",
-                          fontSize: "0.95rem",
-                          lineHeight: 1.3,
-                          mb: 1.5,
-                          minHeight: 40,
+                          fontSize: { xs: "0.82rem", sm: "0.9rem", md: "0.95rem" },
+                          lineHeight: 1.25,
+                          mb: 1,
+                          minHeight: { xs: 32, sm: 38 },
                         }}
                       >
                         {card.office}
@@ -643,42 +644,42 @@ export default function PlanningHub({ onNavigate }) {
                       {/* Active Period Box */}
                       <Box
                         sx={{
-                          p: "8px 10px",
+                          p: { xs: "6px 8px", sm: "8px 10px" },
                           borderRadius: "6px",
                           backgroundColor: "#F8FAFC",
                           border: "1px solid #F1F5F9",
-                          mb: 2,
+                          mb: { xs: 1, sm: 1.5 },
                         }}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                          <DateRangeIcon sx={{ fontSize: 14, color: "#64748B" }} />
-                          <Typography sx={{ fontWeight: 600, color: "#1E293B", fontSize: "0.8rem" }}>
-                            {card.activePeriod || "No Active Period"}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <DateRangeIcon sx={{ fontSize: { xs: 12, sm: 14 }, color: "#64748B" }} />
+                          <Typography sx={{ fontWeight: 600, color: "#1E293B", fontSize: { xs: "0.72rem", sm: "0.8rem" } }}>
+                            {card.activePeriod || "No Period"}
                           </Typography>
                         </Box>
-                        <Typography sx={{ color: "#64748B", fontSize: "0.72rem", ml: 2.5, mt: 0.25 }}>
-                          {dateRange || "Evaluation period window active"}
+                        <Typography sx={{ color: "#64748B", fontSize: { xs: "0.62rem", sm: "0.72rem" }, ml: { xs: 2, sm: 2.5 }, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {dateRange || "Period window active"}
                         </Typography>
                       </Box>
 
-                      <Divider sx={{ borderColor: "#F1F5F9", mb: 1.5 }} />
+                      <Divider sx={{ borderColor: "#F1F5F9", mb: { xs: 1, sm: 1.5 } }} />
 
-                      {/* Counters Row */}
-                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-                        <Box sx={{ textAlign: "center", p: 1, bgcolor: "#F8FAFC", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
-                          <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      {/* 2-Column Counters Row Container */}
+                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: { xs: 0.75, sm: 1.25 } }}>
+                        <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                          <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
                             Active KPIs
                           </Typography>
-                          <Typography sx={{ fontSize: "1.25rem", fontWeight: 800, color: meta.color, mt: 0.25, lineHeight: 1 }}>
+                          <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: meta.color, mt: 0.25, lineHeight: 1 }}>
                             {card.activeKpiCount}
                           </Typography>
                         </Box>
 
-                        <Box sx={{ textAlign: "center", p: 1, bgcolor: "#F8FAFC", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
-                          <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                          <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
                             Active Services
                           </Typography>
-                          <Typography sx={{ fontSize: "1.25rem", fontWeight: 800, color: "#0F172A", mt: 0.25, lineHeight: 1 }}>
+                          <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: "#0F172A", mt: 0.25, lineHeight: 1 }}>
                             {card.activeServiceCount}
                           </Typography>
                         </Box>
