@@ -7,6 +7,8 @@ async function request(url, options = {}) {
 
   const headers = {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -15,6 +17,7 @@ async function request(url, options = {}) {
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
+      cache: 'no-store',
       ...options,
       headers,
     });
