@@ -638,7 +638,48 @@ export default function App() {
         return 'dashboard';
     })();
     const [active, setActive] = useState(initialPage);
-    const { sidebarCollapsed, sidebarMobileOpen, setSidebarMobileOpen, permissions } = useAppStore();
+    const {
+        sidebarCollapsed,
+        sidebarMobileOpen,
+        setSidebarMobileOpen,
+        permissions,
+        fetchServiceModes,
+        fetchServices,
+        fetchKpis,
+        fetchPeriods,
+        fetchHolidays,
+        fetchCommitments,
+    } = useAppStore();
+
+    // Live Real-Time Multi-Device Cloud Sync
+    useEffect(() => {
+        const syncCloudData = () => {
+            fetchServiceModes(true);
+            fetchServices();
+            fetchKpis();
+            fetchPeriods();
+            fetchHolidays();
+            fetchCommitments();
+        };
+
+        syncCloudData();
+
+        const handleFocus = () => syncCloudData();
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') syncCloudData();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        const timer = setInterval(syncCloudData, 3500);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibility);
+            clearInterval(timer);
+        };
+    }, [fetchServiceModes, fetchServices, fetchKpis, fetchPeriods, fetchHolidays, fetchCommitments]);
 
     useEffect(() => {
         const handlePopState = () => {
