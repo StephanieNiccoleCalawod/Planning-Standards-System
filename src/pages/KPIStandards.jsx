@@ -376,7 +376,8 @@ export default function KPIStandards() {
 
       const isNameDuplicate = kpis.some(k => {
         if (!k.active || k.id === editingKpi?.id) return false;
-        if (k.name.trim().toLowerCase() !== name.trim().toLowerCase()) return false;
+        const currentName = (k.name || k.title || "").trim().toLowerCase();
+        if (currentName !== name.trim().toLowerCase()) return false;
         const kService = services.find(s => s.id === k.service_id);
         const kClass = kService?.classification ? kService.classification.trim().toLowerCase() : "";
         return kClass === targetClass;
@@ -486,8 +487,10 @@ export default function KPIStandards() {
     const isTabMatch = activeTab === 0 ? k.active : !k.active;
     if (!isTabMatch) return false;
 
-    const matchesSearch = k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (linkedService?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const kpiTitle = (k.name || k.title || "").toLowerCase();
+    const q = (searchQuery || "").toLowerCase();
+    const matchesSearch = kpiTitle.includes(q) ||
+      (linkedService?.name || "").toLowerCase().includes(q);
     const matchesCategory = !categoryFilter || k.category === categoryFilter;
 
     const officeCode = getOfficeBadge(rawOffice).label;

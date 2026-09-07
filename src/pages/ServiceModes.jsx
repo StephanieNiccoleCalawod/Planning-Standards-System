@@ -133,15 +133,15 @@ export default function ServiceModes() {
   }, [canWrite]);
 
   // Filtered list
-  const filteredModes = serviceModes.filter((m) => {
+  const filteredModes = (Array.isArray(serviceModes) ? serviceModes : []).filter((m) => {
+    if (!m) return false;
     const isActive = m.is_active !== false;
     const tabMatch = activeTab === 0 ? isActive : !isActive;
     if (!tabMatch) return false;
-    const q = searchQuery.toLowerCase();
-    return (
-      m.name.toLowerCase().includes(q) ||
-      (m.description || "").toLowerCase().includes(q)
-    );
+    const q = (searchQuery || "").toLowerCase();
+    const name = (m.name || "").toLowerCase();
+    const desc = (m.description || "").toLowerCase();
+    return name.includes(q) || desc.includes(q);
   });
 
   const openAdd = () => {
@@ -154,8 +154,8 @@ export default function ServiceModes() {
 
   const openEdit = (mode) => {
     setEditingMode(mode);
-    setFormName(mode.name);
-    setFormDescription(mode.description || "");
+    setFormName(mode?.name || "");
+    setFormDescription(mode?.description || "");
     setFormErrors({});
     setDialogOpen(true);
   };
@@ -171,9 +171,10 @@ export default function ServiceModes() {
     else if (formName.trim().length > 100) errs.name = "Name must not exceed 100 characters.";
 
     // Check name uniqueness across all modes (except current editing)
-    const duplicate = serviceModes.find(
+    const duplicate = (Array.isArray(serviceModes) ? serviceModes : []).find(
       (m) =>
-        m.name.trim().toLowerCase() === formName.trim().toLowerCase() &&
+        m &&
+        (m.name || "").trim().toLowerCase() === formName.trim().toLowerCase() &&
         m.id !== editingMode?.id
     );
     if (duplicate) errs.name = `A service mode named "${formName.trim()}" already exists.`;

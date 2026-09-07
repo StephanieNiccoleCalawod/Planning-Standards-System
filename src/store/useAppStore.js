@@ -233,6 +233,7 @@ const DEFAULT_KPIS = [
     {
         id: 'kpi-1',
         title: 'SLA Compliance Rate',
+        name: 'SLA Compliance Rate',
         category: 'Timeliness',
         target_value: '95',
         unit: '%',
@@ -244,6 +245,7 @@ const DEFAULT_KPIS = [
     {
         id: 'kpi-2',
         title: 'Citizen Satisfaction Index (CSAT)',
+        name: 'Citizen Satisfaction Index (CSAT)',
         category: 'Quality',
         target_value: '4.5',
         unit: ' Mins',
@@ -255,6 +257,7 @@ const DEFAULT_KPIS = [
     {
         id: 'kpi-3',
         title: 'Process Turnaround Efficiency',
+        name: 'Process Turnaround Efficiency',
         category: 'Efficiency',
         target_value: '90',
         unit: '%',

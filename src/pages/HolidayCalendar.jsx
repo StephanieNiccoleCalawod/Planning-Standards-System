@@ -130,10 +130,13 @@ export default function HolidayCalendar() {
   const pad = n => String(n).padStart(2, "0");
   const toKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
-  const filteredHolidays = holidays.filter(h => {
-    const matchesSearch = h.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredHolidays = (Array.isArray(holidays) ? holidays : []).filter(h => {
+    if (!h) return false;
+    const q = (searchQuery || "").toLowerCase();
+    const name = (h.name || "").toLowerCase();
+    const matchesSearch = name.includes(q);
     const matchesType = !typeFilter || h.type === typeFilter;
-    const matchesMonth = monthFilter === "" || new Date(h.date).getMonth() === parseInt(monthFilter);
+    const matchesMonth = monthFilter === "" || (h.date ? new Date(h.date).getMonth() === parseInt(monthFilter) : false);
     return matchesSearch && matchesType && matchesMonth;
   });
 

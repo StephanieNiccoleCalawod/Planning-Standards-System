@@ -446,7 +446,8 @@ export default function PlanningHub({ onNavigate }) {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((k) => {
-        const kpiName = (k.name || "").toLowerCase();
+        if (!k) return false;
+        const kpiName = (k.name || k.title || "").toLowerCase();
         const svcName = (serviceMap[k.service_id] || "").toLowerCase();
         const officeName = (k.office || "").toLowerCase();
         return kpiName.includes(q) || svcName.includes(q) || officeName.includes(q);

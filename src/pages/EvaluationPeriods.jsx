@@ -316,11 +316,15 @@ export default function EvaluationPeriods() {
             });
         }
     };
-    const filteredPeriods = periods.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.status.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPeriods = (Array.isArray(periods) ? periods : []).filter(p => {
+        if (!p) return false;
+        const q = (searchQuery || "").toLowerCase();
+        return (
+            (p.name || "").toLowerCase().includes(q) ||
+            (p.type || "").toLowerCase().includes(q) ||
+            (p.status || "").toLowerCase().includes(q)
+        );
+    });
 
     const totalPages = Math.ceil(filteredPeriods.length / rowsPerPage) || 1;
     const paginatedPeriods = filteredPeriods.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
