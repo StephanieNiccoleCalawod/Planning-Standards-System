@@ -551,7 +551,7 @@ export const useAppStore = create((set, get) => ({
             const kpisArray = res?.data || [];
 
             const formatted = kpisArray.map(k => {
-                const val = Number(k.target_value);
+                const val = Number(k.target_value !== undefined ? k.target_value : (k.target ? parseFloat(k.target) : 100));
                 const rawUnit = (k.unit || "").trim().toUpperCase();
                 let unit = k.unit || " Mins";
                 if (rawUnit === "PERCENT" || rawUnit === "%") unit = "%";
@@ -559,13 +559,25 @@ export const useAppStore = create((set, get) => ({
                 else if (rawUnit === "HOURS" || rawUnit === "HOUR") unit = val === 1 ? " Hour" : " Hours";
                 else if (rawUnit === "MINUTES" || rawUnit === "MIN" || rawUnit === "MINUTE" || rawUnit === "COUNT" || rawUnit === "MINS") unit = val === 1 ? " Min" : " Mins";
 
+                const rawCat = (k.category || "").toUpperCase();
+                let category = "Efficiency";
+                if (rawCat === "COMPLIANCE" || rawCat === "TIMELINESS") category = "Timeliness";
+                else if (rawCat === "CUSTOMER" || rawCat === "QUALITY") category = "Quality";
+                else if (rawCat === "EFFICIENCY") category = "Efficiency";
+                else if (k.category) category = k.category;
+
+                const name = k.name || k.title || k.metric || "KPI Target";
+
                 return {
                     ...k,
-                    category: k.category === "COMPLIANCE" ? "Timeliness" : k.category === "CUSTOMER" ? "Quality" : "Efficiency",
-                    target_value: k.target_value,
+                    id: k.id,
+                    name,
+                    title: name,
+                    category,
+                    target_value: val,
                     unit,
                     service_id: k.service_id,
-                    active: k.is_active
+                    active: k.is_active !== false && k.active !== false
                 };
             });
 
@@ -802,7 +814,8 @@ export const useAppStore = create((set, get) => ({
             const formatted = periodsArray.map(p => ({
                 id: p.id,
                 name: p.name,
-                type: mapPeriodTypeToFrontend(p.period_type),
+                type: mapPeriodTypeToFrontend(p.period_type || p.type),
+                period_type: p.period_type || p.type || 'Semester',
                 start_date: p.start_date,
                 end_date: p.end_date,
                 status: mapPeriodStatusToFrontend(p.status),
