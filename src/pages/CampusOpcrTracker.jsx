@@ -463,8 +463,8 @@ export default function CampusOpcrTracker({ onNavigate }) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
-              gap: "20px",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: { xs: 1, sm: 2, md: "20px" },
               mb: 3.5,
             }}
           >
@@ -474,9 +474,9 @@ export default function CampusOpcrTracker({ onNavigate }) {
                 bgcolor: "#FFFFFF",
                 borderRadius: "8px",
                 border: "1px solid #E2E8F0",
-                p: "20px 24px",
-                pt: "24px",
-                minHeight: 118,
+                p: { xs: "12px 10px", sm: "16px 18px", md: "20px 24px" },
+                pt: { xs: "16px", sm: "20px", md: "24px" },
+                minHeight: { xs: 100, sm: 118 },
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -489,8 +489,8 @@ export default function CampusOpcrTracker({ onNavigate }) {
               }}
             >
               <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#10B981" }} />
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Submitted (Locked)
                 </Typography>
                 <Box
@@ -498,25 +498,26 @@ export default function CampusOpcrTracker({ onNavigate }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 0.5,
-                    px: "8px",
-                    py: "2px",
+                    px: { xs: "5px", sm: "8px" },
+                    py: { xs: "1px", sm: "2px" },
                     borderRadius: "9999px",
-                    fontSize: 10.5,
+                    fontSize: { xs: 9, sm: 10.5 },
                     fontWeight: 700,
                     bgcolor: "#ECFDF5",
                     color: "#047857",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#047857" }} />
+                  <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#047857" }} />
                   Locked
                 </Box>
               </Box>
               <Box sx={{ my: 0.5 }}>
-                <Typography sx={{ fontSize: 36, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
-                  {loading ? <CircularProgress size={24} sx={{ color: "#10B981" }} /> : summaryCounts.submitted}
+                <Typography sx={{ fontSize: { xs: 22, sm: 28, md: 36 }, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
+                  {loading ? <CircularProgress size={20} sx={{ color: "#10B981" }} /> : summaryCounts.submitted}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+              <Typography sx={{ fontSize: { xs: 10.5, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
                 {summaryCounts.total > 0
                   ? `${Math.round((summaryCounts.submitted / summaryCounts.total) * 100)}% of pilot offices locked`
                   : "No submission recorded"}
@@ -529,9 +530,9 @@ export default function CampusOpcrTracker({ onNavigate }) {
                 bgcolor: "#FFFFFF",
                 borderRadius: "8px",
                 border: "1px solid #E2E8F0",
-                p: "20px 24px",
-                pt: "24px",
-                minHeight: 118,
+                p: { xs: "12px 10px", sm: "16px 18px", md: "20px 24px" },
+                pt: { xs: "16px", sm: "20px", md: "24px" },
+                minHeight: { xs: 100, sm: 118 },
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -544,8 +545,8 @@ export default function CampusOpcrTracker({ onNavigate }) {
               }}
             >
               <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#F59E0B" }} />
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   In Progress (Draft)
                 </Typography>
                 <Box
@@ -553,25 +554,26 @@ export default function CampusOpcrTracker({ onNavigate }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 0.5,
-                    px: "8px",
-                    py: "2px",
+                    px: { xs: "5px", sm: "8px" },
+                    py: { xs: "1px", sm: "2px" },
                     borderRadius: "9999px",
-                    fontSize: 10.5,
+                    fontSize: { xs: 9, sm: 10.5 },
                     fontWeight: 700,
                     bgcolor: "#FFFBEB",
                     color: "#B45309",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#B45309" }} />
+                  <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#B45309" }} />
                   Drafting
                 </Box>
               </Box>
               <Box sx={{ my: 0.5 }}>
-                <Typography sx={{ fontSize: 36, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
-                  {loading ? <CircularProgress size={24} sx={{ color: "#F59E0B" }} /> : summaryCounts.inProgress}
+                <Typography sx={{ fontSize: { xs: 22, sm: 28, md: 36 }, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
+                  {loading ? <CircularProgress size={20} sx={{ color: "#F59E0B" }} /> : summaryCounts.inProgress}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+              <Typography sx={{ fontSize: { xs: 10.5, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
                 Currently drafting / pending lock
               </Typography>
             </Box>
@@ -582,9 +584,9 @@ export default function CampusOpcrTracker({ onNavigate }) {
                 bgcolor: "#FFFFFF",
                 borderRadius: "8px",
                 border: "1px solid #E2E8F0",
-                p: "20px 24px",
-                pt: "24px",
-                minHeight: 118,
+                p: { xs: "12px 10px", sm: "16px 18px", md: "20px 24px" },
+                pt: { xs: "16px", sm: "20px", md: "24px" },
+                minHeight: { xs: 100, sm: 118 },
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -597,8 +599,8 @@ export default function CampusOpcrTracker({ onNavigate }) {
               }}
             >
               <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#64748B" }} />
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+                <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Not Started
                 </Typography>
                 <Box
@@ -606,25 +608,26 @@ export default function CampusOpcrTracker({ onNavigate }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 0.5,
-                    px: "8px",
-                    py: "2px",
+                    px: { xs: "5px", sm: "8px" },
+                    py: { xs: "1px", sm: "2px" },
                     borderRadius: "9999px",
-                    fontSize: 10.5,
+                    fontSize: { xs: 9, sm: 10.5 },
                     fontWeight: 700,
                     bgcolor: "#F1F5F9",
                     color: "#475569",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#94A3B8" }} />
+                  <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#94A3B8" }} />
                   Pending
                 </Box>
               </Box>
               <Box sx={{ my: 0.5 }}>
-                <Typography sx={{ fontSize: 36, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
-                  {loading ? <CircularProgress size={24} sx={{ color: "#64748B" }} /> : summaryCounts.notStarted}
+                <Typography sx={{ fontSize: { xs: 22, sm: 28, md: 36 }, fontWeight: 600, color: "#0F172A", lineHeight: 1 }}>
+                  {loading ? <CircularProgress size={20} sx={{ color: "#64748B" }} /> : summaryCounts.notStarted}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+              <Typography sx={{ fontSize: { xs: 10.5, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
                 No draft commitment initialized
               </Typography>
             </Box>

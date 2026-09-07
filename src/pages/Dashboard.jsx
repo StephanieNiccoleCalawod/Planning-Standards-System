@@ -779,8 +779,8 @@ export default function Dashboard() {
       {/* ── Top Stat Cards (Clean style matching Image 2) ── */}
       <Box sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
-        gap: "20px",
+        gridTemplateColumns: { xs: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
+        gap: { xs: 1.25, sm: 2, md: "20px" },
         mb: 3.5,
       }}>
         {/* Card 1: Current Period */}
@@ -789,9 +789,9 @@ export default function Dashboard() {
             bgcolor: "#FFFFFF",
             borderRadius: "8px",
             border: "1px solid #E2E8F0",
-            p: "20px 24px",
-            pt: "22px",
-            minHeight: 122,
+            p: { xs: "14px 12px", sm: "18px 20px", md: "20px 24px" },
+            pt: { xs: "18px", sm: "22px" },
+            minHeight: { xs: 110, sm: 122 },
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -804,8 +804,8 @@ export default function Dashboard() {
           }}
         >
           <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: activePeriod ? "#10B981" : "#94A3B8" }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+            <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Current Period
             </Typography>
             <Box
@@ -813,25 +813,26 @@ export default function Dashboard() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 0.5,
-                px: "8px",
-                py: "2px",
+                px: { xs: "6px", sm: "8px" },
+                py: { xs: "1px", sm: "2px" },
                 borderRadius: "9999px",
-                fontSize: 10.5,
+                fontSize: { xs: 9, sm: 10.5 },
                 fontWeight: 700,
                 bgcolor: activePeriod ? "#ECFDF5" : "#F1F5F9",
                 color: activePeriod ? "#047857" : "#64748B",
+                whiteSpace: "nowrap",
               }}
             >
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: activePeriod ? "#047857" : "#94A3B8" }} />
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: activePeriod ? "#047857" : "#94A3B8" }} />
               {activePeriod ? "Active" : "Inactive"}
             </Box>
           </Box>
           <Box sx={{ my: 0.5 }}>
-            <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#0F172A", lineHeight: 1.15 }}>
+            <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.3rem", md: 24 }, fontWeight: 700, color: "#0F172A", lineHeight: 1.15 }}>
               {activePeriod ? activePeriod.name : "No active period"}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: { xs: 11, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
             {periodDateRange}
           </Typography>
         </Box>
@@ -842,9 +843,9 @@ export default function Dashboard() {
             bgcolor: "#FFFFFF",
             borderRadius: "8px",
             border: "1px solid #E2E8F0",
-            p: "20px 24px",
-            pt: "22px",
-            minHeight: 122,
+            p: { xs: "14px 12px", sm: "18px 20px", md: "20px 24px" },
+            pt: { xs: "18px", sm: "22px" },
+            minHeight: { xs: 110, sm: 122 },
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -857,8 +858,8 @@ export default function Dashboard() {
           }}
         >
           <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#F59E0B" }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+            <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Active Services
             </Typography>
             <Box
@@ -866,28 +867,29 @@ export default function Dashboard() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 0.5,
-                px: "8px",
-                py: "2px",
+                px: { xs: "6px", sm: "8px" },
+                py: { xs: "1px", sm: "2px" },
                 borderRadius: "9999px",
-                fontSize: 10.5,
+                fontSize: { xs: 9, sm: 10.5 },
                 fontWeight: 700,
                 bgcolor: "#FFFBEB",
                 color: "#B45309",
+                whiteSpace: "nowrap",
               }}
             >
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#D97706" }} />
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#D97706" }} />
               {activeServicesRatio}% Active
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5, my: 0.5 }}>
-            <Typography sx={{ fontSize: 32, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>
               {activeServices}
             </Typography>
-            <Typography sx={{ fontSize: 18, color: "#94A3B8", fontWeight: 500 }}>
+            <Typography sx={{ fontSize: { xs: 14, sm: 16, md: 18 }, color: "#94A3B8", fontWeight: 500 }}>
               / {totalServices}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: { xs: 11, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
             {totalServices > 0 ? `${inactiveServices} services inactive` : "No data available"}
           </Typography>
         </Box>
@@ -898,9 +900,9 @@ export default function Dashboard() {
             bgcolor: "#FFFFFF",
             borderRadius: "8px",
             border: "1px solid #E2E8F0",
-            p: "20px 24px",
-            pt: "22px",
-            minHeight: 122,
+            p: { xs: "14px 12px", sm: "18px 20px", md: "20px 24px" },
+            pt: { xs: "18px", sm: "22px" },
+            minHeight: { xs: 110, sm: 122 },
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -913,8 +915,8 @@ export default function Dashboard() {
           }}
         >
           <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#580000" }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+            <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               KPI Standards
             </Typography>
             <Box
@@ -922,28 +924,29 @@ export default function Dashboard() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 0.5,
-                px: "8px",
-                py: "2px",
+                px: { xs: "6px", sm: "8px" },
+                py: { xs: "1px", sm: "2px" },
                 borderRadius: "9999px",
-                fontSize: 10.5,
+                fontSize: { xs: 9, sm: 10.5 },
                 fontWeight: 700,
                 bgcolor: "#FEF2F2",
                 color: "#580000",
+                whiteSpace: "nowrap",
               }}
             >
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#580000" }} />
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#580000" }} />
               {activeKpisRatio}% Configured
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5, my: 0.5 }}>
-            <Typography sx={{ fontSize: 32, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>
+            <Typography sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, fontWeight: 700, color: "#0F172A", lineHeight: 1 }}>
               {activeKpis}
             </Typography>
-            <Typography sx={{ fontSize: 18, color: "#94A3B8", fontWeight: 500 }}>
+            <Typography sx={{ fontSize: { xs: 14, sm: 16, md: 18 }, color: "#94A3B8", fontWeight: 500 }}>
               / {totalKpis}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: { xs: 11, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
             {totalKpis > 0 ? `${inactiveKpis} KPIs inactive` : "No data available"}
           </Typography>
         </Box>
@@ -954,9 +957,9 @@ export default function Dashboard() {
             bgcolor: "#FFFFFF",
             borderRadius: "8px",
             border: "1px solid #E2E8F0",
-            p: "20px 24px",
-            pt: "22px",
-            minHeight: 122,
+            p: { xs: "14px 12px", sm: "18px 20px", md: "20px 24px" },
+            pt: { xs: "18px", sm: "22px" },
+            minHeight: { xs: 110, sm: 122 },
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -969,8 +972,8 @@ export default function Dashboard() {
           }}
         >
           <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: "#2563EB" }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 0.75, flexWrap: "wrap", gap: 0.5 }}>
+            <Typography sx={{ fontSize: { xs: 9.5, sm: 11 }, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Commitment Status
             </Typography>
             <Box
@@ -978,25 +981,26 @@ export default function Dashboard() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 0.5,
-                px: "8px",
-                py: "2px",
+                px: { xs: "6px", sm: "8px" },
+                py: { xs: "1px", sm: "2px" },
                 borderRadius: "9999px",
-                fontSize: 10.5,
+                fontSize: { xs: 9, sm: 10.5 },
                 fontWeight: 700,
                 bgcolor: "#EFF6FF",
                 color: "#1D4ED8",
+                whiteSpace: "nowrap",
               }}
             >
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#2563EB" }} />
+              <Box sx={{ width: 5, height: 5, borderRadius: "50%", bgcolor: "#2563EB" }} />
               Standard
             </Box>
           </Box>
           <Box sx={{ my: 0.5 }}>
-            <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: { xs: "1.05rem", sm: "1.25rem", md: 24 }, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>
               {commitmentStatus}
             </Typography>
           </Box>
-          <Typography sx={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: { xs: 11, sm: 12, md: 13 }, color: "#475569", fontWeight: 500, lineHeight: 1.2 }}>
             {totalServices > 0 ? `${naFlaggedServicesCount} services flagged N/A` : "No data available"}
           </Typography>
         </Box>
