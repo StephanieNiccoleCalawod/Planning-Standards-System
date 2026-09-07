@@ -282,9 +282,8 @@ function DevBypassScreen() {
 
                 .cards {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
                     gap: 12px;
-                    justify-content: center;
                 }
 
                 .card {
