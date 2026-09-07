@@ -259,7 +259,7 @@ export default function ServiceModes() {
   };
 
   return (
-    <Box sx={{ p: 4, bgcolor: "#F8FAFC", minHeight: "100vh" }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "#F8FAFC", minHeight: "100vh" }}>
       <PageHeader
         breadcrumb="Service Modes"
         title="Service Mode Library"
@@ -303,8 +303,8 @@ export default function ServiceModes() {
       </Tabs>
 
       {/* Toolbar */}
-      <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end", mb: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "100%", sm: "auto" } }}>
           <Typography
             sx={{
               fontSize: "0.7rem",
@@ -331,7 +331,7 @@ export default function ServiceModes() {
               },
             }}
             sx={{
-              width: 300,
+              width: { xs: "100%", sm: 300 },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "6px",
                 backgroundColor: "#FFFFFF",
@@ -352,7 +352,8 @@ export default function ServiceModes() {
             startIcon={<AddIcon />}
             onClick={openAdd}
             sx={{
-              ml: "auto",
+              ml: { xs: 0, sm: "auto" },
+              width: { xs: "100%", sm: "auto" },
               height: "38px",
               bgcolor: "#580000",
               "&:hover": { bgcolor: "#700000" },

@@ -436,7 +436,7 @@ export default function ServiceCatalogue() {
   };
 
   return (
-    <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
       {/* Top Header */}
       <PageHeader breadcrumb="Service" title="Service Catalogue" subtitle="Manage and configure the services offered by your office." />
 
@@ -460,7 +460,7 @@ export default function ServiceCatalogue() {
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
 
         {/* Search Field */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 'auto' } }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Search Service
           </Typography>
@@ -479,7 +479,7 @@ export default function ServiceCatalogue() {
               },
             }}
             sx={{
-              width: 240,
+              width: { xs: '100%', sm: 240 },
               '& .MuiOutlinedInput-root': {
                 borderRadius: '6px',
                 backgroundColor: '#FFFFFF',
@@ -495,7 +495,7 @@ export default function ServiceCatalogue() {
         </Box>
 
         {/* Classification Field */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 'auto' } }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Classification
           </Typography>
@@ -506,7 +506,7 @@ export default function ServiceCatalogue() {
             onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
             SelectProps={{ displayEmpty: true }}
             sx={{
-              width: 180,
+              width: { xs: '100%', sm: 180 },
               '& .MuiOutlinedInput-root': {
                 borderRadius: '6px',
                 backgroundColor: '#FFFFFF',
@@ -594,7 +594,8 @@ export default function ServiceCatalogue() {
             variant="contained"
             onClick={() => setShowAdd(true)}
             sx={{
-              ml: 'auto',
+              ml: { xs: 0, sm: 'auto' },
+              width: { xs: '100%', sm: 'auto' },
               height: '38px',
               bgcolor: '#580000',
               '&:hover': { bgcolor: '#700000' },

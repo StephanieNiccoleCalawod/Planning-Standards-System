@@ -326,7 +326,7 @@ export default function EvaluationPeriods() {
     const paginatedPeriods = filteredPeriods.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     return (
-        <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
+        <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
             {/* Top Header */}
             <PageHeader breadcrumb="Evaluation Periods" title="Evaluation Periods" subtitle="Create and manage evaluation cycles for performance tracking." />
 
@@ -371,7 +371,7 @@ export default function EvaluationPeriods() {
                             },
                         }}
                         sx={{
-                            width: 280,
+                            width: { xs: '100%', sm: 280 },
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '8px',
                                 bgcolor: '#ffffff',
@@ -384,7 +384,7 @@ export default function EvaluationPeriods() {
                             color="primary"
                             startIcon={<AddIcon />}
                             onClick={handleOpenAdd}
-                            sx={{ ml: 'auto', bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
+                            sx={{ ml: { xs: 0, sm: 'auto' }, width: { xs: '100%', sm: 'auto' }, bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
                         >
                             Create Evaluation Period
                         </Button>

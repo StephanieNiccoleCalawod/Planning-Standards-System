@@ -457,7 +457,8 @@ export default function HolidayCalendar() {
               variant="contained"
               onClick={() => openAdd()}
               sx={{
-                ml: 'auto',
+                ml: { xs: 0, sm: 'auto' },
+                width: { xs: '100%', sm: 'auto' },
                 height: '38px',
                 bgcolor: '#580000',
                 '&:hover': { bgcolor: '#700000' },

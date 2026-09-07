@@ -197,14 +197,14 @@ export default function OPCRCommitments() {
   }
 
   return (
-    <Box sx={{ p: 4, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: '#F8FAFC', minHeight: '100vh' }}>
       <PageHeader breadcrumb="Commitments" title="OPCR Commitments" subtitle="View and manage your office performance commitment reports." />
 
       {/* Search Card */}
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
 
         {/* Search Field */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 'auto' } }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Search Period
           </Typography>
@@ -223,7 +223,7 @@ export default function OPCRCommitments() {
               },
             }}
             sx={{
-              width: 240,
+              width: { xs: '100%', sm: 240 },
               '& .MuiOutlinedInput-root': {
                 borderRadius: '6px',
                 backgroundColor: '#FFFFFF',
@@ -263,7 +263,7 @@ export default function OPCRCommitments() {
 
         {/* Create Button */}
         {canWriteCommitments && (
-          <span style={{ marginLeft: 'auto' }}>
+          <Box sx={{ ml: { xs: 0, sm: 'auto' }, width: { xs: '100%', sm: 'auto' } }}>
             <Tooltip
               title={
                 isCreateBlocked
@@ -273,9 +273,10 @@ export default function OPCRCommitments() {
               arrow
               disableHoverListener={!isCreateBlocked}
             >
-              <span>
+              <Box sx={{ width: '100%' }}>
                 <Button
                   variant="contained"
+                  fullWidth
                   disabled={isCreateBlocked}
                   onClick={() => {
                     if (draftCommitmentForActivePeriod) {
@@ -299,9 +300,9 @@ export default function OPCRCommitments() {
                 >
                   + Create / Edit Commitment
                 </Button>
-              </span>
+              </Box>
             </Tooltip>
-          </span>
+          </Box>
         )}
       </Box>
 

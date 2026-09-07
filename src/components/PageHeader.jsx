@@ -140,13 +140,22 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
                         </svg>
                     </button>
 
-                    <span style={{ color: breadcrumb === "Dashboard" ? "#580000" : "#64748B", fontWeight: breadcrumb === "Dashboard" ? 600 : 500 }}>
+                    <span style={{ color: breadcrumb === "Dashboard" ? "#580000" : "#64748B", fontWeight: breadcrumb === "Dashboard" ? 600 : 500, whiteSpace: "nowrap" }}>
                         Dashboard
                     </span>
                     {breadcrumb !== "Dashboard" && (
                         <>
-                            <span style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1 }}>›</span>
-                            <span style={{ color: "#580000", fontWeight: 600 }}>{breadcrumb}</span>
+                            <span style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1, flexShrink: 0 }}>›</span>
+                            <span style={{
+                                color: "#580000",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                maxWidth: "160px"
+                            }}>
+                                {breadcrumb}
+                            </span>
                         </>
                     )}
                 </div>
@@ -332,7 +341,7 @@ export default function PageHeader({ breadcrumb, title, subtitle, action }) {
                             }}>
                                 {initials}
                             </div>
-                            <div style={{ textAlign: "left", display: "flex", flexDirection: "column" }}>
+                            <div className="header-user-text" style={{ textAlign: "left", display: "flex", flexDirection: "column" }}>
                                 <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", lineHeight: "1.2" }}>
                                     {displayName}
                                 </span>
