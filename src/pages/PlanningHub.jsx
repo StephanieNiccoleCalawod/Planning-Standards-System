@@ -537,7 +537,7 @@ export default function PlanningHub({ onNavigate }) {
               </Typography>
             </Box>
 
-            <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }} sx={{ alignItems: "stretch" }}>
               {hubData.officeCards.map((card, idx) => {
                 const meta = OFFICE_METAS[card.office] || {
                   short: card.office.slice(0, 4).toUpperCase(),
@@ -573,16 +573,17 @@ export default function PlanningHub({ onNavigate }) {
                 }
 
                 return (
-                  <Grid item xs={6} sm={6} md={4} lg={3} key={card.office || idx}>
+                  <Grid item xs={6} sm={6} md={4} lg={3} key={card.office || idx} sx={{ display: "flex" }}>
                     <Box
                       sx={{
                         bgcolor: "#FFFFFF",
                         borderRadius: "8px",
                         border: "1px solid #E2E8F0",
-                        p: { xs: "12px 12px", sm: "16px 18px", md: "20px 24px" },
+                        p: { xs: "12px 10px", sm: "16px 16px", md: "20px 22px" },
                         pt: { xs: "14px", sm: "18px", md: "22px" },
-                        minHeight: { xs: 180, sm: 200, md: 210 },
                         height: "100%",
+                        width: "100%",
+                        minHeight: { xs: 215, sm: 220, md: 225 },
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "space-between",
@@ -598,7 +599,7 @@ export default function PlanningHub({ onNavigate }) {
                       <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: meta.accent }} />
 
                       {/* Header: Office Short Tag + Commitment Status */}
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, gap: 0.5, flexWrap: "wrap" }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, height: 22 }}>
                         <Chip
                           label={meta.short}
                           size="small"
@@ -627,21 +628,25 @@ export default function PlanningHub({ onNavigate }) {
                         />
                       </Box>
 
-                      {/* Office Name */}
+                      {/* Office Name - Normalized 2-line height */}
                       <Typography
                         sx={{
                           fontWeight: 700,
                           color: "#0F172A",
-                          fontSize: { xs: "0.82rem", sm: "0.9rem", md: "0.95rem" },
+                          fontSize: { xs: "0.8rem", sm: "0.88rem", md: "0.95rem" },
                           lineHeight: 1.25,
                           mb: 1,
-                          minHeight: { xs: 32, sm: 38 },
+                          height: { xs: 34, sm: 38, md: 42 },
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
                         }}
                       >
                         {card.office}
                       </Typography>
 
-                      {/* Active Period Box */}
+                      {/* Active Period Box - Normalized height */}
                       <Box
                         sx={{
                           p: { xs: "6px 8px", sm: "8px 10px" },
@@ -649,6 +654,11 @@ export default function PlanningHub({ onNavigate }) {
                           backgroundColor: "#F8FAFC",
                           border: "1px solid #F1F5F9",
                           mb: { xs: 1, sm: 1.5 },
+                          height: { xs: 48, sm: 52 },
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          boxSizing: "border-box",
                         }}
                       >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
