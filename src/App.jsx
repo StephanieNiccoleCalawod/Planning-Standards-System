@@ -117,7 +117,8 @@ function DevBypassScreen() {
                     --shadow-hover: 0 12px 28px rgba(18, 21, 28, 0.09), 0 4px 10px rgba(18, 21, 28, 0.04);
 
                     min-height: 100vh;
-                    min-height: 100dvh;
+                    height: 100vh;
+                    overflow-y: auto;
                     overflow-x: hidden;
                     box-sizing: border-box;
                     width: 100%;
@@ -127,7 +128,7 @@ function DevBypassScreen() {
                     color: var(--ink);
                     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
                     -webkit-font-smoothing: antialiased;
-                    padding: 36px 14px 140px;
+                    padding: 40px 16px 140px;
                 }
 
                 .bypass-bg *, .bypass-bg *::before, .bypass-bg *::after {
