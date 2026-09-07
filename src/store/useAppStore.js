@@ -494,7 +494,12 @@ export const useAppStore = create((set, get) => ({
 
     activateService: async (id) => {
         try {
-            const res = await api.activateService(id);
+            let res;
+            try {
+                res = await api.activateService(id);
+            } catch {
+                res = await api.updateService(id, { status: 'ACTIVE', is_active: true, archived: false });
+            }
             await get().fetchServices();
             return res;
         } catch (err) {
@@ -508,7 +513,12 @@ export const useAppStore = create((set, get) => ({
 
     deactivateService: async (id) => {
         try {
-            const res = await api.deactivateService(id);
+            let res;
+            try {
+                res = await api.deactivateService(id);
+            } catch {
+                res = await api.updateService(id, { status: 'INACTIVE', is_active: false });
+            }
             await get().fetchServices();
             return res;
         } catch (err) {
