@@ -216,5 +216,18 @@ export const api = {
     return request(`/sla-computation-logs${queryString ? `?${queryString}` : ''}`);
   },
   getServiceUtilization: () => request('/service-utilization'),
-  getSyncVersion: () => request('/sync/version'),
+  getSyncVersion: async () => {
+    try {
+      const res = await request('/sync/version');
+      if (res && res.version !== undefined) return res;
+    } catch (_) { }
+    try {
+      const hub = await request('/planning/hub-summary');
+      if (hub) {
+        const hash = `${hub.service_modes_count || 0}-${hub.kpis_count || 0}-${hub.holidays_count || 0}-${hub.periods_count || 0}`;
+        return { version: hash };
+      }
+    } catch (_) { }
+    return { version: 0 };
+  },
 };
