@@ -537,7 +537,14 @@ export default function PlanningHub({ onNavigate }) {
               </Typography>
             </Box>
 
-            <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }} sx={{ alignItems: "stretch" }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
+                gap: { xs: 1.5, sm: 2, md: 2.5 },
+                alignItems: "stretch",
+              }}
+            >
               {hubData.officeCards.map((card, idx) => {
                 const meta = OFFICE_METAS[card.office] || {
                   short: card.office.slice(0, 4).toUpperCase(),
@@ -573,132 +580,131 @@ export default function PlanningHub({ onNavigate }) {
                 }
 
                 return (
-                  <Grid item xs={6} sm={6} md={4} lg={3} key={card.office || idx} sx={{ display: "flex" }}>
-                    <Box
-                      sx={{
-                        bgcolor: "#FFFFFF",
-                        borderRadius: "8px",
-                        border: "1px solid #E2E8F0",
-                        p: { xs: "12px 10px", sm: "16px 16px", md: "20px 22px" },
-                        pt: { xs: "14px", sm: "18px", md: "22px" },
-                        height: "100%",
-                        width: "100%",
-                        minHeight: { xs: 215, sm: 220, md: 225 },
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        boxSizing: "border-box",
-                        boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                        position: "relative",
-                        overflow: "hidden",
-                        transition: "all 0.2s ease",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" },
-                      }}
-                    >
-                      {/* Top Accent Color Line */}
-                      <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: meta.accent }} />
+                  <Box
+                    key={card.office || idx}
+                    sx={{
+                      bgcolor: "#FFFFFF",
+                      borderRadius: "8px",
+                      border: "1px solid #E2E8F0",
+                      p: { xs: "12px 10px", sm: "16px 16px", md: "20px 22px" },
+                      pt: { xs: "14px", sm: "18px", md: "22px" },
+                      height: "100%",
+                      width: "100%",
+                      minHeight: { xs: 215, sm: 220, md: 225 },
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      boxSizing: "border-box",
+                      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                      position: "relative",
+                      overflow: "hidden",
+                      transition: "all 0.2s ease",
+                      "&:hover": { transform: "translateY(-2px)", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" },
+                    }}
+                  >
+                    {/* Top Accent Color Line */}
+                    <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", bgcolor: meta.accent }} />
 
-                      {/* Header: Office Short Tag + Commitment Status */}
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, height: 22 }}>
-                        <Chip
-                          label={meta.short}
-                          size="small"
-                          sx={{
-                            fontWeight: 800,
-                            fontSize: { xs: "0.62rem", sm: "0.72rem" },
-                            backgroundColor: meta.bg,
-                            color: meta.color,
-                            border: `1px solid ${meta.border}`,
-                            height: { xs: 20, sm: 22 },
-                          }}
-                        />
-                        <Chip
-                          icon={statusBadge.icon}
-                          label={status}
-                          size="small"
-                          sx={{
-                            fontWeight: 700,
-                            fontSize: { xs: "0.6rem", sm: "0.7rem" },
-                            backgroundColor: statusBadge.bg,
-                            color: statusBadge.color,
-                            border: `1px solid ${statusBadge.border}`,
-                            height: { xs: 20, sm: 22 },
-                            "& .MuiChip-icon": { ml: 0.25 },
-                          }}
-                        />
-                      </Box>
-
-                      {/* Office Name - Normalized 2-line height */}
-                      <Typography
+                    {/* Header: Office Short Tag + Commitment Status */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1, height: 22 }}>
+                      <Chip
+                        label={meta.short}
+                        size="small"
+                        sx={{
+                          fontWeight: 800,
+                          fontSize: { xs: "0.62rem", sm: "0.72rem" },
+                          backgroundColor: meta.bg,
+                          color: meta.color,
+                          border: `1px solid ${meta.border}`,
+                          height: { xs: 20, sm: 22 },
+                        }}
+                      />
+                      <Chip
+                        icon={statusBadge.icon}
+                        label={status}
+                        size="small"
                         sx={{
                           fontWeight: 700,
-                          color: "#0F172A",
-                          fontSize: { xs: "0.8rem", sm: "0.88rem", md: "0.95rem" },
-                          lineHeight: 1.25,
-                          mb: 1,
-                          height: { xs: 34, sm: 38, md: 42 },
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
+                          fontSize: { xs: "0.6rem", sm: "0.7rem" },
+                          backgroundColor: statusBadge.bg,
+                          color: statusBadge.color,
+                          border: `1px solid ${statusBadge.border}`,
+                          height: { xs: 20, sm: 22 },
+                          "& .MuiChip-icon": { ml: 0.25 },
                         }}
-                      >
-                        {card.office}
-                      </Typography>
+                      />
+                    </Box>
 
-                      {/* Active Period Box - Normalized height */}
-                      <Box
-                        sx={{
-                          p: { xs: "6px 8px", sm: "8px 10px" },
-                          borderRadius: "6px",
-                          backgroundColor: "#F8FAFC",
-                          border: "1px solid #F1F5F9",
-                          mb: { xs: 1, sm: 1.5 },
-                          height: { xs: 48, sm: 52 },
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "center",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <DateRangeIcon sx={{ fontSize: { xs: 12, sm: 14 }, color: "#64748B" }} />
-                          <Typography sx={{ fontWeight: 600, color: "#1E293B", fontSize: { xs: "0.72rem", sm: "0.8rem" } }}>
-                            {card.activePeriod || "No Period"}
-                          </Typography>
-                        </Box>
-                        <Typography sx={{ color: "#64748B", fontSize: { xs: "0.62rem", sm: "0.72rem" }, ml: { xs: 2, sm: 2.5 }, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {dateRange || "Period window active"}
+                    {/* Office Name - Normalized 2-line height */}
+                    <Typography
+                      sx={{
+                        fontWeight: 700,
+                        color: "#0F172A",
+                        fontSize: { xs: "0.8rem", sm: "0.88rem", md: "0.95rem" },
+                        lineHeight: 1.25,
+                        mb: 1,
+                        height: { xs: 34, sm: 38, md: 42 },
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {card.office}
+                    </Typography>
+
+                    {/* Active Period Box - Normalized height */}
+                    <Box
+                      sx={{
+                        p: { xs: "6px 8px", sm: "8px 10px" },
+                        borderRadius: "6px",
+                        backgroundColor: "#F8FAFC",
+                        border: "1px solid #F1F5F9",
+                        mb: { xs: 1, sm: 1.5 },
+                        height: { xs: 48, sm: 52 },
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <DateRangeIcon sx={{ fontSize: { xs: 12, sm: 14 }, color: "#64748B" }} />
+                        <Typography sx={{ fontWeight: 600, color: "#1E293B", fontSize: { xs: "0.72rem", sm: "0.8rem" } }}>
+                          {card.activePeriod || "No Period"}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ color: "#64748B", fontSize: { xs: "0.62rem", sm: "0.72rem" }, ml: { xs: 2, sm: 2.5 }, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {dateRange || "Period window active"}
+                      </Typography>
+                    </Box>
+
+                    <Divider sx={{ borderColor: "#F1F5F9", mb: { xs: 1, sm: 1.5 } }} />
+
+                    {/* 2-Column Counters Row Container */}
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: { xs: 0.75, sm: 1.25 } }}>
+                      <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                        <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                          Active KPIs
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: meta.color, mt: 0.25, lineHeight: 1 }}>
+                          {card.activeKpiCount}
                         </Typography>
                       </Box>
 
-                      <Divider sx={{ borderColor: "#F1F5F9", mb: { xs: 1, sm: 1.5 } }} />
-
-                      {/* 2-Column Counters Row Container */}
-                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: { xs: 0.75, sm: 1.25 } }}>
-                        <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
-                          <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
-                            Active KPIs
-                          </Typography>
-                          <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: meta.color, mt: 0.25, lineHeight: 1 }}>
-                            {card.activeKpiCount}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
-                          <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
-                            Active Services
-                          </Typography>
-                          <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: "#0F172A", mt: 0.25, lineHeight: 1 }}>
-                            {card.activeServiceCount}
-                          </Typography>
-                        </Box>
+                      <Box sx={{ textAlign: "center", p: { xs: 0.75, sm: 1.25 }, bgcolor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+                        <Typography sx={{ fontSize: { xs: "0.58rem", sm: "0.68rem" }, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                          Active Services
+                        </Typography>
+                        <Typography sx={{ fontSize: { xs: "1.1rem", sm: "1.35rem" }, fontWeight: 800, color: "#0F172A", mt: 0.25, lineHeight: 1 }}>
+                          {card.activeServiceCount}
+                        </Typography>
                       </Box>
                     </Box>
-                  </Grid>
+                  </Box>
                 );
               })}
-            </Grid>
+            </Box>
           </Box>
 
           {/* ══════════════════════════════════════════════════════════════════
