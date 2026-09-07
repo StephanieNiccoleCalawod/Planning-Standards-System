@@ -548,10 +548,10 @@ export default function KPIStandards() {
       </Tabs>
 
       {/* Filters Card */}
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
+      <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', alignItems: 'flex-end', mb: 3 }}>
           
           {/* Search Field */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 'auto' } }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 240 } }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Search KPI or Service
             </Typography>
@@ -573,11 +573,11 @@ export default function KPIStandards() {
                 },
               }}
               sx={{
-                width: { xs: '100%', sm: 240 },
+                width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   backgroundColor: '#FFFFFF',
-                  height: '38px',
+                  height: '40px',
                   fontSize: '0.875rem',
                   color: '#1E293B',
                   '& fieldset': { borderColor: '#CBD5E1' },
