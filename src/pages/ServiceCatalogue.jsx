@@ -571,11 +571,11 @@ export default function ServiceCatalogue() {
               setCurrentPage(1);
             }}
             sx={{
-              height: '38px',
+              height: '40px',
               textTransform: 'none',
               borderColor: '#E2E8F0',
               color: '#475569',
-              borderRadius: '6px',
+              borderRadius: '8px',
               fontWeight: 600,
               fontSize: '0.875rem',
               '&:hover': {
@@ -592,21 +592,28 @@ export default function ServiceCatalogue() {
         {canAddService && (
           <Button
             variant="contained"
+            startIcon={<AddIcon sx={{ fontSize: 20 }} />}
             onClick={() => setShowAdd(true)}
             sx={{
               ml: { xs: 0, sm: 'auto' },
               width: { xs: '100%', sm: 'auto' },
-              height: '38px',
+              height: '40px',
               bgcolor: '#580000',
-              '&:hover': { bgcolor: '#700000' },
-              borderRadius: '6px',
-              fontWeight: 700,
+              color: '#ffffff',
+              '&:hover': {
+                bgcolor: '#700000',
+                boxShadow: '0 4px 12px rgba(88, 0, 0, 0.25)',
+              },
+              borderRadius: '8px',
+              fontWeight: 600,
               fontSize: '0.875rem',
               textTransform: 'none',
-              px: 2.5
+              px: 2.5,
+              boxShadow: '0 2px 4px rgba(88, 0, 0, 0.16)',
+              transition: 'all 0.2s ease',
             }}
           >
-            + Add Service
+            Add Service
           </Button>
         )}
       </Box>

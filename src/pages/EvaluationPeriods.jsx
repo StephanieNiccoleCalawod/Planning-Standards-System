@@ -381,10 +381,26 @@ export default function EvaluationPeriods() {
                     {canWritePeriods && (
                         <Button
                             variant="contained"
-                            color="primary"
-                            startIcon={<AddIcon />}
+                            startIcon={<AddIcon sx={{ fontSize: 20 }} />}
                             onClick={handleOpenAdd}
-                            sx={{ ml: { xs: 0, sm: 'auto' }, width: { xs: '100%', sm: 'auto' }, bgcolor: '#800000', '&:hover': { bgcolor: '#990000' } }}
+                            sx={{
+                                ml: { xs: 0, sm: 'auto' },
+                                width: { xs: '100%', sm: 'auto' },
+                                height: '40px',
+                                bgcolor: '#580000',
+                                color: '#ffffff',
+                                '&:hover': {
+                                    bgcolor: '#700000',
+                                    boxShadow: '0 4px 12px rgba(88, 0, 0, 0.25)',
+                                },
+                                borderRadius: '8px',
+                                fontWeight: 600,
+                                fontSize: '0.875rem',
+                                textTransform: 'none',
+                                px: 2.5,
+                                boxShadow: '0 2px 4px rgba(88, 0, 0, 0.16)',
+                                transition: 'all 0.2s ease',
+                            }}
                         >
                             Create Evaluation Period
                         </Button>

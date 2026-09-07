@@ -278,6 +278,7 @@ export default function OPCRCommitments() {
                   variant="contained"
                   fullWidth
                   disabled={isCreateBlocked}
+                  startIcon={<AddIcon sx={{ fontSize: 20 }} />}
                   onClick={() => {
                     if (draftCommitmentForActivePeriod) {
                       setSelectedCommitmentId(draftCommitmentForActivePeriod.id);
@@ -288,17 +289,23 @@ export default function OPCRCommitments() {
                     setShowWizard(true);
                   }}
                   sx={{
-                    height: '38px',
+                    height: '40px',
                     bgcolor: isCreateBlocked ? undefined : '#580000',
-                    '&:hover': { bgcolor: isCreateBlocked ? undefined : '#700000' },
-                    borderRadius: '6px',
-                    fontWeight: 700,
+                    color: '#ffffff',
+                    '&:hover': {
+                      bgcolor: isCreateBlocked ? undefined : '#700000',
+                      boxShadow: isCreateBlocked ? undefined : '0 4px 12px rgba(88, 0, 0, 0.25)',
+                    },
+                    borderRadius: '8px',
+                    fontWeight: 600,
                     fontSize: '0.875rem',
                     textTransform: 'none',
-                    px: 2.5
+                    px: 2.5,
+                    boxShadow: isCreateBlocked ? 'none' : '0 2px 4px rgba(88, 0, 0, 0.16)',
+                    transition: 'all 0.2s ease',
                   }}
                 >
-                  + Create / Edit Commitment
+                  Create / Edit Commitment
                 </Button>
               </Box>
             </Tooltip>
