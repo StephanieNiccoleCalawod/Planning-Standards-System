@@ -5,6 +5,12 @@ import { AppModule } from './src/app.module';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
+    app.enableCors({
+        origin: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        credentials: true,
+    });
+
     const config = new DocumentBuilder()
         .setTitle('PSS API Gateway')
         .setDescription('Single entry point for the Planning Standards System — validates JWTs via ARMS and routes requests to PSS microservices')
@@ -18,8 +24,8 @@ async function bootstrap() {
     });
 
     const port = process.env.PORT ?? 4003;
-    await app.listen(port);
-    console.log(`PSS API Gateway running → http://localhost:${port}`);
+    await app.listen(port, '0.0.0.0');
+    console.log(`PSS API Gateway running → http://0.0.0.0:${port}`);
     console.log(`Swagger                 → http://localhost:${port}/api/docs`);
 }
 bootstrap();
