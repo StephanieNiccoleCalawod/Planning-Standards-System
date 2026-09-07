@@ -1,6 +1,6 @@
 import { getToken, clearToken } from './auth';
 
-const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://icsa-api.onrender.com').replace(/\/$/, '');
 
 async function request(url, options = {}) {
   const token = getToken();
