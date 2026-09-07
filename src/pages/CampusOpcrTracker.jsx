@@ -631,15 +631,15 @@ export default function CampusOpcrTracker({ onNavigate }) {
           </Box>
 
           {/* Search & Filters Bar */}
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end", mb: 3, justifyContent: "space-between" }}>
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexWrap: "wrap", alignItems: "flex-end", mb: 3, justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexWrap: "wrap", alignItems: "flex-end", width: { xs: "100%", md: "auto" } }}>
               {/* Search Field */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "calc(50% - 6px)", sm: 260 } }}>
                 <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Search Office
                 </Typography>
                 <TextField
-                  placeholder="Search office name..."
+                  placeholder="Search office..."
                   size="small"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -651,12 +651,12 @@ export default function CampusOpcrTracker({ onNavigate }) {
                     ),
                   }}
                   sx={{
-                    width: { xs: "100%", sm: 260 },
+                    width: "100%",
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "6px",
                       backgroundColor: "#FFFFFF",
                       height: "38px",
-                      fontSize: "0.875rem",
+                      fontSize: { xs: "0.8rem", sm: "0.875rem" },
                       color: "#1E293B",
                       "& fieldset": { borderColor: "#CBD5E1" },
                       "&:hover fieldset": { borderColor: "#94A3B8" },
@@ -667,11 +667,11 @@ export default function CampusOpcrTracker({ onNavigate }) {
               </Box>
 
               {/* Status Filter */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "calc(50% - 6px)", sm: 160 } }}>
                 <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Status Filter
                 </Typography>
-                <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ width: "100%" }}>
                   <Select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -679,7 +679,7 @@ export default function CampusOpcrTracker({ onNavigate }) {
                       borderRadius: "6px",
                       backgroundColor: "#FFFFFF",
                       height: "38px",
-                      fontSize: "0.875rem",
+                      fontSize: { xs: "0.8rem", sm: "0.875rem" },
                       fontWeight: 500,
                       "& fieldset": { borderColor: "#CBD5E1" },
                       "&:hover fieldset": { borderColor: "#94A3B8" },
@@ -707,7 +707,9 @@ export default function CampusOpcrTracker({ onNavigate }) {
                     color: "#475569",
                     borderRadius: "6px",
                     fontWeight: 600,
-                    fontSize: "0.875rem",
+                    fontSize: { xs: "0.78rem", sm: "0.875rem" },
+                    width: { xs: "100%", sm: "auto" },
+                    px: { xs: 1.5, sm: 2 },
                     "&:hover": {
                       borderColor: "#CBD5E1",
                       backgroundColor: "#F8FAFC",
@@ -1100,15 +1102,15 @@ function OfficeCommitmentsView({
       />
 
       {/* Search & Filters Bar */}
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end", mb: 3, justifyContent: "space-between" }}>
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexWrap: "wrap", alignItems: "flex-end", mb: 3, justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexWrap: "wrap", alignItems: "flex-end", width: { xs: "100%", md: "auto" } }}>
           {/* Search Field */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "calc(50% - 6px)", sm: 300 } }}>
             <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Search Period / Records
             </Typography>
             <TextField
-              placeholder="Search period, status, or submitted by..."
+              placeholder="Search..."
               size="small"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -1120,12 +1122,12 @@ function OfficeCommitmentsView({
                 ),
               }}
               sx={{
-                width: { xs: "100%", sm: 300 },
+                width: "100%",
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "6px",
                   backgroundColor: "#FFFFFF",
                   height: "38px",
-                  fontSize: "0.875rem",
+                  fontSize: { xs: "0.8rem", sm: "0.875rem" },
                   color: "#1E293B",
                   "& fieldset": { borderColor: "#CBD5E1" },
                   "&:hover fieldset": { borderColor: "#94A3B8" },
@@ -1136,11 +1138,11 @@ function OfficeCommitmentsView({
           </Box>
 
           {/* Status Filter */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "calc(50% - 6px)", sm: 160 } }}>
             <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Status Filter
             </Typography>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ width: "100%" }}>
               <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -1148,7 +1150,7 @@ function OfficeCommitmentsView({
                   borderRadius: "6px",
                   backgroundColor: "#FFFFFF",
                   height: "38px",
-                  fontSize: "0.875rem",
+                  fontSize: { xs: "0.8rem", sm: "0.875rem" },
                   fontWeight: 500,
                   "& fieldset": { borderColor: "#CBD5E1" },
                   "&:hover fieldset": { borderColor: "#94A3B8" },
@@ -1175,7 +1177,9 @@ function OfficeCommitmentsView({
                 color: "#475569",
                 borderRadius: "6px",
                 fontWeight: 600,
-                fontSize: "0.875rem",
+                fontSize: { xs: "0.78rem", sm: "0.875rem" },
+                width: { xs: "100%", sm: "auto" },
+                px: { xs: 1.5, sm: 2 },
                 "&:hover": {
                   borderColor: "#CBD5E1",
                   backgroundColor: "#F8FAFC",

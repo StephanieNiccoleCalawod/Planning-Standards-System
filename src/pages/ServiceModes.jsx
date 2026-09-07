@@ -303,8 +303,8 @@ export default function ServiceModes() {
       </Tabs>
 
       {/* Toolbar */}
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end", mb: 3 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: "100%", sm: "auto" } }}>
+      <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexWrap: "wrap", alignItems: "flex-end", mb: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, width: { xs: canWrite ? "calc(50% - 6px)" : "100%", sm: "auto" } }}>
           <Typography
             sx={{
               fontSize: "0.7rem",
@@ -317,7 +317,7 @@ export default function ServiceModes() {
             Search
           </Typography>
           <TextField
-            placeholder="Search mode name or description..."
+            placeholder="Search mode name..."
             size="small"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -336,7 +336,7 @@ export default function ServiceModes() {
                 borderRadius: "6px",
                 backgroundColor: "#FFFFFF",
                 height: "38px",
-                fontSize: "0.875rem",
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
                 color: "#1E293B",
                 "& fieldset": { borderColor: "#CBD5E1" },
                 "&:hover fieldset": { borderColor: "#94A3B8" },
@@ -349,12 +349,12 @@ export default function ServiceModes() {
         {canWrite && (
           <Button
             variant="contained"
-            startIcon={<AddIcon sx={{ fontSize: 20 }} />}
+            startIcon={<AddIcon sx={{ fontSize: 18 }} />}
             onClick={openAdd}
             sx={{
               ml: { xs: 0, sm: "auto" },
-              width: { xs: "100%", sm: "auto" },
-              height: "40px",
+              width: { xs: "calc(50% - 6px)", sm: "auto" },
+              height: "38px",
               bgcolor: "#580000",
               color: "#ffffff",
               "&:hover": {
@@ -363,9 +363,10 @@ export default function ServiceModes() {
               },
               borderRadius: "8px",
               fontWeight: 600,
-              fontSize: "0.875rem",
+              fontSize: { xs: "0.78rem", sm: "0.875rem" },
               textTransform: "none",
-              px: 2.5,
+              px: { xs: 1.5, sm: 2.5 },
+              whiteSpace: "nowrap",
               boxShadow: "0 2px 4px rgba(88, 0, 0, 0.16)",
               transition: "all 0.2s ease",
             }}

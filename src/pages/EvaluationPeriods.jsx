@@ -352,7 +352,7 @@ export default function EvaluationPeriods() {
 
             {/* Search Card */}
             <Card sx={{ p: 2, mb: 3, borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', alignItems: 'center' }}>
                     <TextField
                         placeholder="Search period name..."
                         size="small"
@@ -371,21 +371,23 @@ export default function EvaluationPeriods() {
                             },
                         }}
                         sx={{
-                            width: { xs: '100%', sm: 280 },
+                            width: { xs: canWritePeriods ? 'calc(50% - 6px)' : '100%', sm: 280 },
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '8px',
                                 bgcolor: '#ffffff',
+                                height: '40px',
+                                fontSize: { xs: '0.8rem', sm: '0.875rem' },
                             }
                         }}
                     />
                     {canWritePeriods && (
                         <Button
                             variant="contained"
-                            startIcon={<AddIcon sx={{ fontSize: 20 }} />}
+                            startIcon={<AddIcon sx={{ fontSize: 18 }} />}
                             onClick={handleOpenAdd}
                             sx={{
                                 ml: { xs: 0, sm: 'auto' },
-                                width: { xs: '100%', sm: 'auto' },
+                                width: { xs: 'calc(50% - 6px)', sm: 'auto' },
                                 height: '40px',
                                 bgcolor: '#580000',
                                 color: '#ffffff',
@@ -395,14 +397,17 @@ export default function EvaluationPeriods() {
                                 },
                                 borderRadius: '8px',
                                 fontWeight: 600,
-                                fontSize: '0.875rem',
+                                fontSize: { xs: '0.78rem', sm: '0.875rem' },
                                 textTransform: 'none',
-                                px: 2.5,
+                                px: { xs: 1.5, sm: 2.5 },
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                                 boxShadow: '0 2px 4px rgba(88, 0, 0, 0.16)',
                                 transition: 'all 0.2s ease',
                             }}
                         >
-                            Create Evaluation Period
+                            Create Period
                         </Button>
                     )}
                 </Box>
