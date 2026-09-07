@@ -495,7 +495,7 @@ export default function ServiceCatalogue() {
         </Box>
 
         {/* Classification Field */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: '100%', sm: 'auto' } }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: permissions?.canSeeOtherOffices ? 'calc(50% - 6px)' : '100%', sm: 180 } }}>
           <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Classification
           </Typography>
@@ -506,11 +506,11 @@ export default function ServiceCatalogue() {
             onChange={(e) => handleFilterChange(setTypeFilter, e.target.value)}
             SelectProps={{ displayEmpty: true }}
             sx={{
-              width: { xs: '100%', sm: 180 },
+              width: '100%',
               '& .MuiOutlinedInput-root': {
-                borderRadius: '6px',
+                borderRadius: '8px',
                 backgroundColor: '#FFFFFF',
-                height: '38px',
+                height: '40px',
                 fontSize: '0.875rem',
                 color: '#1E293B',
                 '& fieldset': { borderColor: '#CBD5E1' },
@@ -528,7 +528,7 @@ export default function ServiceCatalogue() {
 
         {/* Office Filter Field */}
         {permissions?.canSeeOtherOffices && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: 'calc(50% - 6px)', sm: 180 } }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Office
             </Typography>
@@ -539,11 +539,11 @@ export default function ServiceCatalogue() {
               onChange={(e) => handleFilterChange(setOfficeFilter, e.target.value)}
               SelectProps={{ displayEmpty: true }}
               sx={{
-                width: 180,
+                width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   backgroundColor: '#FFFFFF',
-                  height: '38px',
+                  height: '40px',
                   fontSize: '0.875rem',
                   color: '#1E293B',
                   '& fieldset': { borderColor: '#CBD5E1' },

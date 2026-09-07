@@ -361,7 +361,7 @@ export default function HolidayCalendar() {
           </Box>
 
           {/* Holiday Type Field */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: 'calc(50% - 6px)', sm: 180 } }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Holiday Type
             </Typography>
@@ -372,11 +372,11 @@ export default function HolidayCalendar() {
               onChange={(e) => setTypeFilter(e.target.value)}
               SelectProps={{ displayEmpty: true }}
               sx={{
-                width: 180,
+                width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   backgroundColor: '#FFFFFF',
-                  height: '38px',
+                  height: '40px',
                   fontSize: '0.875rem',
                   color: '#1E293B',
                   '& fieldset': { borderColor: '#CBD5E1' },
@@ -393,7 +393,7 @@ export default function HolidayCalendar() {
           </Box>
 
           {/* Month Field */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: { xs: 'calc(50% - 6px)', sm: 150 } }}>
             <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Month
             </Typography>
@@ -404,11 +404,11 @@ export default function HolidayCalendar() {
               onChange={(e) => setMonthFilter(e.target.value)}
               SelectProps={{ displayEmpty: true }}
               sx={{
-                width: 150,
+                width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   backgroundColor: '#FFFFFF',
-                  height: '38px',
+                  height: '40px',
                   fontSize: '0.875rem',
                   color: '#1E293B',
                   '& fieldset': { borderColor: '#CBD5E1' },
