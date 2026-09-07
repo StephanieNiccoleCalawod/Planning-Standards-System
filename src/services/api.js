@@ -1,5 +1,6 @@
 import { getToken, clearToken } from './auth';
-const API_BASE = '/api';
+
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 async function request(url, options = {}) {
   const token = getToken();
@@ -10,8 +11,10 @@ async function request(url, options = {}) {
     ...options.headers,
   };
 
+  const endpoint = url.startsWith('/') ? url : `/${url}`;
+
   try {
-    const response = await fetch(`${API_BASE}${url}`, {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
     });

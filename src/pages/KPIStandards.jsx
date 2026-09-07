@@ -855,7 +855,7 @@ export default function KPIStandards() {
               <TableRow>
                 <TableCell colSpan={5 + (permissions?.canSeeOtherOffices ? 1 : 0) + (canWriteKpi ? 1 : 0)} align="center" sx={{ py: 5 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                    {(searchQuery || categoryFilter || serviceFilter || officeFilter)
+                    {(searchQuery || categoryFilter || officeFilter)
                       ? 'No KPI targets found matching your active filter criteria.'
                       : !canWriteKpi
                         ? 'No KPI targets configured for your office. Contact your Planning Officer.'
