@@ -83,6 +83,7 @@ export const api = {
   createServiceMode: (data) => request('/service-modes', { method: 'POST', body: JSON.stringify(data) }),
   updateServiceMode: (id, data) => request(`/service-modes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   toggleServiceMode: (id) => request(`/service-modes/${id}/toggle`, { method: 'PATCH' }),
+  deleteServiceMode: (id) => request(`/service-modes/${id}`, { method: 'DELETE' }),
   archiveService: (id) => request(`/services/${id}/archive`, { method: 'PATCH' }),
   activateService: (id) => request(`/services/${id}/activate`, { method: 'PATCH' }),
   deactivateService: (id) => request(`/services/${id}/deactivate`, { method: 'PATCH' }),

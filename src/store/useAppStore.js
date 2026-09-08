@@ -443,52 +443,22 @@ export const useAppStore = create((set, get) => ({
     createService: async (payload) => {
         try {
             const res = await api.createService(payload);
-            await get().fetchServices();
+            await get().fetchServices(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createService falling back to local storage:', err?.message);
-            const newSvc = {
-                id: `svc-${Date.now()}`,
-                name: payload.name,
-                classification: payload.classification || 'Simple',
-                slaTarget: payload.sla_target_value ? `${payload.sla_target_value}${payload.sla_target_unit === 'Days' ? 'd' : 'm'}` : '1d',
-                sla: payload.sla_target_value ? `${payload.sla_target_value}${payload.sla_target_unit === 'Days' ? 'd' : 'm'}` : '1d',
-                sla_target_value: payload.sla_target_value || 1,
-                sla_target_unit: payload.sla_target_unit || 'Days',
-                responsibleUnit: payload.responsible_unit || 'Academic Office',
-                responsible_unit: payload.responsible_unit || 'Academic Office',
-                active: true,
-                status: 'ACTIVE',
-                naFlags: [],
-                naFlag: false,
-                archived: false,
-                withReferral: payload.with_referral || 'without',
-                lastUpdated: 'Just now',
-                intakeDocuments: Array.isArray(payload.required_documents) ? payload.required_documents.join('\n') : '',
-                stepsTimeline: Array.isArray(payload.processing_steps) ? payload.processing_steps.join('\n') : '',
-                processing_steps: Array.isArray(payload.processing_steps) ? payload.processing_steps : [],
-                expectedOutput: payload.expected_output || '',
-                modes: Array.isArray(payload.mode_ids) ? payload.mode_ids.map(id => ({ id, name: id })) : [],
-                mode_ids: payload.mode_ids || [],
-            };
-            const updated = [newSvc, ...get().services];
-            set({ services: updated });
-            setCached('pss_services', updated);
-            return newSvc;
+            console.error('[useAppStore] createService failed:', err);
+            throw new Error(err?.message || 'Failed to save service. Please try again.');
         }
     },
 
     updateService: async (id, payload) => {
         try {
             const res = await api.updateService(id, payload);
-            await get().fetchServices();
+            await get().fetchServices(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateService falling back to local storage:', err?.message);
-            const updated = get().services.map(s => s.id === id ? { ...s, ...payload, lastUpdated: 'Just now' } : s);
-            set({ services: updated });
-            setCached('pss_services', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updateService failed:', err);
+            throw new Error(err?.message || 'Failed to update service. Please try again.');
         }
     },
 
@@ -500,14 +470,11 @@ export const useAppStore = create((set, get) => ({
             } catch {
                 res = await api.updateService(id, { status: 'ACTIVE', is_active: true, archived: false });
             }
-            await get().fetchServices();
+            await get().fetchServices(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] activateService falling back to local storage:', err?.message);
-            const updated = get().services.map(s => s.id === id ? { ...s, active: true, status: 'ACTIVE' } : s);
-            set({ services: updated });
-            setCached('pss_services', updated);
-            return { id, status: 'ACTIVE' };
+            console.error('[useAppStore] activateService failed:', err);
+            throw new Error(err?.message || 'Failed to activate service. Please try again.');
         }
     },
 
@@ -519,28 +486,22 @@ export const useAppStore = create((set, get) => ({
             } catch {
                 res = await api.updateService(id, { status: 'INACTIVE', is_active: false });
             }
-            await get().fetchServices();
+            await get().fetchServices(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] deactivateService falling back to local storage:', err?.message);
-            const updated = get().services.map(s => s.id === id ? { ...s, active: false, status: 'INACTIVE' } : s);
-            set({ services: updated });
-            setCached('pss_services', updated);
-            return { id, status: 'INACTIVE' };
+            console.error('[useAppStore] deactivateService failed:', err);
+            throw new Error(err?.message || 'Failed to deactivate service. Please try again.');
         }
     },
 
     archiveService: async (id) => {
         try {
             const res = await api.archiveService(id);
-            await get().fetchServices();
+            await get().fetchServices(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] archiveService falling back to local storage:', err?.message);
-            const updated = get().services.map(s => s.id === id ? { ...s, archived: true, status: 'ARCHIVED' } : s);
-            set({ services: updated });
-            setCached('pss_services', updated);
-            return { id, status: 'ARCHIVED' };
+            console.error('[useAppStore] archiveService failed:', err);
+            throw new Error(err?.message || 'Failed to archive service. Please try again.');
         }
     },
 
@@ -607,53 +568,33 @@ export const useAppStore = create((set, get) => ({
     createKpi: async (payload) => {
         try {
             const res = await api.createKpi(payload);
-            await get().fetchKpis();
+            await get().fetchKpis(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createKpi falling back to local storage:', err?.message);
-            const newKpi = {
-                id: `kpi-${Date.now()}`,
-                title: payload.title,
-                category: payload.category || 'Timeliness',
-                target_value: payload.target_value || '100',
-                unit: payload.unit || '%',
-                office: payload.office || 'Academic Office',
-                active: true,
-                is_active: true,
-                description: payload.description || ''
-            };
-            const updated = [newKpi, ...get().kpis];
-            set({ kpis: updated });
-            setCached('pss_kpis', updated);
-            return newKpi;
+            console.error('[useAppStore] createKpi failed:', err);
+            throw new Error(err?.message || 'Failed to save KPI. Please try again.');
         }
     },
 
     updateKpi: async (id, payload) => {
         try {
             const res = await api.updateKpi(id, payload);
-            await get().fetchKpis();
+            await get().fetchKpis(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateKpi falling back to local storage:', err?.message);
-            const updated = get().kpis.map(k => k.id === id ? { ...k, ...payload } : k);
-            set({ kpis: updated });
-            setCached('pss_kpis', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updateKpi failed:', err);
+            throw new Error(err?.message || 'Failed to update KPI. Please try again.');
         }
     },
 
     deleteKpi: async (id) => {
         try {
             const res = await api.deleteKpi(id);
-            await get().fetchKpis();
+            await get().fetchKpis(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] deleteKpi falling back to local storage:', err?.message);
-            const updated = get().kpis.filter(k => k.id !== id);
-            set({ kpis: updated });
-            setCached('pss_kpis', updated);
-            return { id };
+            console.error('[useAppStore] deleteKpi failed:', err);
+            throw new Error(err?.message || 'Failed to delete KPI. Please try again.');
         }
     },
 
@@ -679,11 +620,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchSlaRules(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateSlaRule falling back to local storage:', err?.message);
-            const updated = get().slaRules.map(r => r.id === id ? { ...r, ...payload } : r);
-            set({ slaRules: updated });
-            setCached('pss_sla_rules', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updateSlaRule failed:', err);
+            throw new Error(err?.message || 'Failed to update SLA rule. Please try again.');
         }
     },
 
@@ -693,12 +631,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchSlaRules(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createSlaRule falling back to local storage:', err?.message);
-            const newRule = { id: `sla-${Date.now()}`, ...payload };
-            const updated = [newRule, ...get().slaRules];
-            set({ slaRules: updated });
-            setCached('pss_sla_rules', updated);
-            return newRule;
+            console.error('[useAppStore] createSlaRule failed:', err);
+            throw new Error(err?.message || 'Failed to save SLA rule. Please try again.');
         }
     },
 
@@ -708,8 +642,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchSlaRules(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] restoreSlaVersion falling back:', err?.message);
-            return { id, versionId };
+            console.error('[useAppStore] restoreSlaVersion failed:', err);
+            throw new Error(err?.message || 'Failed to restore SLA version. Please try again.');
         }
     },
 
@@ -765,18 +699,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createHoliday falling back to local storage:', err?.message);
-            const newHoliday = {
-                id: `hol-${Date.now()}`,
-                name: payload.name,
-                date: payload.holiday_date ? payload.holiday_date.split('T')[0] : (payload.date || '2026-01-01'),
-                type: mapHolidayTypeToFrontend(payload.type),
-                is_recurring: payload.is_recurring || false
-            };
-            const updated = [newHoliday, ...get().holidays];
-            set({ holidays: updated });
-            setCached('pss_holidays', updated);
-            return newHoliday;
+            console.error('[useAppStore] createHoliday failed:', err);
+            throw new Error(err?.message || 'Failed to save holiday. Please try again.');
         }
     },
 
@@ -786,17 +710,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateHoliday falling back to local storage:', err?.message);
-            const updated = get().holidays.map(h => h.id === id ? {
-                ...h,
-                name: payload.name || h.name,
-                date: payload.holiday_date ? payload.holiday_date.split('T')[0] : (payload.date || h.date),
-                type: payload.type ? mapHolidayTypeToFrontend(payload.type) : h.type,
-                is_recurring: payload.is_recurring !== undefined ? payload.is_recurring : h.is_recurring
-            } : h);
-            set({ holidays: updated });
-            setCached('pss_holidays', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updateHoliday failed:', err);
+            throw new Error(err?.message || 'Failed to update holiday. Please try again.');
         }
     },
 
@@ -806,11 +721,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchHolidays({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] deleteHoliday falling back to local storage:', err?.message);
-            const updated = get().holidays.filter(h => h.id !== id);
-            set({ holidays: updated });
-            setCached('pss_holidays', updated);
-            return { id };
+            console.error('[useAppStore] deleteHoliday failed:', err);
+            throw new Error(err?.message || 'Failed to delete holiday. Please try again.');
         }
     },
 
@@ -868,20 +780,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchPeriods(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createPeriod falling back to local storage:', err?.message);
-            const newPeriod = {
-                id: `per-${Date.now()}`,
-                name: payload.name,
-                type: mapPeriodTypeToFrontend(payload.period_type || 'Semester'),
-                period_type: payload.period_type || 'Semester',
-                start_date: payload.start_date,
-                end_date: payload.end_date,
-                status: 'Active',
-            };
-            const updated = [newPeriod, ...get().periods];
-            set({ periods: updated });
-            setCached('pss_periods', updated);
-            return newPeriod;
+            console.error('[useAppStore] createPeriod failed:', err);
+            throw new Error(err?.message || 'Failed to save evaluation period. Please try again.');
         }
     },
 
@@ -891,15 +791,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchPeriods(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updatePeriod falling back to local storage:', err?.message);
-            const updated = get().periods.map(p => p.id === id ? {
-                ...p,
-                ...payload,
-                type: payload.period_type ? mapPeriodTypeToFrontend(payload.period_type) : p.type
-            } : p);
-            set({ periods: updated });
-            setCached('pss_periods', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updatePeriod failed:', err);
+            throw new Error(err?.message || 'Failed to update evaluation period. Please try again.');
         }
     },
 
@@ -909,11 +802,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchPeriods(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] closePeriod falling back to local storage:', err?.message);
-            const updated = get().periods.map(p => p.id === id ? { ...p, status: 'Closed' } : p);
-            set({ periods: updated });
-            setCached('pss_periods', updated);
-            return { id, status: 'Closed' };
+            console.error('[useAppStore] closePeriod failed:', err);
+            throw new Error(err?.message || 'Failed to close evaluation period. Please try again.');
         }
     },
 
@@ -923,11 +813,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchPeriods(true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] deletePeriod falling back to local storage:', err?.message);
-            const updated = get().periods.filter(p => p.id !== id);
-            set({ periods: updated });
-            setCached('pss_periods', updated);
-            return { id };
+            console.error('[useAppStore] deletePeriod failed:', err);
+            throw new Error(err?.message || 'Failed to delete evaluation period. Please try again.');
         }
     },
 
@@ -972,22 +859,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createCommitmentDraft falling back to local storage:', err?.message);
-            const newComm = {
-                id: `comm-${Date.now()}`,
-                title: payload.title || 'New OPCR Commitment',
-                office: payload.office || 'Academic Office',
-                period_id: payload.period_id,
-                period_name: 'Current Evaluation Period',
-                status: 'DRAFT',
-                rating: null,
-                submitted_by: get().activeUser?.username || 'mock_user',
-                created_at: new Date().toISOString()
-            };
-            const updated = [newComm, ...get().commitments];
-            set({ commitments: updated, activeCommitment: newComm });
-            setCached('pss_commitments', updated);
-            return newComm;
+            console.error('[useAppStore] createCommitmentDraft failed:', err);
+            throw new Error(err?.message || 'Failed to create commitment. Please try again.');
         }
     },
 
@@ -998,12 +871,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateCommitmentDraft falling back to local storage:', err?.message);
-            const updated = get().commitments.map(c => c.id === id ? { ...c, ...payload } : c);
-            const found = updated.find(c => c.id === id);
-            set({ commitments: updated, activeCommitment: found });
-            setCached('pss_commitments', updated);
-            return found;
+            console.error('[useAppStore] updateCommitmentDraft failed:', err);
+            throw new Error(err?.message || 'Failed to update commitment. Please try again.');
         }
     },
 
@@ -1014,12 +883,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] lockCommitment falling back to local storage:', err?.message);
-            const updated = get().commitments.map(c => c.id === id ? { ...c, status: 'LOCKED' } : c);
-            const found = updated.find(c => c.id === id);
-            set({ commitments: updated, activeCommitment: found });
-            setCached('pss_commitments', updated);
-            return found;
+            console.error('[useAppStore] lockCommitment failed:', err);
+            throw new Error(err?.message || 'Failed to lock commitment. Please try again.');
         }
     },
 
@@ -1029,11 +894,8 @@ export const useAppStore = create((set, get) => ({
             await get().fetchCommitments({}, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] requestRevision falling back to local storage:', err?.message);
-            const updated = get().commitments.map(c => c.id === id ? { ...c, status: 'REVISION_REQUESTED', revision_reason: reason } : c);
-            set({ commitments: updated });
-            setCached('pss_commitments', updated);
-            return { id, status: 'REVISION_REQUESTED', reason };
+            console.error('[useAppStore] requestRevision failed:', err);
+            throw new Error(err?.message || 'Failed to request revision. Please try again.');
         }
     },
 
@@ -1105,59 +967,33 @@ export const useAppStore = create((set, get) => ({
     createServiceMode: async (payload) => {
         try {
             const res = await api.createServiceMode(payload);
-            await get().fetchServiceModes(true);
+            await get().fetchServiceModes(true, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] createServiceMode falling back to local storage:', err?.message);
-            const newMode = {
-                id: `sm-${Date.now()}`,
-                name: payload.name,
-                description: payload.description || '',
-                is_active: true,
-                created_at: new Date().toISOString()
-            };
-            const updated = [newMode, ...get().serviceModes];
-            set({ serviceModes: updated });
-            setCached('pss_service_modes', updated);
-            return newMode;
+            console.error('[useAppStore] createServiceMode failed:', err);
+            throw new Error(err?.message || 'Failed to save service mode. Please try again.');
         }
     },
 
     updateServiceMode: async (id, payload) => {
         try {
             const res = await api.updateServiceMode(id, payload);
-            await get().fetchServiceModes(true);
+            await get().fetchServiceModes(true, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] updateServiceMode falling back to local storage:', err?.message);
-            const updated = get().serviceModes.map(m => m.id === id ? {
-                ...m,
-                name: payload.name !== undefined ? payload.name : m.name,
-                description: payload.description !== undefined ? payload.description : m.description,
-                updated_at: new Date().toISOString()
-            } : m);
-            set({ serviceModes: updated });
-            setCached('pss_service_modes', updated);
-            return { id, ...payload };
+            console.error('[useAppStore] updateServiceMode failed:', err);
+            throw new Error(err?.message || 'Failed to update service mode. Please try again.');
         }
     },
 
     toggleServiceMode: async (id) => {
         try {
             const res = await api.toggleServiceMode(id);
-            await get().fetchServiceModes(true);
+            await get().fetchServiceModes(true, true);
             return res;
         } catch (err) {
-            console.warn('[useAppStore] toggleServiceMode falling back to local storage:', err?.message);
-            const updated = get().serviceModes.map(m => m.id === id ? {
-                ...m,
-                is_active: m.is_active === false ? true : false,
-                updated_at: new Date().toISOString()
-            } : m);
-            set({ serviceModes: updated });
-            setCached('pss_service_modes', updated);
-            const toggled = updated.find(m => m.id === id);
-            return toggled || { id };
+            console.error('[useAppStore] toggleServiceMode failed:', err);
+            throw new Error(err?.message || 'Failed to toggle service mode status. Please try again.');
         }
     },
 
