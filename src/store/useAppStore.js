@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { api } from "../services/api";
-import { getUserRoleFromToken, decodeCurrentUser, encodeMockToken, PREDEFINED_MOCK_USERS } from "../services/auth";
+import {
+    authProvider,
+    getUserRoleFromToken,
+    decodeCurrentUser,
+    encodeMockToken,
+    PREDEFINED_MOCK_USERS,
+    ROLE_DEFAULT_PAGE,
+} from "../services/auth";
 import { getPermissions } from "../services/permissions";
 
 // Helper functions for SLA target formatting
@@ -346,9 +353,9 @@ const DEFAULT_COMMITMENTS = [
     }
 ];
 
-// Derive initial user state from whatever token is in localStorage
-const _initialUser = decodeCurrentUser();
-const _initialRole = _initialUser?.role || 'Admin';
+// Derive initial user state from TemporaryAuthProvider
+const _initialUser = authProvider.getCurrentUser();
+const _initialRole = _initialUser?.role || 'Staff';
 const _initialPermissions = getPermissions(_initialUser);
 
 export const useAppStore = create((set, get) => ({
@@ -362,7 +369,8 @@ export const useAppStore = create((set, get) => ({
     serviceModes: getCached('pss_service_modes', DEFAULT_SERVICE_MODES),
     activeCommitment: null,
     userRole: _initialRole,
-    // Active user decoded from the stored token
+    // Active user session decoded from the stored token
+    currentUser: _initialUser,
     activeUser: _initialUser,
     // Derived permissions from the active user
     permissions: _initialPermissions,
@@ -999,67 +1007,57 @@ export const useAppStore = create((set, get) => ({
     },
 
     /**
-     * Authenticate through the ARMS AI microservice backend.
-     * Communicates with backend /auth/login, receives validated JWT/session,
-     * stores token, sets default landing page per role, and reloads.
+     * Authenticate using TemporaryAuthProvider (9 predefined authorized users).
+     * ZERO external network calls to undeployed ARMS auth service.
      */
-    loginWithArms: async (username, password = '') => {
+    login: (usernameOrUser) => {
         try {
-            const res = await api.login({ username, password });
-            if (res?.access_token) {
-                localStorage.setItem('pss_token', res.access_token);
-                const user = res.user;
-                const ROLE_DEFAULT_PAGE = {
-                    'SUPER_ADMIN': 'dashboard',
-                    'PLANNING_OFFICER': 'planningHub',
-                    'SUBSYSTEM_ADMIN': 'dashboard',
-                    'STAFF': 'serviceCatalogue',
-                    'OPCR_EVALUATOR': 'opcrCommitments',
-                    'CAMPUS_DIRECTOR': 'dashboard',
-                };
-                const defaultPage = ROLE_DEFAULT_PAGE[user.armsRole] || 'dashboard';
-                localStorage.setItem('pss_default_page', defaultPage);
-                window.location.reload();
-                return res;
-            }
-            throw new Error('Invalid authentication response from ARMS microservice.');
+            const authResult = authProvider.login(usernameOrUser);
+            const user = authProvider.getCurrentUser();
+            const role = user?.role || 'Staff';
+            const permissions = getPermissions(user);
+            set({
+                currentUser: user,
+                activeUser: user,
+                userRole: role,
+                permissions: permissions,
+            });
+            window.location.reload();
+            return authResult;
         } catch (err) {
-            console.error('[useAppStore] loginWithArms failed:', err);
+            console.error('[useAppStore] login failed:', err);
             throw err;
         }
     },
 
-    /**
-     * Login as one of the predefined mock users (by user object from PREDEFINED_MOCK_USERS).
-     * Encodes a base64 token, stores it, and reloads.
-     */
-    loginAsMockUser: (mockUser) => {
-        const claims = {
-            userId: mockUser.id,
-            username: mockUser.username,
-            displayName: mockUser.displayName,
-            armsRole: mockUser.armsRole,
-            office: mockUser.office,
-            isCrossOffice: mockUser.isCrossOffice,
-        };
-        const token = encodeMockToken(claims);
-        localStorage.setItem('pss_token', token);
-        window.location.reload();
+    loginWithArms: async (username) => {
+        return get().login(username);
     },
 
-    /**
-     * @deprecated Use loginAsMockUser() instead.
-     * Kept for backward compatibility — maps old role strings to a predefined mock user.
-     */
+    loginAsMockUser: (mockUser) => {
+        return get().login(mockUser);
+    },
+
+    logout: () => {
+        authProvider.logout();
+        set({
+            currentUser: null,
+            activeUser: null,
+            userRole: null,
+            permissions: getPermissions(null),
+        });
+        window.location.href = '/';
+    },
+
     setUserRole: (role) => {
         const userMap = {
             'Staff': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'STAFF' && u.office === 'ACAD'),
-            'OPCREvaluator': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'OPCR_EVALUATOR'),
+            'OPCREvaluator': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'CAMPUS_DIRECTOR'),
             'Admin': PREDEFINED_MOCK_USERS.find(u => u.armsRole === 'SUBSYSTEM_ADMIN' && u.office === 'ACAD'),
         };
         const mockUser = userMap[role] || userMap['Staff'];
         if (mockUser) {
-            get().loginAsMockUser(mockUser);
+            get().login(mockUser);
         }
     },
 }));

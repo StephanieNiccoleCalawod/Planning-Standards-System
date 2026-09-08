@@ -1,31 +1,15 @@
-// Handles receiving and storing the ARMS-issued JWT in the PSS frontend.
+// Authentication Architecture for Planning & Standards System (PSS)
 //
-// ARMS and PSS are different origins (different ports), so localStorage is
-// NOT shared between them. The expected flow is:
-//
-//   1. User logs into ARMS (e.g. http://localhost:5173)
-//   2. A "Go to PSS" link/button in ARMS navigates to:
-//        http://<pss-frontend>/?token=<jwt>
-//   3. On load, PSS reads ?token= from the URL, stores it under PSS_TOKEN_KEY,
-//      and removes it from the URL (so it isn't bookmarked/shared).
-//   4. All subsequent api.js requests attach this token as
-//      `Authorization: Bearer <token>`.
-//
-// MOCK TOKEN FORMAT:
-//   For local dev, the token format is:
-//     mock-token-<base64(JSON_claims_payload)>
-//   where JSON_claims_payload = {
-//     userId, username, armsRole, office, isCrossOffice, displayName
-//   }
-//   This is decoded dynamically by the backend jwt-auth.guard.ts and the
-//   frontend decodeCurrentUser() below. No hardcoded role strings.
+// STRUCTURE:
+//   - TemporaryAuthProvider: Uses the 9 authorized pilot accounts without undeployed ARMS calls.
+//   - ArmsAuthProvider: Modular stub ready to be activated when the ARMS auth microservice is deployed.
 
 const PSS_TOKEN_KEY = 'pss_token';
 
 // ---------------------------------------------------------------------------
-// ARMS role → PSS internal role mapping (shared between frontend and backend)
+// ARMS role → PSS internal role mapping (shared across frontend and backend RBAC)
 // ---------------------------------------------------------------------------
-const ARMS_ROLE_MAP = {
+export const ARMS_ROLE_MAP = {
     SUPER_ADMIN: 'SuperAdmin',
     SUBSYSTEM_ADMIN: 'Admin',
     STAFF: 'Staff',
@@ -34,9 +18,18 @@ const ARMS_ROLE_MAP = {
     CAMPUS_DIRECTOR: 'CampusDirector',
 };
 
+export const ROLE_DEFAULT_PAGE = {
+    'SUPER_ADMIN': 'dashboard',
+    'PLANNING_OFFICER': 'planningHub',
+    'SUBSYSTEM_ADMIN': 'dashboard',
+    'STAFF': 'serviceCatalogue',
+    'OPCR_EVALUATOR': 'opcrCommitments',
+    'CAMPUS_DIRECTOR': 'dashboard',
+};
+
 // ---------------------------------------------------------------------------
-// Predefined Mock User Directory
-// 7 mock users spanning 3 offices (ACAD, OSAS, ADMIN) + cross-office evaluator
+// Predefined 9 Authorized Pilot Users Directory
+// (The ONLY 9 users permitted in the temporary authentication system)
 // ---------------------------------------------------------------------------
 export const PREDEFINED_MOCK_USERS = [
     {
@@ -47,30 +40,8 @@ export const PREDEFINED_MOCK_USERS = [
         office: 'ACAD',
         isCrossOffice: false,
         roleLabel: 'Staff',
-        officeLabel: 'Academic Affairs (ACAD)',
+        officeLabel: 'Academic Affairs Office (ACAD)',
         description: 'Read-only access to ACAD services. OPCR Commitments hidden.',
-    },
-    {
-        id: 'mock-jose',
-        displayName: 'Jose Santos',
-        username: 'jose.santos',
-        armsRole: 'STAFF',
-        office: 'OSAS',
-        isCrossOffice: false,
-        roleLabel: 'Staff',
-        officeLabel: 'Student Affairs (OSAS)',
-        description: 'Read-only access to OSAS services. OPCR Commitments hidden.',
-    },
-    {
-        id: 'mock-jillian',
-        displayName: 'Jillian Reyes',
-        username: 'jillian.reyes',
-        armsRole: 'STAFF',
-        office: 'ADMIN',
-        isCrossOffice: false,
-        roleLabel: 'Staff',
-        officeLabel: 'Administration (ADMIN)',
-        description: 'Read-only access to ADMIN services. OPCR Commitments hidden.',
     },
     {
         id: 'mock-maria',
@@ -80,8 +51,19 @@ export const PREDEFINED_MOCK_USERS = [
         office: 'ACAD',
         isCrossOffice: false,
         roleLabel: 'Office Head',
-        officeLabel: 'Academic Affairs (ACAD)',
+        officeLabel: 'Academic Affairs Office (ACAD)',
         description: 'Manage Services/KPIs/SLAs/Holidays for ACAD only.',
+    },
+    {
+        id: 'mock-jose',
+        displayName: 'Jose Santos',
+        username: 'jose.santos',
+        armsRole: 'STAFF',
+        office: 'OSAS',
+        isCrossOffice: false,
+        roleLabel: 'Staff',
+        officeLabel: 'Student Affairs Office (OSAS)',
+        description: 'Read-only access to OSAS services. OPCR Commitments hidden.',
     },
     {
         id: 'mock-pedro',
@@ -91,8 +73,19 @@ export const PREDEFINED_MOCK_USERS = [
         office: 'OSAS',
         isCrossOffice: false,
         roleLabel: 'Office Head',
-        officeLabel: 'Student Affairs (OSAS)',
+        officeLabel: 'Student Affairs Office (OSAS)',
         description: 'Manage Services/KPIs/SLAs/Holidays for OSAS only.',
+    },
+    {
+        id: 'mock-jillian',
+        displayName: 'Jillian Reyes',
+        username: 'jillian.reyes',
+        armsRole: 'STAFF',
+        office: 'ADMIN',
+        isCrossOffice: false,
+        roleLabel: 'Staff',
+        officeLabel: 'Administration Office (ADMIN)',
+        description: 'Read-only access to ADMIN services. OPCR Commitments hidden.',
     },
     {
         id: 'mock-albert',
@@ -102,7 +95,7 @@ export const PREDEFINED_MOCK_USERS = [
         office: 'ADMIN',
         isCrossOffice: false,
         roleLabel: 'Office Head',
-        officeLabel: 'Administration (ADMIN)',
+        officeLabel: 'Administration Office (ADMIN)',
         description: 'Manage Services/KPIs/SLAs/Holidays for ADMIN only.',
     },
     {
@@ -114,7 +107,7 @@ export const PREDEFINED_MOCK_USERS = [
         isCrossOffice: true,
         roleLabel: 'Campus Director',
         officeLabel: 'All Offices (Campus-Wide)',
-        description: 'Campus Director. Full campus-wide read-only oversight across all modules.',
+        description: 'Campus Director / OPCR Evaluator. Full campus-wide read-only oversight across all modules.',
     },
     {
         id: 'mock-carlo',
@@ -156,12 +149,12 @@ export function setToken(token) {
 
 export function clearToken() {
     localStorage.removeItem(PSS_TOKEN_KEY);
+    localStorage.removeItem('pss_default_page');
 }
 
 /**
  * Encodes a claims object into the `mock-token-<base64>` format.
- * This token is recognized by both the frontend decodeCurrentUser()
- * and the backend JwtAuthGuard.
+ * Recognized by frontend RBAC and backend API Gateway JwtAuthGuard.
  */
 export function encodeMockToken(claims) {
     const json = JSON.stringify(claims);
@@ -171,123 +164,179 @@ export function encodeMockToken(claims) {
 
 /**
  * Decodes the current active token and returns a normalized user object.
- * Returns null if no token is present or the token is invalid.
- *
- * Returned shape:
- *   { userId, username, displayName, armsRole, role, office, isCrossOffice }
+ * Returns null if no token is present, invalid, or unauthorized.
  */
 export function decodeCurrentUser() {
     const token = getToken();
     if (!token) return null;
 
+    let claims = null;
+
     if (token.startsWith('mock-token-')) {
         const b64Part = token.slice('mock-token-'.length);
         try {
             const json = decodeURIComponent(escape(atob(b64Part)));
-            const claims = JSON.parse(json);
-            return {
-                userId: claims.userId || claims.id || 'mock-user',
-                username: claims.username || 'mock_user',
-                displayName: claims.displayName || claims.username || 'Mock User',
-                armsRole: claims.armsRole || claims.role || 'STAFF',
-                role: ARMS_ROLE_MAP[claims.armsRole || claims.role] || 'Staff',
-                office: claims.office || 'ACAD',
-                isCrossOffice: !!claims.isCrossOffice,
-            };
+            claims = JSON.parse(json);
         } catch (e) {
             console.warn('[auth] Failed to decode mock token:', e);
             return null;
         }
+    } else {
+        // Real JWT — decode payload
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return null;
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                window.atob(base64).split('').map((c) =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join('')
+            );
+            claims = JSON.parse(jsonPayload);
+        } catch (e) {
+            console.warn('[auth] Failed to decode JWT:', e);
+            return null;
+        }
     }
 
-    // Real JWT — decode the payload section
-    try {
-        const base64Url = token.split('.')[1];
-        if (!base64Url) return null;
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-            window.atob(base64).split('').map((c) =>
-                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-            ).join('')
-        );
-        const decoded = JSON.parse(jsonPayload);
-        const armsRole = decoded.role || decoded.claims?.role || 'STAFF';
-        return {
-            userId: decoded.sub || decoded.userId,
-            username: decoded.username,
-            displayName: decoded.displayName || decoded.username,
-            armsRole,
-            role: ARMS_ROLE_MAP[armsRole] || 'Staff',
-            office: decoded.office || 'ACAD',
-            isCrossOffice: !!decoded.isCrossOffice,
-        };
-    } catch (e) {
-        console.warn('[auth] Failed to decode JWT:', e);
+    if (!claims) return null;
+
+    const username = (claims.username || '').toLowerCase();
+    // Validate against the authorized 9 users
+    const matched = PREDEFINED_MOCK_USERS.find(
+        (u) => u.username.toLowerCase() === username || u.id === claims.userId
+    );
+
+    if (!matched) {
+        // Unauthorized or unknown user
         return null;
     }
+
+    const armsRole = matched.armsRole || claims.armsRole || 'STAFF';
+
+    return {
+        userId: matched.id,
+        username: matched.username,
+        displayName: matched.displayName,
+        armsRole: armsRole,
+        role: ARMS_ROLE_MAP[armsRole] || 'Staff',
+        office: matched.office,
+        isCrossOffice: !!matched.isCrossOffice,
+        roleLabel: matched.roleLabel,
+        officeLabel: matched.officeLabel,
+    };
 }
 
-/**
- * @deprecated Use decodeCurrentUser() instead.
- * Kept for backward compatibility with components still referencing this.
- */
 export function getUserRoleFromToken() {
     const user = decodeCurrentUser();
     return user?.role || 'Staff';
 }
 
-/**
- * @deprecated Use decodeCurrentUser() instead.
- */
 export function decodeJwt(token) {
-    if (!token) return null;
-    if (token.startsWith('mock-token-')) {
-        // Reconstruct a slim object so legacy callers get something useful
-        const b64Part = token.slice('mock-token-'.length);
-        try {
-            const json = decodeURIComponent(escape(atob(b64Part)));
-            return JSON.parse(json);
-        } catch {
-            // If it can't be decoded, it might be the OLD format
-            const role = b64Part.toUpperCase();
-            return { role, username: `mock_${role.toLowerCase()}` };
-        }
-    }
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        return null;
-    }
+    return decodeCurrentUser();
 }
 
 export function isAuthenticated() {
-    const token = getToken();
-    return !!token;
+    return !!decodeCurrentUser();
 }
 
-/**
- * Call once on app startup (before the first render). If the URL contains
- * ?token=<jwt>, store it and strip it from the address bar.
- */
 export function initTokenFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
 
     if (token) {
         setToken(token);
-
         params.delete('token');
         const newSearch = params.toString();
         const newUrl =
             window.location.pathname +
             (newSearch ? `?${newSearch}` : '') +
             window.location.hash;
-
         window.history.replaceState({}, '', newUrl);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Authentication Providers (Abstraction Layer)
+// ---------------------------------------------------------------------------
+
+export class TemporaryAuthProvider {
+    /**
+     * Authenticates as one of the 9 predefined pilot users.
+     * ZERO external network calls.
+     */
+    login(usernameOrIdentifier) {
+        const identifier = typeof usernameOrIdentifier === 'string'
+            ? usernameOrIdentifier.trim().toLowerCase()
+            : usernameOrIdentifier?.username?.trim()?.toLowerCase();
+
+        const targetUser = PREDEFINED_MOCK_USERS.find(
+            (u) => u.username.toLowerCase() === identifier || u.id === identifier
+        );
+
+        if (!targetUser) {
+            throw new Error('Access denied: User is not authorized in the 9 pilot accounts list.');
+        }
+
+        const claims = {
+            userId: targetUser.id,
+            username: targetUser.username,
+            displayName: targetUser.displayName,
+            armsRole: targetUser.armsRole,
+            office: targetUser.office,
+            isCrossOffice: targetUser.isCrossOffice,
+            role: ARMS_ROLE_MAP[targetUser.armsRole] || 'Staff',
+        };
+
+        const token = encodeMockToken(claims);
+        setToken(token);
+
+        const defaultPage = ROLE_DEFAULT_PAGE[targetUser.armsRole] || 'dashboard';
+        localStorage.setItem('pss_default_page', defaultPage);
+
+        return {
+            access_token: token,
+            user: {
+                ...claims,
+                roleLabel: targetUser.roleLabel,
+                officeLabel: targetUser.officeLabel,
+            },
+        };
+    }
+
+    logout() {
+        clearToken();
+    }
+
+    getCurrentUser() {
+        return decodeCurrentUser();
+    }
+
+    isAuthenticated() {
+        return !!this.getCurrentUser();
+    }
+}
+
+export class ArmsAuthProvider {
+    /**
+     * Prepared for future deployment of the ARMS Authentication Microservice.
+     */
+    async login(credentials) {
+        throw new Error('ARMS Authentication Microservice is not deployed yet. Using TemporaryAuthProvider.');
+    }
+
+    logout() {
+        clearToken();
+    }
+
+    getCurrentUser() {
+        return decodeCurrentUser();
+    }
+
+    isAuthenticated() {
+        return !!this.getCurrentUser();
+    }
+}
+
+// Active Authentication Provider
+export const authProvider = new TemporaryAuthProvider();

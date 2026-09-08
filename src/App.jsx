@@ -34,20 +34,21 @@ const OFFICE_COLORS = {
 };
 
 function DevBypassScreen() {
-    const { loginWithArms, loginAsMockUser } = useAppStore();
+    const { login } = useAppStore();
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState("");
 
-    const handleLoginAs = async (user) => {
+    const handleLoginAs = (user) => {
+        if (!user) return;
         setAuthLoading(true);
         setAuthError("");
         try {
-            await loginWithArms(user.username);
+            login(user);
         } catch (err) {
-            console.error('[auth] ARMS backend login error:', err);
-            setAuthError(err.message || 'Authentication service unreachable.');
+            console.error('[auth] Temporary authentication error:', err);
+            setAuthError(err.message || 'Access denied.');
             setAuthLoading(false);
         }
     };
