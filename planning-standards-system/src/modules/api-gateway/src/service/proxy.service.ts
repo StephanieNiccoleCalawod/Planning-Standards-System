@@ -16,7 +16,9 @@ export class ProxyService {
      * the raw bytes are byte-identical to the original JSON body.
      */
     async forward(req: Request, res: Response, targetBaseUrl: string): Promise<void> {
-        const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
+        const cloudFallbackUrl = process.env.CLOUD_BACKEND_URL || 'https://icsa-api.onrender.com';
+        const primaryTarget = (targetBaseUrl && targetBaseUrl !== 'undefined') ? targetBaseUrl : cloudFallbackUrl;
+        const targetUrl = `${primaryTarget}${req.originalUrl}`;
 
         const headers: Record<string, string> = {
             'content-type': req.headers['content-type'] as string ?? 'application/json',
@@ -42,10 +44,34 @@ export class ProxyService {
                     url: targetUrl,
                     data: req.body,
                     headers,
-                    responseType: 'arraybuffer', // Story 2 — lets binary report downloads pass through untouched
-                    validateStatus: () => true, // pass through downstream status codes as-is
+                    responseType: 'arraybuffer',
+                    validateStatus: () => true,
                 }),
             );
+
+            // If primary returned 404/502/503 and primary is not cloud fallback, try cloud fallback
+            if ([404, 502, 503].includes(response.status) && primaryTarget !== cloudFallbackUrl) {
+                try {
+                    const fallbackEndpoint = req.originalUrl.replace(/^\/api/, '');
+                    const fallbackResp = await firstValueFrom(
+                        this.http.request({
+                            method: req.method,
+                            url: `${cloudFallbackUrl}${fallbackEndpoint}`,
+                            data: req.body,
+                            headers,
+                            responseType: 'arraybuffer',
+                            validateStatus: () => true,
+                        }),
+                    );
+                    if (fallbackResp.status < 500) {
+                        res.status(fallbackResp.status);
+                        const contentType = fallbackResp.headers['content-type'] as string | undefined;
+                        if (contentType) res.setHeader('content-type', contentType);
+                        res.send(Buffer.from(fallbackResp.data));
+                        return;
+                    }
+                } catch (_) { }
+            }
 
             res.status(response.status);
             const contentType = response.headers['content-type'] as string | undefined;
@@ -54,6 +80,26 @@ export class ProxyService {
             if (contentDisposition) res.setHeader('content-disposition', contentDisposition);
             res.send(Buffer.from(response.data));
         } catch (err) {
+            if (primaryTarget !== cloudFallbackUrl) {
+                try {
+                    const fallbackEndpoint = req.originalUrl.replace(/^\/api/, '');
+                    const fallbackResp = await firstValueFrom(
+                        this.http.request({
+                            method: req.method,
+                            url: `${cloudFallbackUrl}${fallbackEndpoint}`,
+                            data: req.body,
+                            headers,
+                            responseType: 'arraybuffer',
+                            validateStatus: () => true,
+                        }),
+                    );
+                    res.status(fallbackResp.status);
+                    const contentType = fallbackResp.headers['content-type'] as string | undefined;
+                    if (contentType) res.setHeader('content-type', contentType);
+                    res.send(Buffer.from(fallbackResp.data));
+                    return;
+                } catch (_) { }
+            }
             throw new HttpException(
                 'Upstream service unreachable',
                 503,
