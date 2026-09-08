@@ -34,24 +34,22 @@ const OFFICE_COLORS = {
 };
 
 function DevBypassScreen() {
-    const { loginAsMockUser } = useAppStore();
+    const { loginWithArms, loginAsMockUser } = useAppStore();
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [authLoading, setAuthLoading] = useState(false);
+    const [authError, setAuthError] = useState("");
 
-    const handleLoginAs = (user) => {
-        // Store the default landing page based on ARMS role before reloading
-        // Default landing page per role (per Module Access Matrix)
-        const ROLE_DEFAULT_PAGE = {
-            'SUPER_ADMIN': 'dashboard',        // /admin/dashboard — full overview
-            'PLANNING_OFFICER': 'planningHub', // /planning/hub — primary workspace for Planning Officer
-            'SUBSYSTEM_ADMIN': 'dashboard',        // /dashboard — office overview
-            'STAFF': 'serviceCatalogue', // /services — only accessible module
-            'OPCR_EVALUATOR': 'opcrCommitments',  // /campus-opcr — only job is to review
-            'CAMPUS_DIRECTOR': 'dashboard',       // /dashboard — campus-wide overview (AC9)
-        };
-        const defaultPage = ROLE_DEFAULT_PAGE[user.armsRole] || 'dashboard';
-        localStorage.setItem('pss_default_page', defaultPage);
-        loginAsMockUser(user);
+    const handleLoginAs = async (user) => {
+        setAuthLoading(true);
+        setAuthError("");
+        try {
+            await loginWithArms(user.username);
+        } catch (err) {
+            console.error('[auth] ARMS backend login error:', err);
+            setAuthError(err.message || 'Authentication service unreachable.');
+            setAuthLoading(false);
+        }
     };
 
     const groupedOffices = ['ACAD', 'OSAS', 'ADMIN', 'Cross-Office'];

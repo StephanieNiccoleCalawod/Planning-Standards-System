@@ -998,6 +998,37 @@ export const useAppStore = create((set, get) => ({
     },
 
     /**
+     * Authenticate through the ARMS AI microservice backend.
+     * Communicates with backend /auth/login, receives validated JWT/session,
+     * stores token, sets default landing page per role, and reloads.
+     */
+    loginWithArms: async (username, password = '') => {
+        try {
+            const res = await api.login({ username, password });
+            if (res?.access_token) {
+                localStorage.setItem('pss_token', res.access_token);
+                const user = res.user;
+                const ROLE_DEFAULT_PAGE = {
+                    'SUPER_ADMIN': 'dashboard',
+                    'PLANNING_OFFICER': 'planningHub',
+                    'SUBSYSTEM_ADMIN': 'dashboard',
+                    'STAFF': 'serviceCatalogue',
+                    'OPCR_EVALUATOR': 'opcrCommitments',
+                    'CAMPUS_DIRECTOR': 'dashboard',
+                };
+                const defaultPage = ROLE_DEFAULT_PAGE[user.armsRole] || 'dashboard';
+                localStorage.setItem('pss_default_page', defaultPage);
+                window.location.reload();
+                return res;
+            }
+            throw new Error('Invalid authentication response from ARMS microservice.');
+        } catch (err) {
+            console.error('[useAppStore] loginWithArms failed:', err);
+            throw err;
+        }
+    },
+
+    /**
      * Login as one of the predefined mock users (by user object from PREDEFINED_MOCK_USERS).
      * Encodes a base64 token, stores it, and reloads.
      */

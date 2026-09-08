@@ -22,20 +22,18 @@ async function request(url, options = {}) {
       headers,
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && !url.includes('/auth/login')) {
       clearToken();
-      throw new Error('Your session has expired. Please log in again via ARMS.');
-    }
-
-    if (response.status === 503) {
-      throw new Error('Authentication service (ARMS) is unreachable. Please try again later.');
+      throw new Error('Your session has expired. Please log in again.');
     }
 
     if (!response.ok) {
       let errorMsg = `HTTP Error: ${response.status}`;
       try {
         const errBody = await response.json();
-        if (errBody?.message) {
+        if (errBody?.detail) {
+          errorMsg = typeof errBody.detail === 'string' ? errBody.detail : JSON.stringify(errBody.detail);
+        } else if (errBody?.message) {
           errorMsg = Array.isArray(errBody.message)
             ? errBody.message.join(', ')
             : errBody.message;
@@ -56,6 +54,10 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  // Authentication & ARMS Identity
+  login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+  getAuthUsers: () => request('/auth/users'),
+
   // Service Catalogue
   getServices: (params = {}) => {
     const query = new URLSearchParams();
