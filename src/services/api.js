@@ -1,6 +1,7 @@
 import { getToken, clearToken } from './auth';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://icsa-api.onrender.com').replace(/\/$/, '');
+const PRIMARY_API_BASE = (import.meta.env.VITE_API_URL || 'https://icsa-api.onrender.com').replace(/\/$/, '');
+const CLOUD_FALLBACK_BASE = 'https://icsa-api.onrender.com';
 
 async function request(url, options = {}) {
   const token = getToken();
@@ -15,14 +16,53 @@ async function request(url, options = {}) {
 
   const endpoint = url.startsWith('/') ? url : `/${url}`;
 
+  let response;
+  let usedFallback = false;
+
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    response = await fetch(`${PRIMARY_API_BASE}${endpoint}`, {
       cache: 'no-store',
       ...options,
       headers,
     });
 
-    if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/sync') && !url.includes('/hub-summary')) {
+    // If primary returned 404/502/503/504 and primary is different from fallback cloud, try fallback cloud
+    if (!response.ok && [404, 502, 503, 504].includes(response.status) && PRIMARY_API_BASE !== CLOUD_FALLBACK_BASE) {
+      try {
+        const fallbackEndpoint = endpoint.replace(/^\/api/, '');
+        const fallbackResp = await fetch(`${CLOUD_FALLBACK_BASE}${fallbackEndpoint}`, {
+          cache: 'no-store',
+          ...options,
+          headers,
+        });
+        if (fallbackResp.ok) {
+          response = fallbackResp;
+          usedFallback = true;
+        }
+      } catch (_) {
+        // keep original response if fallback network fails
+      }
+    }
+  } catch (netErr) {
+    if (PRIMARY_API_BASE !== CLOUD_FALLBACK_BASE) {
+      try {
+        const fallbackEndpoint = endpoint.replace(/^\/api/, '');
+        response = await fetch(`${CLOUD_FALLBACK_BASE}${fallbackEndpoint}`, {
+          cache: 'no-store',
+          ...options,
+          headers,
+        });
+        usedFallback = true;
+      } catch (_) {
+        throw netErr;
+      }
+    } else {
+      throw netErr;
+    }
+  }
+
+  try {
+    if (response.status === 401 && !url.includes('/auth') && !url.includes('/sync') && !url.includes('/hub-summary') && !url.includes('/planning')) {
       clearToken();
       throw new Error('Your session has expired. Please log in again.');
     }
@@ -48,7 +88,9 @@ async function request(url, options = {}) {
     }
     return null;
   } catch (err) {
-    console.error(`API request to ${url} failed.`, err);
+    if (!options.silent && !url.includes('/sync') && !url.includes('/hub-summary')) {
+      console.error(`API request to ${url} failed.`, err);
+    }
     throw err;
   }
 }
@@ -221,11 +263,11 @@ export const api = {
   getServiceUtilization: () => request('/service-utilization'),
   getSyncVersion: async () => {
     try {
-      const res = await request('/sync/version');
+      const res = await request('/sync/version', { silent: true });
       if (res && res.version !== undefined) return res;
     } catch (_) { }
     try {
-      const hub = await request('/planning/hub-summary');
+      const hub = await request('/planning/hub-summary', { silent: true });
       if (hub) {
         const hash = `${hub.service_modes_count || 0}-${hub.kpis_count || 0}-${hub.holidays_count || 0}-${hub.periods_count || 0}`;
         return { version: hash };
