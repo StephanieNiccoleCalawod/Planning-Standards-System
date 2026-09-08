@@ -913,6 +913,7 @@ export const useAppStore = create((set, get) => ({
     },
 
     checkAndSyncFromCloud: async () => {
+        if (!get().currentUser) return;
         try {
             const syncInfo = await api.getSyncVersion();
             const cloudVersion = syncInfo?.version || 0;

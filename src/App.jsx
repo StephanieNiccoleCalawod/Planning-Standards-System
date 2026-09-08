@@ -644,28 +644,11 @@ export default function App() {
         checkAndSyncFromCloud,
     } = useAppStore();
 
-    // Live Real-Time Multi-Device Cloud Sync (Instant SSE Stream + 1.5s Fallback)
+    // Live Multi-Device Cloud Sync (only when authenticated)
     useEffect(() => {
-        checkAndSyncFromCloud();
+        if (!currentUser) return;
 
-        let eventSource = null;
-        try {
-            const apiBase = (import.meta.env.VITE_API_URL || 'https://icsa-api.onrender.com').replace(/\/$/, '');
-            eventSource = new EventSource(`${apiBase}/sync/stream`);
-            eventSource.onmessage = (event) => {
-                try {
-                    const payload = JSON.parse(event.data);
-                    if (payload && payload.version) {
-                        checkAndSyncFromCloud();
-                    }
-                } catch (_) {
-                    checkAndSyncFromCloud();
-                }
-            };
-            eventSource.onerror = () => {
-                // Silently fallback to interval timer if SSE is interrupted
-            };
-        } catch (_) { }
+        checkAndSyncFromCloud();
 
         const handleFocus = () => checkAndSyncFromCloud();
         const handleVisibility = () => {
@@ -675,15 +658,14 @@ export default function App() {
         window.addEventListener('focus', handleFocus);
         document.addEventListener('visibilitychange', handleVisibility);
 
-        const timer = setInterval(checkAndSyncFromCloud, 1500);
+        const timer = setInterval(checkAndSyncFromCloud, 5000);
 
         return () => {
-            if (eventSource) eventSource.close();
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibility);
             clearInterval(timer);
         };
-    }, [checkAndSyncFromCloud]);
+    }, [currentUser, checkAndSyncFromCloud]);
 
     useEffect(() => {
         const handlePopState = () => {

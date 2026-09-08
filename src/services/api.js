@@ -263,14 +263,9 @@ export const api = {
   getServiceUtilization: () => request('/service-utilization'),
   getSyncVersion: async () => {
     try {
-      const res = await request('/sync/version', { silent: true });
-      if (res && res.version !== undefined) return res;
-    } catch (_) { }
-    try {
-      const hub = await request('/planning/hub-summary', { silent: true });
-      if (hub) {
-        const hash = `${hub.service_modes_count || 0}-${hub.kpis_count || 0}-${hub.holidays_count || 0}-${hub.periods_count || 0}`;
-        return { version: hash };
+      const res = await request('/services?limit=1', { silent: true });
+      if (res && res.total !== undefined) {
+        return { version: res.total };
       }
     } catch (_) { }
     return { version: 0 };
