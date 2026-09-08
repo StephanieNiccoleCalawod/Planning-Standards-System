@@ -22,7 +22,7 @@ async function request(url, options = {}) {
       headers,
     });
 
-    if (response.status === 401 && !url.includes('/auth/login')) {
+    if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/sync') && !url.includes('/hub-summary')) {
       clearToken();
       throw new Error('Your session has expired. Please log in again.');
     }

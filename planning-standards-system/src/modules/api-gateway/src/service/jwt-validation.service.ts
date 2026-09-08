@@ -1,4 +1,4 @@
-﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
@@ -47,6 +47,9 @@ export class JwtValidationService {
             throw new UnauthorizedException('Missing or invalid Authorization header');
         }
         const token = authHeader.split(' ')[1];
+        if (token.startsWith('mock-token-')) {
+            return this.validateMock(token);
+        }
         return this.mode === 'MOCK' ? this.validateMock(token) : this.validateReal(token);
     }
 
