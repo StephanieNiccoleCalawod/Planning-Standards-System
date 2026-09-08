@@ -637,6 +637,7 @@ export default function App() {
     })();
     const [active, setActive] = useState(initialPage);
     const {
+        currentUser,
         sidebarCollapsed,
         sidebarMobileOpen,
         setSidebarMobileOpen,
@@ -646,7 +647,7 @@ export default function App() {
 
     // Live Multi-Device Cloud Sync (only when authenticated)
     useEffect(() => {
-        if (!currentUser) return;
+        if (!isAuthenticated() || !currentUser) return;
 
         checkAndSyncFromCloud();
 
